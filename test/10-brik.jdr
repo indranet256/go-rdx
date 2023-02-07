@@ -1,0 +1,17 @@
+set(A {@Alice-123 "one":1 "two":2})
+brix:open(B brix:new(A))
+test:eq("BRIK creation"
+        3f978afd4592d7306fc8e095db7b5ecb6d34d66880b2535a2c483e358ea4f8b4
+        brix:id(B) 
+        )
+test:eq("BRIK get"
+        A brix:get(B, Alice-123)
+        )
+set(D)
+brix:scan(B) [
+    set(D  D _)
+]
+test:eq("BRIX scan"
+        A
+        D)
+brix:close(B)

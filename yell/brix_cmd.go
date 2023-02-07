@@ -158,7 +158,7 @@ var ErrBrixNameNotFound = errors.New("no such BRIX store")
 
 func CmdBrixClose(ctx *Context, args []byte) (out []byte, err error) {
 	var brix rdx.Brix
-	brix, args, err = brixVar(ctx, args)
+	brix, _, err = brixVar(ctx, args)
 	if err == nil {
 		err = brix.Close()
 	}
@@ -230,27 +230,28 @@ func CmdBrixHas(ctx *Context, args []byte) (out []byte, err error) {
 }
 
 // evaluate for every record in a range
-func CmdBrixScan(ctx *Context, args []byte) (out []byte, err error) {
-	brix := ctx.resolve(args)
-	if brix == nil {
-		return nil, ErrNameNotFound
+func CmdBrixScan(ctx *Context, args []byte, rest *[]byte) (out []byte, err error) {
+	var brix rdx.Brix
+	brix, args, err = brixVar(ctx, args)
+	if err != nil {
+		return
 	}
+	under := rdx.AppendTerm(nil, []byte("_"))
+
+	var lit byte
+	var body []byte
+	lit, _, body, *rest, _ = rdx.ReadTLKV(*rest)
+	if !rdx.IsPLEX(lit) {
+		return nil, ErrBadArguments
+	}
+
 	var it rdx.BrixReader
-	switch brix.(type) {
-	case rdx.Brix:
-		b := brix.(rdx.Brix)
-		it, err = b.Iterator()
-	default:
-		return nil, ErrUnexpectedNameType
+	it, err = brix.Iterator()
+	for err == nil && it.Read() {
+		_ = ctx.set(under, it.Record())
+		out, err = ctx.Evaluate(out, body)
 	}
-	var jdr []byte
-	for it.Read() {
-		if err == nil {
-			jdr, err = rdx.WriteAllJDR(jdr, it.Record(), 0)
-			fmt.Println(string(jdr))
-		}
-		jdr = jdr[:0]
-	}
+
 	return
 }
 

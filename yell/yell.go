@@ -66,7 +66,7 @@ var TopContext = Context{
 				"has": Command(CmdBrixHas),
 				"del": Command(CmdBrixDel),
 
-				"scan": Command(CmdBrixScan),
+				"scan": Control(CmdBrixScan),
 
 				"seek": Command(CmdBrixSeek),
 				"next": Command(CmdBrixNext),
