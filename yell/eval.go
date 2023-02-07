@@ -12,6 +12,7 @@ type Context struct {
 
 type Command func(ctx *Context, args []byte) (out []byte, err error)
 type Control func(ctx *Context, args []byte, rest *[]byte) (out []byte, err error)
+type Call func(ctx *Context, path, args []byte) (out []byte, err error)
 
 var ErrNotACall = errors.New("not a function call")
 var ErrSkip = errors.New("skip an element")
@@ -75,6 +76,8 @@ func (ctx *Context) set(path []byte, v any) (err error) {
 		return ErrOverwriteForbidden
 	case Control:
 		return ErrOverwriteForbidden
+	case Call:
+		return ErrOverwriteForbidden
 	default:
 		if len(path) == 0 {
 			ctx.names[string(val)] = v
@@ -98,13 +101,34 @@ func (ctx *Context) Evaluate1(data, code *[]byte) (err error) {
 	if lit == rdx.Term {
 		a = ctx.resolve(whole)
 	} else if lit == rdx.Tuple && rdx.IsAllTerm(val) {
-		_, _, path, _, _ := rdx.ReadTLKV(whole) // unwrap
-		a = ctx.resolve(path)
+		a = ctx.resolve(val)
 	}
 	if a != nil {
 		switch a.(type) {
 		case []byte:
 			out = append(out, a.([]byte)...)
+		case Call:
+			if len(next) == 0 || rdx.Peek(next) != rdx.Tuple {
+				return ErrBadArguments
+			}
+			var cargs, eargs, path, rargs, res []byte
+			_, _, cargs, next, err = rdx.ReadTLKV(next)
+			if len(cargs) == 0 || (rdx.Peek(cargs) != rdx.Tuple && rdx.Peek(cargs) != rdx.Term) {
+				return ErrBadArguments
+			}
+			_, _, _, rargs, err = rdx.ReadTLKV(cargs)
+			path = cargs[:len(cargs)-len(rargs)]
+			if err == nil {
+				eargs, err = ctx.Evaluate(nil, rargs)
+			}
+			if err != nil {
+				return
+			}
+			res, err = a.(Call)(ctx, path, eargs)
+			if err != nil {
+				return
+			}
+			out = append(out, res...)
 		case Command:
 			if len(next) == 0 || rdx.Peek(next) != rdx.Tuple {
 				return ErrBadArguments

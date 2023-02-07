@@ -80,22 +80,56 @@ func CmdBrixOpen(ctx *Context, args []byte) (out []byte, err error) {
 }
 
 var ErrNameNotFound = errors.New("name not found")
+var ErrBadName = errors.New("bad object name")
+
+func brixVar(ctx *Context, args []byte) (brix rdx.Brix, rest []byte, err error) {
+	it := rdx.NewIter(args)
+	if !it.Read() {
+		err = ErrBadName
+		return
+	}
+	b := ctx.resolve(it.Record())
+	if b == nil {
+		err = ErrNameNotFound
+	} else {
+		switch b.(type) {
+		case rdx.Brix:
+			brix = b.(rdx.Brix)
+			rest = it.Rest()
+		default:
+			err = ErrUnexpectedNameType
+		}
+	}
+	return
+}
+
+func CmdBrixId(ctx *Context, args []byte) (out []byte, err error) {
+	var brix rdx.Brix
+	brix, args, err = brixVar(ctx, args)
+	if err == nil {
+		var hash rdx.Sha256
+		if len(brix) != 0 {
+			hash = brix[len(brix)-1].Hash7574
+		}
+		out = rdx.AppendTerm(out, []byte(hash.String()))
+	}
+	return
+}
 
 // brix:info(var)
 func CmdBrixInfo(ctx *Context, args []byte) (out []byte, err error) {
-	brix := ctx.resolve(args)
-	if brix == nil {
-		return nil, ErrNameNotFound
+	var brix rdx.Brix
+	brix, args, err = brixVar(ctx, args)
+	if err == nil {
+		return
 	}
-	switch brix.(type) {
-	case rdx.Brix:
-		b := brix.(rdx.Brix)
-		for n, b := range b {
-			fmt.Printf("%d. %s (%d bytes, %d pages)\n",
-				n+1, b.Hash7574.String(), b.Header.DataLen, b.Header.IndexLen/32)
-		}
-	default:
-		return nil, ErrUnexpectedNameType
+	for n, b := range brix {
+		fmt.Printf("%d. %s (%d bytes, %d pages)\n",
+			n+1,
+			b.Hash7574.String(),
+			b.Header.DataLen,
+			b.Header.IndexLen/32,
+		)
 	}
 	return
 }
@@ -123,37 +157,29 @@ func CmdBrixFind(ctx *Context, args []byte) (out []byte, err error) {
 var ErrBrixNameNotFound = errors.New("no such BRIX store")
 
 func CmdBrixClose(ctx *Context, args []byte) (out []byte, err error) {
-	brix := ctx.resolve(args)
-	if brix == nil {
-		return nil, ErrBrixNameNotFound
+	var brix rdx.Brix
+	brix, args, err = brixVar(ctx, args)
+	if err == nil {
+		err = brix.Close()
 	}
-	switch brix.(type) {
-	case rdx.Brix:
-		b := brix.(rdx.Brix)
-		err = b.Close()
+	if err == nil {
 		err = ctx.set(args, nil)
-	default:
-		return nil, ErrUnexpectedNameType
 	}
 	return
 }
 
 func CmdBrixGet(ctx *Context, args []byte) (out []byte, err error) {
-	if rdx.Peek(args) != rdx.Term {
-		return nil, ErrBadArguments
-	}
-	var id rdx.ID
-	var hashlet []byte
-	hashlet, _, args, err = rdx.ReadTerm(args)
-	if err != nil {
-		return nil, err
-	}
 	var brix rdx.Brix
-	brix, err = brix.OpenByHashlet(string(hashlet))
+	brix, args, err = brixVar(ctx, args)
 	if err != nil {
 		return
 	}
-	id, _, args, err = rdx.ReadID(args)
+	it := rdx.NewIter(args)
+	if !it.Read() || it.Lit() != rdx.Reference {
+		err = ErrBadArguments
+		return
+	}
+	id := rdx.UnzipID(it.Value())
 	out, err = brix.Get(nil, id)
 	return
 }

@@ -131,23 +131,7 @@ func CmdExit(ctx *Context, args []byte) (out []byte, err error) {
 	return nil, ErrNormalExit
 }
 
-func CmdSet(ctx *Context, args []byte) (out []byte, err error) {
-	if len(args) == 0 || rdx.Peek(args) != rdx.Term {
-		return nil, ErrBadArguments
-	}
-	var name []byte
-	_, _, name, args, err = rdx.ReadRDX(args)
-	namestr := string(name)
-	nameval, ok := ctx.names[namestr]
-	if !ok {
-		ctx.names[namestr] = args
-		return nil, err
-	}
-	switch nameval.(type) {
-	case []byte:
-		ctx.names[namestr] = args
-		return nil, err
-	default:
-		return nil, ErrUnexpectedNameType
-	}
+func CmdSet(ctx *Context, path []byte, args []byte) (out []byte, err error) {
+	err = ctx.set(path, args)
+	return
 }

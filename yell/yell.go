@@ -18,7 +18,7 @@ var TopContext = Context{
 		"eq":        Command(CmdEq),
 		"for":       Control(CmdFor),
 		"echo":      Command(CmdEcho),
-		"set":       Command(CmdSet),
+		"set":       Call(CmdSet),
 		"join":      Command(CmdJoin),
 		"load":      Command(CmdLoad),
 		"eval":      Command(CmdEval),
@@ -51,6 +51,7 @@ var TopContext = Context{
 				"new":   Command(CmdBrixNew),
 				"open":  Command(CmdBrixOpen),
 				"info":  Command(CmdBrixInfo),
+				"id":    Command(CmdBrixId),
 				"find":  Command(CmdBrixFind),
 				"close": Command(CmdBrixClose),
 
