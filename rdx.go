@@ -24,6 +24,8 @@ const (
 const MaxInputs = 64
 const MaxNesting = 255
 
+type RDX []byte
+
 var (
 	ErrBadRDXRecord       = errors.New("bad RDX record format")
 	ErrWrongRDXRecordType = errors.New("wrong RDX record type")
@@ -296,8 +298,28 @@ func CompareType(a *Iter, b *Iter) int {
 	}
 }
 
-func CompareID(a *Iter, b *Iter) int {
-	return a.ID().Compare(b.ID())
+const SeqMask = ^uint64(0x3f)
+
+func CompareRevID(ai *Iter, bi *Iter) int {
+	a := ai.ID()
+	b := bi.ID()
+	a.Seq = a.Seq & SeqMask
+	b.Seq = b.Seq & SeqMask
+	if a.Seq < b.Seq {
+		return Less
+	} else if a.Seq > b.Seq {
+		return Grtr
+	} else if a.Src < b.Src {
+		return Less
+	} else if a.Src > b.Src {
+		return Grtr
+	} else {
+		return Eq
+	}
+}
+
+func CompareID(ai *Iter, bi *Iter) int {
+	return ai.ID().Compare(bi.ID())
 }
 
 func CompareValue(a *Iter, b *Iter) int {

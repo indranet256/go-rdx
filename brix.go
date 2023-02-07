@@ -616,7 +616,7 @@ func (brix Brix) Iterator() (xit BrixReader, err error) {
 			return
 		}
 		xit.heap = append(xit.heap, Iter{data: page, errndx: int8(-n)})
-		xit.heap.LastUp(CompareID)
+		xit.heap.LastUp(CompareRevID)
 	}
 	return
 }
@@ -655,7 +655,7 @@ func (xit *BrixReader) nextPage(empty []Iter) (err error) {
 			}
 			it := Iter{data: page, errndx: -ndx}
 			xit.heap = append(xit.heap, it)
-			xit.heap.LastUp(CompareID)
+			xit.heap.LastUp(CompareRevID)
 		}
 	}
 	return
@@ -671,7 +671,7 @@ func (xit *BrixReader) Read() bool {
 		return false
 	}
 	var err error
-	eqlen := xit.heap.EqUp(CompareID)
+	eqlen := xit.heap.EqUp(CompareRevID)
 	if eqlen == 1 {
 		xit.win = xit.heap[0]
 	} else {
@@ -681,7 +681,7 @@ func (xit *BrixReader) Read() bool {
 		xit.win = Iter{data: xit.data}
 	}
 	if err == nil {
-		err = xit.heap.NextK(eqlen, CompareID) // FIXME signature
+		err = xit.heap.NextK(eqlen, CompareRevID) // FIXME signature
 	}
 	if err == nil && len(xit.heap) != ol {
 		err = xit.nextPage(xit.heap[len(xit.heap):ol])
