@@ -25,6 +25,8 @@ var (
 	ErrBadRDXRecord = errors.New("bad RDX record format")
 	ErrBadUtf8      = errors.New("bad UTF8 codepoint")
 	ErrBadState     = errors.New("bad state")
+	ErrBadOrder     = errors.New("bad RDX order")
+	ErrEoF          = errors.New("end of file")
 )
 
 func IsPLEX(lit byte) bool {
@@ -56,6 +58,14 @@ type Iter struct {
 }
 
 func (i *Iter) Next() (err error) {
+	if len(i.Rest) == 0 {
+		i.Lit = 0
+		i.Id = ID{}
+		i.Value = nil
+		i.Rest = nil
+		i.Last = nil
+		return ErrEoF
+	}
 	rest := i.Rest
 	i.Lit, i.Id, i.Value, i.Rest, err = ReadRDX(rest)
 	i.Last = rest[:len(rest)-len(i.Rest)]
@@ -210,30 +220,104 @@ func CompareLWW(a *Iter, b *Iter) int {
 }
 
 func CompareFloat(a *Iter, b *Iter) int {
-	return Eq
+	af := UnzipFloat64(a.Value)
+	bf := UnzipFloat64(b.Value)
+	if af == bf {
+		return Eq
+	} else if af < bf {
+		return Less
+	} else {
+		return Grtr
+	}
 }
 
 func CompareInteger(a *Iter, b *Iter) int {
-	return Eq
+	af := UnzipInt64(a.Value)
+	bf := UnzipInt64(b.Value)
+	if af == bf {
+		return Eq
+	} else if af < bf {
+		return Less
+	} else {
+		return Grtr
+	}
 }
 
 func CompareReference(a *Iter, b *Iter) int {
-	return Eq
+	aid := UnzipID(a.Value)
+	bid := UnzipID(b.Value)
+	return aid.Compare(bid)
 }
 
 func CompareString(a *Iter, b *Iter) int {
-	return Eq
+	return bytes.Compare(a.Value, b.Value) * 2
 }
 
 func CompareTerm(a *Iter, b *Iter) int {
 	return CompareString(a, b)
 }
 
+func UnwrapTuple(a *Iter) *Iter {
+	b := Iter{Rest: a.Value}
+	b.Next()
+	return &b
+}
+
 func CompareLinear(a *Iter, b *Iter) int {
 	return Eq
 }
 
+func CompareType(a *Iter, b *Iter) int {
+	if a.Lit == b.Lit {
+		return Eq
+	}
+	ap := IsPLEX(a.Lit)
+	bp := IsPLEX(b.Lit)
+	if ap != bp {
+		if ap {
+			return Grtr
+		} else {
+			return Less
+		}
+	}
+	if a.Lit < b.Lit {
+		return Less
+	} else {
+		return Grtr
+	}
+}
+
+func CompareID(a *Iter, b *Iter) int {
+	return a.Id.Compare(b.Id)
+}
+
 func CompareEuler(a *Iter, b *Iter) int {
+	if a.Lit == Tuple {
+		a = UnwrapTuple(a)
+	}
+	if b.Lit == Tuple {
+		b = UnwrapTuple(b)
+	}
+	if a.Lit != b.Lit {
+		return CompareType(a, b)
+	}
+	switch a.Lit {
+	case Float:
+		return CompareFloat(a, b)
+	case Integer:
+	case Reference:
+	case String:
+	case Term:
+	case Tuple:
+		panic("oops")
+	case Linear:
+		return CompareID(a, b)
+	case Euler:
+		return CompareID(a, b)
+	case Multix:
+		return CompareID(a, b)
+	default:
+	}
 	return Eq
 }
 
