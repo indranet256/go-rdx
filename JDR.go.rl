@@ -331,7 +331,7 @@ func JDRlexer (state *JDRstate) (err error) {
     %% write init;
     %% write exec;
 
-    if (p!=len(data) || cs < JDR_first_final) {
+    if (p < len(data) || cs < JDR_first_final) {
         state.text = state.text[p:];
         return errors.New("JDR bad syntax")
     }

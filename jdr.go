@@ -17,6 +17,20 @@ var emptyTuple []byte = []byte{'p', 1, 0}
 
 const inlineTuple = 'p'
 
+const (
+	StyleStampSpace    = 1 << 8
+	StyleStamps        = 1 << 9
+	StyleCommaNL       = 1 << 10
+	StyleTopCommaNL    = 1 << 11
+	StyleIndentTab     = 1 << 12
+	StyleIndentSpace4  = 1 << 13
+	StyleTrailingComma = 1 << 14
+	StyleBracketTuples = 1 << 15
+	StyleSkipComma     = 1 << 16
+)
+
+const StyleCommaSpacers = StyleCommaNL | StyleIndentSpace4 | StyleIndentTab
+
 func JDRonNL(tok []byte, state *JDRstate) error {
 	state.line++
 	return nil
@@ -145,13 +159,17 @@ func JDRonOpenPLEX(tok []byte, state *JDRstate, plex byte) (err error) {
 	return
 }
 
-func JDRonClosePLEX(tok []byte, state *JDRstate, plex byte) (err error) {
-	lit := state.pre
-	if lit != state.stack.Top() {
-		return ErrBadNesting
+func JDRonClosePLEX(tok []byte, state *JDRstate, lit byte) (err error) {
+	if state.stack.Top() == inlineTuple {
+		err = closeInlineTuple(state)
+	} else if state.pre == ',' {
+		err = insertEmptyTuple(state)
 	}
-	if !IsPLEX(lit) {
-		return ErrBadNesting
+	if !IsPLEX(lit) || lit != state.stack.Top() {
+		err = ErrBadNesting
+	}
+	if err != nil {
+		return err
 	}
 	if lit == Euler {
 		// TODO sort
@@ -159,7 +177,8 @@ func JDRonClosePLEX(tok []byte, state *JDRstate, plex byte) (err error) {
 		// TODO sort
 	}
 	state.rdx, err = CloseTLV(state.rdx, lit, &state.stack)
-	return
+	state.pre = lit
+	return err
 }
 
 func JDRonOpenP(tok []byte, state *JDRstate) error {
@@ -220,8 +239,6 @@ func JDRonRoot(tok []byte, state *JDRstate) (err error) {
 	}
 	return
 }
-
-// .. .. .. ..
 
 func appendUnescaped(rdx, jdr []byte) []byte {
 	for len(jdr) > 0 {
@@ -298,15 +315,49 @@ func appendJDRStamp(jdr []byte, id ID) []byte {
 	}
 	jdr = append(jdr, '@')
 	jdr = append(jdr, id.String()...)
-	jdr = append(jdr, ' ')
 	return jdr
+}
+
+func IsTuplePlain(rdx []byte) bool {
+	return false
+}
+
+func appendIndent(jdr []byte, style uint64) []byte {
+	if 0 != (style & StyleIndentTab) {
+		for i := 0; i < int(style&0xff); i++ {
+			jdr = append(jdr, '\t')
+		}
+	} else if 0 != (style & StyleIndentSpace4) {
+		for i := 0; i < int(style&0xff); i++ {
+			jdr = append(jdr, ' ', ' ', ' ', ' ')
+		}
+	}
+	return jdr
+}
+
+func appendJDRList(jdr, rdx []byte, style uint64) (res []byte, err error) {
+	commanl := 0 != (style&StyleCommaNL) || (0 != (style&StyleTopCommaNL) && (style&0xff) == 0)
+	for len(rdx) > 0 && err == nil {
+		jdr, rdx, err = WriteJDR(jdr, rdx, style)
+		if len(rdx) > 0 || 0 != (style&StyleTrailingComma) {
+			jdr = append(jdr, ',')
+			if commanl {
+				jdr = append(jdr, '\n')
+				jdr = appendIndent(jdr, style)
+			}
+		}
+	}
+	if commanl {
+		jdr = append(jdr, '\n')
+	}
+	return jdr, err
 }
 
 func WriteJDR(jdr, rdx []byte, style uint64) (jdr2, rest []byte, err error) {
 	var lit byte
-	var key ID
+	var id ID
 	var val []byte
-	lit, key, val, rest, err = ReadRDX(rdx)
+	lit, id, val, rest, err = ReadRDX(rdx)
 	if err != nil {
 		return
 	}
@@ -314,25 +365,47 @@ func WriteJDR(jdr, rdx []byte, style uint64) (jdr2, rest []byte, err error) {
 	case Float:
 		f := UnzipFloat64(val)
 		jdr = strconv.AppendFloat(jdr, f, 'e', -1, 64)
-		jdr = appendJDRStamp(jdr, key)
+		jdr = appendJDRStamp(jdr, id)
 	case Integer:
 		i := UnzipInt64(val)
 		jdr = strconv.AppendInt(jdr, i, 10)
-		jdr = appendJDRStamp(jdr, key)
+		jdr = appendJDRStamp(jdr, id)
 	case Reference:
-		id := UnzipID(val)
-		jdr = append(jdr, id.String()...)
-		jdr = appendJDRStamp(jdr, key)
+		i := UnzipID(val)
+		jdr = append(jdr, i.String()...)
+		jdr = appendJDRStamp(jdr, id)
 	case String:
 		jdr = append(jdr, '"')
 		jdr = appendEscaped(jdr, val)
 		jdr = append(jdr, '"')
+		jdr = appendJDRStamp(jdr, id)
 	case Term:
 		jdr = append(jdr, val...)
+		jdr = appendJDRStamp(jdr, id)
 	case Tuple:
+		if 0 != (style&StyleBracketTuples) || !IsTuplePlain(val) || !id.IsZero() {
+			jdr = append(jdr, '(')
+			jdr = appendJDRStamp(jdr, id)
+			jdr, err = appendJDRList(jdr, val, style+1)
+			jdr = append(jdr, ')')
+		} else {
+
+		}
 	case Linear:
+		jdr = append(jdr, '[')
+		jdr = appendJDRStamp(jdr, id)
+		jdr, err = appendJDRList(jdr, val, style+1)
+		jdr = append(jdr, ']')
 	case Euler:
+		jdr = append(jdr, '{')
+		jdr = appendJDRStamp(jdr, id)
+		jdr, err = appendJDRList(jdr, val, style+1)
+		jdr = append(jdr, '}')
 	case Multix:
+		jdr = append(jdr, '<')
+		jdr = appendJDRStamp(jdr, id)
+		jdr, err = appendJDRList(jdr, val, style+1)
+		jdr = append(jdr, '>')
 	default:
 	}
 	jdr2 = jdr

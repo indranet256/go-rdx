@@ -12,6 +12,12 @@ func TestReadWriteJDR(t *testing.T) {
 		"12-3",
 		"\"one\\ttwo three\"",
 		"one two three",
+		"()",
+		"(())",
+		"(1)",
+		"(1,2.3e+04,56-78)",
+		"<1@alice-1,2@bob-2>",
+		"{\"one\",\"two\",\"three\"}",
 	}
 	for _, c := range cases {
 		state := JDRstate{jdr: []byte(c)}

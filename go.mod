@@ -1,6 +1,6 @@
 module github.com/gritzko/rdx
 
-go 1.23.3
+go 1.21.12
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
