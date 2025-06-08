@@ -130,6 +130,10 @@ func OpenShortTLV(data []byte, lit byte, stack *Marks) []byte {
 	return data
 }
 
+func upper(lit byte) byte {
+	return lit &^ CaseBit
+}
+
 func CloseTLV(data []byte, lit byte, stack *Marks) (ret []byte, err error) {
 	if len(*stack) == 0 {
 		return nil, ErrBadNesting
@@ -137,7 +141,7 @@ func CloseTLV(data []byte, lit byte, stack *Marks) (ret []byte, err error) {
 	nl := len(*stack) - 1
 	last := (*stack)[nl]
 	*stack = (*stack)[:nl]
-	if last.lit != lit || last.pos+2 > len(data) || data[last.pos]&^CaseBit != lit {
+	if upper(last.lit) != lit || last.pos+2 > len(data) || data[last.pos]&^CaseBit != lit {
 		return nil, ErrBadNesting
 	}
 	fact := len(data) - last.pos

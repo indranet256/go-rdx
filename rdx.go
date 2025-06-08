@@ -19,10 +19,12 @@ const (
 )
 
 const MaxInputs = 64
+const MaxNesting = 255
 
 var (
 	ErrBadRDXRecord = errors.New("bad RDX record format")
 	ErrBadUtf8      = errors.New("bad UTF8 codepoint")
+	ErrBadState     = errors.New("bad state")
 )
 
 func IsPLEX(lit byte) bool {

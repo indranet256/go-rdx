@@ -131,12 +131,28 @@ func JDRonFIRST(tok []byte, state *JDRstate) (err error) {
 
 // . . .
 
-func insertInlineTuple(state *JDRstate) (err error) {
-	// TODO HORROR
-	return nil
+func retrofitRDXTuple(state *JDRstate) (err error) {
+	if state.pre == 0 {
+		state.rdx = OpenShortTLV(state.rdx, Tuple, &state.stack)
+		state.rdx = append(state.rdx, 0) //id
+		err = appendRDXEmptyTuple(state)
+	} else {
+		if len(state.stack) == cap(state.stack) {
+			return ErrBadState
+		}
+		state.stack = state.stack[:len(state.stack)+1]
+		last := &state.stack[len(state.stack)-1]
+		last.lit = 'p'
+		state.rdx = append(state.rdx, 0, 0, 0)
+		copy(state.rdx[last.pos+3:len(state.rdx)], state.rdx[last.pos:len(state.rdx)-3])
+		state.rdx[last.pos] = 'p'
+		state.rdx[last.pos+1] = 0
+		state.rdx[last.pos+2] = 0
+	}
+	return
 }
 
-func insertEmptyTuple(state *JDRstate) (err error) {
+func appendRDXEmptyTuple(state *JDRstate) (err error) {
 	state.rdx = append(state.rdx, emptyTuple...)
 	return nil
 }
@@ -163,7 +179,7 @@ func JDRonClosePLEX(tok []byte, state *JDRstate, lit byte) (err error) {
 	if state.stack.Top() == inlineTuple {
 		err = closeInlineTuple(state)
 	} else if state.pre == ',' {
-		err = insertEmptyTuple(state)
+		err = appendRDXEmptyTuple(state)
 	}
 	if !IsPLEX(lit) || lit != state.stack.Top() {
 		err = ErrBadNesting
@@ -210,15 +226,15 @@ func JDRonComma(tok []byte, state *JDRstate) (err error) {
 		err = closeInlineTuple(state)
 	}
 	if state.pre == 0 || state.pre == ',' {
-		insertEmptyTuple(state)
+		appendRDXEmptyTuple(state)
 	}
 	return
 }
 func JDRonColon(tok []byte, state *JDRstate) (err error) {
 	if state.stack.Top() != inlineTuple {
-		err = insertInlineTuple(state)
+		err = retrofitRDXTuple(state)
 	} else if state.pre == 0 || state.pre == ':' {
-		err = insertEmptyTuple(state)
+		err = appendRDXEmptyTuple(state)
 	}
 	state.pre = ':'
 	return err
@@ -318,8 +334,22 @@ func appendJDRStamp(jdr []byte, id ID) []byte {
 	return jdr
 }
 
-func IsTuplePlain(rdx []byte) bool {
-	return false
+func IsTupleAllFIRST(rdx []byte) bool {
+	var err error
+	l := 0
+	for len(rdx) > 0 && err == nil {
+		var lit byte
+		var val []byte
+		lit, _, val, rdx, err = ReadRDX(rdx)
+		if IsPLEX(lit) && !(lit == Tuple && len(val) == 0) {
+			return false
+		}
+		l++
+	}
+	if l < 2 {
+		return false
+	}
+	return true
 }
 
 func appendIndent(jdr []byte, style uint64) []byte {
@@ -353,6 +383,17 @@ func appendJDRList(jdr, rdx []byte, style uint64) (res []byte, err error) {
 	return jdr, err
 }
 
+func appendInlineTuple(jdr, rdx []byte, style uint64) (res []byte, err error) {
+	res = jdr
+	for len(rdx) > 0 && err == nil {
+		res, rdx, err = WriteJDR(res, rdx, (style|StyleBracketTuples)+1)
+		if len(rdx) > 0 {
+			res = append(res, ':')
+		}
+	}
+	return res, err
+}
+
 func WriteJDR(jdr, rdx []byte, style uint64) (jdr2, rest []byte, err error) {
 	var lit byte
 	var id ID
@@ -383,13 +424,13 @@ func WriteJDR(jdr, rdx []byte, style uint64) (jdr2, rest []byte, err error) {
 		jdr = append(jdr, val...)
 		jdr = appendJDRStamp(jdr, id)
 	case Tuple:
-		if 0 != (style&StyleBracketTuples) || !IsTuplePlain(val) || !id.IsZero() {
+		if 0 != (style&StyleBracketTuples) || !IsTupleAllFIRST(val) || !id.IsZero() {
 			jdr = append(jdr, '(')
 			jdr = appendJDRStamp(jdr, id)
 			jdr, err = appendJDRList(jdr, val, style+1)
 			jdr = append(jdr, ')')
 		} else {
-
+			jdr, err = appendInlineTuple(jdr, val, style)
 		}
 	case Linear:
 		jdr = append(jdr, '[')
@@ -421,4 +462,14 @@ func WriteAllJDR(jdr, rdx []byte, style uint64) (jdr2 []byte, err error) {
 		}
 	}
 	return jdr2, err
+}
+
+func ParseJDR(jdr []byte) (rdx []byte, err error) {
+	state := JDRstate{
+		jdr:   jdr,
+		stack: make(Marks, 0, MaxNesting+1),
+	}
+	err = JDRlexer(&state)
+	rdx = state.rdx
+	return
 }
