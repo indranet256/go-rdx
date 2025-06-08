@@ -74,6 +74,33 @@ func (i *Iter) Next() (err error) {
 
 type Heap []*Iter
 
+func Heapize(rdx [][]byte, z Compare) (heap Heap, err error) {
+	heap = make(Heap, 0, len(rdx))
+	for _, r := range rdx {
+		i := Iter{Rest: r}
+		err = i.Next()
+		if err != nil {
+			break
+		}
+		heap = append(heap, &i)
+		heap.Up(len(heap)-1, z)
+	}
+	return
+}
+
+func Iterize(rdx [][]byte) (heap Heap, err error) {
+	heap = make(Heap, 0, len(rdx))
+	for _, r := range rdx {
+		i := Iter{Rest: r}
+		err = i.Next()
+		if err != nil {
+			break
+		}
+		heap = append(heap, &i)
+	}
+	return
+}
+
 func (ih Heap) Up(a int, z Compare) {
 	for {
 		b := (a - 1) / 2 // parent
@@ -108,65 +135,66 @@ func (ih Heap) Down(i0 int, z Compare) bool {
 
 type Merge func(data []byte, bare Heap) ([]byte, error)
 
-func MergeF(data []byte, bare Heap) ([]byte, error) {
+func MergeF(data []byte, bare [][]byte) ([]byte, error) {
 	var max float64
 	var win []byte
 	for i, b := range bare {
-		n := UnzipFloat64(b.Value)
+		n := UnzipFloat64(b)
 		if i == 0 || n > max {
 			max = n
-			win = b.Value
+			win = b
 		}
 	}
 	data = append(data, win...)
 	return data, nil
 }
 
-func MergeI(data []byte, bare Heap) ([]byte, error) {
+func MergeI(data []byte, bare [][]byte) ([]byte, error) {
 	var max int64
 	var win []byte
 	for i, b := range bare {
-		n := UnzipInt64(b.Value)
+		n := UnzipInt64(b)
 		if i == 0 || n > max {
 			max = n
-			win = b.Value
+			win = b
 		}
 	}
 	data = append(data, win...)
 	return data, nil
 }
 
-func MergeR(data []byte, bare Heap) ([]byte, error) {
+func MergeR(data []byte, bare [][]byte) ([]byte, error) {
 	var max ID
 	var win []byte
 	for i, b := range bare {
-		n := UnzipID(b.Value)
+		n := UnzipID(b)
 		if i == 0 || max.Compare(n) < 0 {
 			max = n
-			win = b.Value
+			win = b
 		}
 	}
 	data = append(data, win...)
 	return data, nil
 }
 
-func MergeS(data []byte, bare Heap) ([]byte, error) {
+func MergeS(data []byte, bare [][]byte) ([]byte, error) {
 	var win []byte
 	for i, b := range bare {
-		if i == 0 || bytes.Compare(win, b.Value) < 0 {
-			win = b.Value
+		if i == 0 || bytes.Compare(win, b) < 0 {
+			win = b
 		}
 	}
 	data = append(data, win...)
 	return data, nil
 }
 
-func MergeT(data []byte, bare Heap) ([]byte, error) {
+func MergeT(data []byte, bare [][]byte) ([]byte, error) {
 	return MergeS(data, bare)
 }
 
-func MergeP(data []byte, its Heap) (ret []byte, err error) {
+func MergeP(data []byte, bare [][]byte) (ret []byte, err error) {
 	ret = data
+	its, err := Iterize(bare)
 	for err == nil && len(its) > 0 {
 		eqs := 1
 		for i := 1; i < len(its); i++ {
@@ -179,7 +207,7 @@ func MergeP(data []byte, its Heap) (ret []byte, err error) {
 				eqs++
 			}
 		}
-		ret, err = MergeX(ret, its[:eqs])
+		ret, err = MergeSame(ret, its[:eqs])
 		for i := 0; i < len(its) && err == nil; i++ {
 			if len(its[i].Rest) == 0 {
 				its[i] = its[len(its)-1]
@@ -193,16 +221,56 @@ func MergeP(data []byte, its Heap) (ret []byte, err error) {
 	return
 }
 
-func MergeL(data []byte, bare Heap) ([]byte, error) {
+func MergeL(data []byte, bare [][]byte) ([]byte, error) {
 	return data, nil
 }
 
-func MergeE(data []byte, bare Heap) ([]byte, error) {
+func MergeE(data []byte, bare [][]byte) ([]byte, error) {
 	return data, nil
 }
 
-func MergeX(data []byte, bare Heap) ([]byte, error) {
+func MergeX(data []byte, bare [][]byte) ([]byte, error) {
 	return data, nil
+}
+
+func MergeSame(data []byte, heap Heap) (ret []byte, err error) {
+	var vals [][]byte
+	stack := make(Marks, 0, 16)
+	lit := heap[0].Lit
+	id := heap[0].Id
+	ret = OpenTLV(data, lit, &stack)
+	key := ZipID(id)
+	ret = append(ret, byte(len(key)))
+	ret = append(ret, key...) // TODO
+	for _, val := range heap {
+		vals = append(vals, val.Value)
+	}
+	switch lit {
+	case Float:
+		ret, err = MergeF(ret, vals)
+	case Integer:
+		ret, err = MergeI(ret, vals)
+	case Reference:
+		ret, err = MergeR(ret, vals)
+	case String:
+		ret, err = MergeS(ret, vals)
+	case Term:
+		ret, err = MergeT(ret, vals)
+	case Tuple:
+		ret, err = MergeP(ret, vals)
+	case Linear:
+		ret, err = MergeL(ret, vals)
+	case Euler:
+		ret, err = MergeE(ret, vals)
+	case Multix:
+		ret, err = MergeX(ret, vals)
+	default:
+		ret, err = nil, ErrBadRDXRecord
+	}
+	if err == nil {
+		ret, err = CloseTLV(ret, lit, &stack)
+	}
+	return
 }
 
 const (
@@ -216,7 +284,11 @@ const (
 type Compare func(a *Iter, b *Iter) int
 
 func CompareLWW(a *Iter, b *Iter) int {
-	return Eq
+	z := CompareID(a, b)
+	if z == Eq {
+		z = CompareValue(a, b)
+	}
+	return z
 }
 
 func CompareFloat(a *Iter, b *Iter) int {
@@ -291,13 +363,7 @@ func CompareID(a *Iter, b *Iter) int {
 	return a.Id.Compare(b.Id)
 }
 
-func CompareEuler(a *Iter, b *Iter) int {
-	if a.Lit == Tuple {
-		a = UnwrapTuple(a)
-	}
-	if b.Lit == Tuple {
-		b = UnwrapTuple(b)
-	}
+func CompareValue(a *Iter, b *Iter) int {
 	if a.Lit != b.Lit {
 		return CompareType(a, b)
 	}
@@ -305,11 +371,15 @@ func CompareEuler(a *Iter, b *Iter) int {
 	case Float:
 		return CompareFloat(a, b)
 	case Integer:
+		return CompareInteger(a, b)
 	case Reference:
+		return CompareReference(a, b)
 	case String:
+		return CompareString(a, b)
 	case Term:
+		return CompareTerm(a, b)
 	case Tuple:
-		panic("oops")
+		return CompareID(a, b)
 	case Linear:
 		return CompareID(a, b)
 	case Euler:
@@ -317,8 +387,18 @@ func CompareEuler(a *Iter, b *Iter) int {
 	case Multix:
 		return CompareID(a, b)
 	default:
+		return Eq
 	}
-	return Eq
+}
+
+func CompareEuler(a *Iter, b *Iter) int {
+	if a.Lit == Tuple {
+		a = UnwrapTuple(a)
+	}
+	if b.Lit == Tuple {
+		b = UnwrapTuple(b)
+	}
+	return CompareValue(a, b)
 }
 
 func CompareMultix(a *Iter, b *Iter) int {
@@ -371,35 +451,5 @@ func merge(data []byte, inputs [][]byte, Z Compare) (res []byte, err error) {
 	for len(heap) > 0 && err == nil {
 		res, heap, err = mergeNext(res, heap, Z)
 	}
-	return
-}
-
-func mergeX(data []byte, heap Heap) (ret []byte, err error) {
-	var vals Heap
-	ret = data
-	// FIXME open
-	switch heap[0].Lit {
-	case Float:
-		ret, err = MergeF(ret, vals)
-	case Integer:
-		ret, err = MergeI(ret, vals)
-	case Reference:
-		ret, err = MergeR(ret, vals)
-	case String:
-		ret, err = MergeS(ret, vals)
-	case Term:
-		ret, err = MergeT(ret, vals)
-	case Tuple:
-		ret, err = MergeP(ret, vals)
-	case Linear:
-		ret, err = MergeL(ret, vals)
-	case Euler:
-		ret, err = MergeE(ret, vals)
-	case Multix:
-		ret, err = MergeX(ret, vals)
-	default:
-		ret, err = nil, ErrBadRDXRecord
-	}
-	// FIXME close
 	return
 }

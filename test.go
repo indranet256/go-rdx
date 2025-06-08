@@ -8,6 +8,7 @@ import (
 type Tester func(rdx []byte) error
 
 func ProcessTestFile(path string, tester Tester) (err error) {
+	// FIXME closing quotes
 	jdr, err := os.ReadFile(path)
 	if err != nil {
 		return err
