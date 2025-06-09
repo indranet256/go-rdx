@@ -331,6 +331,7 @@ func appendJDRStamp(jdr []byte, id ID) []byte {
 	}
 	jdr = append(jdr, '@')
 	jdr = append(jdr, id.String()...)
+	jdr = append(jdr, ' ')
 	return jdr
 }
 

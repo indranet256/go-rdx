@@ -5,6 +5,16 @@ import (
 	"os"
 )
 
+var Reset = "\033[0m"
+var Red = "\033[31m"
+var Green = "\033[32m"
+var Yellow = "\033[33m"
+var Blue = "\033[34m"
+var Magenta = "\033[35m"
+var Cyan = "\033[36m"
+var Gray = "\033[37m"
+var White = "\033[97m"
+
 type Tester func(rdx []byte) error
 
 func ProcessTestFile(path string, tester Tester) (err error) {
@@ -66,7 +76,8 @@ func ProcessTestFile(path string, tester Tester) (err error) {
 		err = tester(c)
 		fmt.Print(legends[n])
 		if err != nil {
-			fmt.Printf("Test case %d fails: %s\n", n, c)
+			pj, _ := WriteAllJDR(nil, c, 0)
+			fmt.Printf(Red+"Test case %d fails: %s\n"+Gray+" %s"+Reset+"\n", n, err.Error(), pj)
 		}
 	}
 

@@ -21,7 +21,8 @@ func testValueOrder(rdx []byte) error {
 		if z > 0 {
 			pj, _, _ := WriteJDR(nil, prev.Last, 0)
 			tj, _, _ := WriteJDR(nil, i.Last, 0)
-			return errors.New(fmt.Sprintf("bad order %d and %d\n%s\n%s", n, n+1, pj, tj))
+			fmt.Printf(Red+"Bad order %d and %d"+Reset+"\n\t%s\n\t%s", n, n+1, pj, tj)
+			return errors.New("bad order")
 		}
 	}
 	return nil
@@ -38,14 +39,15 @@ var Tilde = []byte{'~'}
 
 func mergeTest(correct []byte, inputs [][]byte) (err error) {
 	var merged []byte
-	merged, err = MergeP(nil, inputs)
+	merged, err = Merge(nil, inputs)
 	if err != nil {
 		return err
 	}
 	if !bytes.Equal(correct, merged) {
 		pj, _, _ := WriteJDR(nil, correct, 0)
 		tj, _, _ := WriteJDR(nil, merged, 0)
-		return errors.New(fmt.Sprintf("bad merge\n%s\n%s", pj, tj))
+		fmt.Printf(Red+"Bad merge\n"+Green+"\t%s\n"+Red+"\t%s"+Reset, pj, tj)
+		return errors.New("bad merge")
 	}
 	return nil
 }
@@ -75,6 +77,27 @@ func testMerge(rdx []byte) (err error) {
 
 func TestFirstMerge(t *testing.T) {
 	err := ProcessTestFile("y.FIRST.md", testMerge)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTupleMerge(t *testing.T) {
+	err := ProcessTestFile("y.P.md", testMerge)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEulerMerge(t *testing.T) {
+	err := ProcessTestFile("y.E.md", testMerge)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMultixMerge(t *testing.T) {
+	err := ProcessTestFile("y.X.md", testMerge)
 	if err != nil {
 		t.Fatal(err)
 	}

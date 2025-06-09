@@ -77,6 +77,9 @@ type Heap []*Iter
 func Heapize(rdx [][]byte, z Compare) (heap Heap, err error) {
 	heap = make(Heap, 0, len(rdx))
 	for _, r := range rdx {
+		if len(r) == 0 {
+			continue
+		}
 		i := Iter{Rest: r}
 		err = i.Next()
 		if err != nil {
@@ -91,6 +94,9 @@ func Heapize(rdx [][]byte, z Compare) (heap Heap, err error) {
 func Iterize(rdx [][]byte) (heap Heap, err error) {
 	heap = make(Heap, 0, len(rdx))
 	for _, r := range rdx {
+		if len(r) == 0 {
+			continue
+		}
 		i := Iter{Rest: r}
 		err = i.Next()
 		if err != nil {
@@ -110,6 +116,50 @@ func (ih Heap) Up(a int, z Compare) {
 		ih[b], ih[a] = ih[a], ih[b]
 		a = b
 	}
+}
+
+func (ih Heap) EqUp(z Compare) (eqs int) {
+	if len(ih) < 2 {
+		return len(ih)
+	}
+	q := make([]int, 0, MaxInputs)
+	q = append(q, 1, 2)
+	eqs = 1
+	for len(q) > 0 && q[0] < len(ih) {
+		n := q[0]
+		if Eq == z(ih[0], ih[n]) {
+			j1 := 2*n + 1
+			q = append(q, j1, j1+1)
+			ih[eqs], ih[n] = ih[n], ih[eqs]
+			eqs++
+		}
+		q = q[1:]
+	}
+	return
+}
+
+func (ih Heap) Remove(i int) Heap {
+	l := len(ih) - 1
+	ih[l], ih[i] = ih[i], ih[l]
+	return ih[:l]
+}
+
+func (ih Heap) NextK(k int, z Compare) (nh Heap, err error) {
+	for i := k - 1; i >= 0; i-- {
+		if len(ih[i].Rest) == 0 {
+			ih = ih.Remove(i)
+			if i < len(ih) {
+				ih.Down(i, z)
+			}
+		} else {
+			err = ih[i].Next()
+			if err != nil {
+				break
+			}
+			ih.Down(i, z)
+		}
+	}
+	return ih, err
 }
 
 func (ih Heap) Down(i0 int, z Compare) bool {
@@ -133,9 +183,9 @@ func (ih Heap) Down(i0 int, z Compare) bool {
 	return i > i0
 }
 
-type Merge func(data []byte, bare Heap) ([]byte, error)
+type Merger func(data []byte, bare Heap) ([]byte, error)
 
-func MergeF(data []byte, bare [][]byte) ([]byte, error) {
+func mergeValuesF(data []byte, bare [][]byte) ([]byte, error) {
 	var max float64
 	var win []byte
 	for i, b := range bare {
@@ -149,7 +199,7 @@ func MergeF(data []byte, bare [][]byte) ([]byte, error) {
 	return data, nil
 }
 
-func MergeI(data []byte, bare [][]byte) ([]byte, error) {
+func mergeValuesI(data []byte, bare [][]byte) ([]byte, error) {
 	var max int64
 	var win []byte
 	for i, b := range bare {
@@ -163,7 +213,7 @@ func MergeI(data []byte, bare [][]byte) ([]byte, error) {
 	return data, nil
 }
 
-func MergeR(data []byte, bare [][]byte) ([]byte, error) {
+func mergeValuesR(data []byte, bare [][]byte) ([]byte, error) {
 	var max ID
 	var win []byte
 	for i, b := range bare {
@@ -177,7 +227,7 @@ func MergeR(data []byte, bare [][]byte) ([]byte, error) {
 	return data, nil
 }
 
-func MergeS(data []byte, bare [][]byte) ([]byte, error) {
+func mergeValuesS(data []byte, bare [][]byte) ([]byte, error) {
 	var win []byte
 	for i, b := range bare {
 		if i == 0 || bytes.Compare(win, b) < 0 {
@@ -188,11 +238,15 @@ func MergeS(data []byte, bare [][]byte) ([]byte, error) {
 	return data, nil
 }
 
-func MergeT(data []byte, bare [][]byte) ([]byte, error) {
-	return MergeS(data, bare)
+func mergeValuesT(data []byte, bare [][]byte) ([]byte, error) {
+	return mergeValuesS(data, bare)
 }
 
-func MergeP(data []byte, bare [][]byte) (ret []byte, err error) {
+func Merge(data []byte, bare [][]byte) (ret []byte, err error) {
+	return mergeElementsP(data, bare)
+}
+
+func mergeElementsP(data []byte, bare [][]byte) (ret []byte, err error) {
 	ret = data
 	its, err := Iterize(bare)
 	for err == nil && len(its) > 0 {
@@ -206,8 +260,8 @@ func MergeP(data []byte, bare [][]byte) (ret []byte, err error) {
 				its[i], its[eqs] = its[eqs], its[i]
 				eqs++
 			}
-		}
-		ret, err = MergeSame(ret, its[:eqs])
+		} // TODO 1
+		ret, err = mergeElementsSame(ret, its[:eqs])
 		for i := 0; i < len(its) && err == nil; i++ {
 			if len(its[i].Rest) == 0 {
 				its[i] = its[len(its)-1]
@@ -221,20 +275,20 @@ func MergeP(data []byte, bare [][]byte) (ret []byte, err error) {
 	return
 }
 
-func MergeL(data []byte, bare [][]byte) ([]byte, error) {
+func mergeElementsL(data []byte, bare [][]byte) ([]byte, error) {
 	return data, nil
 }
 
-func MergeE(data []byte, bare [][]byte) ([]byte, error) {
-	return data, nil
+func mergeElementsE(data []byte, bare [][]byte) ([]byte, error) {
+	return heapMerge(data, bare, CompareEuler)
 }
 
-func MergeX(data []byte, bare [][]byte) ([]byte, error) {
-	return data, nil
+func mergeElementsX(data []byte, bare [][]byte) ([]byte, error) {
+	return heapMerge(data, bare, CompareMultix)
 }
 
-func MergeSame(data []byte, heap Heap) (ret []byte, err error) {
-	var vals [][]byte
+func mergeElementsSame(data []byte, heap Heap) (ret []byte, err error) {
+	vals := make([][]byte, 0, MaxInputs)
 	stack := make(Marks, 0, 16)
 	lit := heap[0].Lit
 	id := heap[0].Id
@@ -247,23 +301,23 @@ func MergeSame(data []byte, heap Heap) (ret []byte, err error) {
 	}
 	switch lit {
 	case Float:
-		ret, err = MergeF(ret, vals)
+		ret, err = mergeValuesF(ret, vals)
 	case Integer:
-		ret, err = MergeI(ret, vals)
+		ret, err = mergeValuesI(ret, vals)
 	case Reference:
-		ret, err = MergeR(ret, vals)
+		ret, err = mergeValuesR(ret, vals)
 	case String:
-		ret, err = MergeS(ret, vals)
+		ret, err = mergeValuesS(ret, vals)
 	case Term:
-		ret, err = MergeT(ret, vals)
+		ret, err = mergeValuesT(ret, vals)
 	case Tuple:
-		ret, err = MergeP(ret, vals)
+		ret, err = mergeElementsP(ret, vals)
 	case Linear:
-		ret, err = MergeL(ret, vals)
+		ret, err = mergeElementsL(ret, vals)
 	case Euler:
-		ret, err = MergeE(ret, vals)
+		ret, err = mergeElementsE(ret, vals)
 	case Multix:
-		ret, err = MergeX(ret, vals)
+		ret, err = mergeElementsX(ret, vals)
 	default:
 		ret, err = nil, ErrBadRDXRecord
 	}
@@ -364,6 +418,12 @@ func CompareID(a *Iter, b *Iter) int {
 }
 
 func CompareValue(a *Iter, b *Iter) int {
+	if a.Lit == Tuple {
+		a = UnwrapTuple(a)
+	}
+	if b.Lit == Tuple {
+		b = UnwrapTuple(b)
+	}
 	if a.Lit != b.Lit {
 		return CompareType(a, b)
 	}
@@ -392,64 +452,60 @@ func CompareValue(a *Iter, b *Iter) int {
 }
 
 func CompareEuler(a *Iter, b *Iter) int {
-	if a.Lit == Tuple {
-		a = UnwrapTuple(a)
-	}
-	if b.Lit == Tuple {
-		b = UnwrapTuple(b)
-	}
 	return CompareValue(a, b)
 }
 
 func CompareMultix(a *Iter, b *Iter) int {
+	if a.Id.src < b.Id.src {
+		return Less
+	} else if a.Id.src < b.Id.src {
+		return Grtr
+	}
 	return Eq
 }
 
-func mergeNext(data []byte, heap Heap, Z Compare) ([]byte, Heap, error) {
-	var _ins [MaxInputs][]byte
-	ins := _ins[:]
-	z := Eq
-	var cur *Iter
-
-	for Less < z {
-		if z != Eq {
-			ins = _ins[:]
-		}
-		ins = append(ins, heap[0].Value)
-		cur = heap[0]
-		if len(heap[0].Rest) == 0 {
-			l := len(heap) - 1
-			heap[0], heap[l] = heap[l], heap[0]
-			heap = heap[:l]
-			if len(heap) == 0 {
-				break
-			}
-		}
-		heap[0].Next()
-		heap.Down(0, Z)
-		z = Z(cur, heap[0])
+func heapTopIDs(heap Heap) Heap {
+	if len(heap) == 0 {
+		return heap
 	}
+	eqs := 1
+	for i := 1; i < len(heap); i++ {
+		z := heap[i].Id.Compare(heap[0].Id)
+		if z > Eq || (z == Eq && CompareType(heap[i], heap[0]) > Eq) {
+			heap[0], heap[i] = heap[i], heap[0]
+			eqs = 1
+		} else if z == Eq {
+			heap[eqs], heap[i] = heap[i], heap[eqs]
+			eqs++
+		}
+	}
+	return heap[:eqs]
+}
 
+func heapMergeNext(data []byte, heap Heap, Z Compare) ([]byte, Heap, error) {
 	var err error = nil
-	if len(ins) == 1 {
-		data = append(data, ins[0]...)
+
+	eqlen := heap.EqUp(Z)
+	if eqlen == 1 {
+		data = append(data, heap[0].Last...)
 	} else {
-		data, err = merge(data, ins, Z) // FIXME
+		eqs := heap[:eqlen]
+		tops := heapTopIDs(eqs)
+		data, err = mergeElementsSame(data, tops)
 	}
+	if err == nil {
+		heap, err = heap.NextK(eqlen, Z)
+	}
+
 	return data, heap, err
 }
 
-func merge(data []byte, inputs [][]byte, Z Compare) (res []byte, err error) {
-	heap := make(Heap, 0, len(inputs))
+func heapMerge(data []byte, inputs [][]byte, Z Compare) (res []byte, err error) {
+	var heap Heap
+	heap, err = Heapize(inputs, Z)
 	res = data
-	for _, i := range inputs {
-		it := Iter{Rest: i}
-		it.Next()
-		heap = append(heap, &it)
-		heap.Up(len(heap)-1, Z)
-	}
 	for len(heap) > 0 && err == nil {
-		res, heap, err = mergeNext(res, heap, Z)
+		res, heap, err = heapMergeNext(res, heap, Z)
 	}
 	return
 }
