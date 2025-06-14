@@ -325,13 +325,15 @@ func appendEscaped(jdr, val []byte) []byte {
 	return jdr
 }
 
-func appendJDRStamp(jdr []byte, id ID) []byte {
+func appendJDRStamp(jdr []byte, id ID, lit byte) []byte {
 	if id.IsZero() {
 		return jdr
 	}
 	jdr = append(jdr, '@')
 	jdr = append(jdr, id.String()...)
-	jdr = append(jdr, ' ')
+	if IsPLEX(lit) {
+		jdr = append(jdr, ' ')
+	}
 	return jdr
 }
 
@@ -407,27 +409,27 @@ func WriteJDR(jdr, rdx []byte, style uint64) (jdr2, rest []byte, err error) {
 	case Float:
 		f := UnzipFloat64(val)
 		jdr = strconv.AppendFloat(jdr, f, 'e', -1, 64)
-		jdr = appendJDRStamp(jdr, id)
+		jdr = appendJDRStamp(jdr, id, lit)
 	case Integer:
 		i := UnzipInt64(val)
 		jdr = strconv.AppendInt(jdr, i, 10)
-		jdr = appendJDRStamp(jdr, id)
+		jdr = appendJDRStamp(jdr, id, lit)
 	case Reference:
 		i := UnzipID(val)
 		jdr = append(jdr, i.String()...)
-		jdr = appendJDRStamp(jdr, id)
+		jdr = appendJDRStamp(jdr, id, lit)
 	case String:
 		jdr = append(jdr, '"')
 		jdr = appendEscaped(jdr, val)
 		jdr = append(jdr, '"')
-		jdr = appendJDRStamp(jdr, id)
+		jdr = appendJDRStamp(jdr, id, lit)
 	case Term:
 		jdr = append(jdr, val...)
-		jdr = appendJDRStamp(jdr, id)
+		jdr = appendJDRStamp(jdr, id, lit)
 	case Tuple:
 		if 0 != (style&StyleBracketTuples) || !IsTupleAllFIRST(val) || !id.IsZero() {
 			jdr = append(jdr, '(')
-			jdr = appendJDRStamp(jdr, id)
+			jdr = appendJDRStamp(jdr, id, lit)
 			jdr, err = appendJDRList(jdr, val, style+1)
 			jdr = append(jdr, ')')
 		} else {
@@ -435,20 +437,21 @@ func WriteJDR(jdr, rdx []byte, style uint64) (jdr2, rest []byte, err error) {
 		}
 	case Linear:
 		jdr = append(jdr, '[')
-		jdr = appendJDRStamp(jdr, id)
+		jdr = appendJDRStamp(jdr, id, lit)
 		jdr, err = appendJDRList(jdr, val, style+1)
 		jdr = append(jdr, ']')
 	case Euler:
 		jdr = append(jdr, '{')
-		jdr = appendJDRStamp(jdr, id)
+		jdr = appendJDRStamp(jdr, id, lit)
 		jdr, err = appendJDRList(jdr, val, style+1)
 		jdr = append(jdr, '}')
 	case Multix:
 		jdr = append(jdr, '<')
-		jdr = appendJDRStamp(jdr, id)
+		jdr = appendJDRStamp(jdr, id, lit)
 		jdr, err = appendJDRList(jdr, val, style+1)
 		jdr = append(jdr, '>')
 	default:
+		err = ErrBadRecord
 	}
 	jdr2 = jdr
 	return
