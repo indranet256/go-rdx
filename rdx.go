@@ -113,32 +113,7 @@ func Merge(data []byte, bare [][]byte) (ret []byte, err error) {
 }
 
 func mergeElementsP(data []byte, bare [][]byte) (ret []byte, err error) {
-	ret = data
-	its, err := Iterize(bare)
-	for err == nil && len(its) > 0 {
-		eqs := 1
-		for i := 1; i < len(its); i++ {
-			z := CompareLWW(its[0], its[i])
-			if z < Eq {
-				its[i], its[0] = its[0], its[i]
-				eqs = 1
-			} else if z == Eq {
-				its[i], its[eqs] = its[eqs], its[i]
-				eqs++
-			}
-		} // TODO 1
-		ret, err = mergeElementsSame(ret, its[:eqs])
-		for i := 0; i < len(its) && err == nil; i++ {
-			if len(its[i].Rest) == 0 {
-				its[i] = its[len(its)-1]
-				its = its[:len(its)-1]
-				i--
-			} else {
-				err = its[i].Next()
-			}
-		}
-	}
-	return
+	return HeapMerge(data, bare, CompareTuple)
 }
 
 func mergeElementsL(data []byte, bare [][]byte) ([]byte, error) {
@@ -255,8 +230,26 @@ func UnwrapTuple(a *Iter) *Iter {
 	return &b
 }
 
-func CompareLinear(a *Iter, b *Iter) int {
+func CompareTuple(a *Iter, b *Iter) int {
 	return Eq
+}
+
+func CompareLinear(a *Iter, b *Iter) int {
+	an := a.Id.seq >> 6
+	bn := b.Id.seq >> 6
+	if an == bn {
+		if a.Id.src < b.Id.src {
+			return Less
+		} else if a.Id.src > b.Id.src {
+			return Grtr
+		} else {
+			return Eq
+		}
+	} else if an < bn {
+		return Less
+	} else {
+		return Grtr
+	}
 }
 
 func CompareType(a *Iter, b *Iter) int {
