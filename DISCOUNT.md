@@ -1,19 +1,24 @@
 #   Discontinuity CRDT (DISCONT)
 
 DISCONT is a greatly simplified CRDT algorithm that
-is as simple and resilient as possible and, importantly,
 fits into the constraints of an [LSM][l] merge operator.
 DISCONT replaces CausalTree/RGA for Linear RDX elements.
 
 The DISCONT algorithm is essentially merge sort using the
 order of element IDs. That makes it comparable to Figma's
-[quasi-CRDT][f], at least in terms of simplicity.
+[ersatz-CRDT][f] in terms of simplicity. To make it an actual
+CRDT, DISCONT makes a little twist which is more 
+like a roundhouse kick, see below.
 
 Implementation-wise, DISCONT is a [merge sort][m] using a heap of 
 iterators. The technique is popular in the LSM database world.
 Although, if we would use any other merge sort implementation,
-that will not change much. On top of that, DISCONT makes a 
-little twist which is more like a roundhouse kick, see below.
+that will not change much. 
+When merging versions of the state and patches, DISCONT
+creates an iterator for each input, puts iterators in a heap
+and... iterates like a merge sort should do. Importantly,
+copies of elements get merged. Imagine two versions of an array;
+those would naturally have lots of the same elements.
 
 RDX has 128-bit element [IDs][i] consisting of a 64-bit sequence
 number `seq` and a 64-bit replica id `src`. Those are essentially 
@@ -23,19 +28,18 @@ into 6 bit of "revision" and 64-6=58 bit "locator". The locator
 array thus enabling the *insert* operation. The revision part 
 allows element versioning thus enabling *overwrites* and *deletes*.
 
-When merging versions of the state and patches, DISCONT
-creates an iterator for each input, puts iterators in a heap
-and... iterates like a merge sort should do. Importantly,
-equal elements get merged. Imagine two versions of an array;
-those would naturally have lots of equal elements.
+Here is the Figma algorithm as the [authors][f] put it:
 
-The Figma algorithm implements inserts by labelling the inserted
-elements with numbers ordering between their left and right
-neighbor numbers. Simplistically, `Nnew = (Nleft+Nright)/2`
-In fact, to prevent numbering conflicts, the ratio is randomized.
-Then, by sorting the array in the order of labels and by merging
-equal elements we produce the new merged version of the array.
-58 bits of `seq` is enough to run Figma's algorithm for quite 
+> At a high level, an object’s position in its parent’s array 
+> of children is represented as a fraction between 0 and 1 
+> exclusive. The order of an object’s children is determined 
+> by sorting them by their positions. You can insert an object 
+> between two other objects by setting its position to the 
+> average of the positions of the two other objects.
+
+So, by merge-sorting versions of an array in the order of labels 
+while merging element copies we produce the new version of the array.
+58 bits of `seq` is enough to run the Figma's algorithm for quite 
 a long time before we encounter the situation of `IDleft+1 == IDright`
 that prevents any further inserts at that point. Broadly, if
 `IDright-IDleft < new_elem_count`, we cannot fit the inserted
@@ -47,7 +51,7 @@ DISCONT resolves two key shortcomings of Figma's label-sorting
 approach: 
 
  1. the requirement of ID space being dense (between any two
-    IDs values we can find a new one, `IDleft < IDnew < IDright`)
+    ID values we can find a new one, `IDleft < IDnew < IDright`)
     RDX IDs are integers, hence not dense.
  2. the interleaving anomaly when concurrently inserted spans
     of elements go interleaved because of ID range overlap.
