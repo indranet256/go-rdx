@@ -100,3 +100,33 @@ may find that requirement problematic.
 [l]: https://en.wikipedia.org/wiki/Log-structured_merge-tree
 [m]: https://www.geeksforgeeks.org/dsa/merge-sort/
 [i]: ./id.go
+
+##  Growing and splitting text blocks
+
+In application to collaborative text editing, changes are 
+most often tracked on a per-letter basis. For efficiency, 
+letters with sequential ids get packed into solid blocks.
+In case a new letter has to be inserted in the middle of 
+a block, the block gets split.
+
+Overall, RDX implies word-based change tracking with the
+assumption that sharing less-than-a-word is not worth it.
+Still, both per-letter granularity and the block-splitting 
+technique can be emulated in RDX.
+
+As RDX Linear supports element overwrites, we may overwrite
+a prefix of a word with a longer prefix, till the word is
+complete. That gives the real-time per-letter experience.
+LSM storage compacts overwrites, so this produces no long
+term overhead.
+
+Similarly, we may agree to ship sentence-long blocks and
+split them into words in a deterministic way. That way, if
+two editors split a sentence block concurrently, that
+would produce exactly the same result. While editor appends
+text, we grow a block, on the first insert we split it.
+
+With these techniques, we effectively achieve the same
+effect as CT/RGA sequential-ID blocks, minimizing the
+metadata overhead for solid chunks of text. Whether the
+gain is worth the complexity is a separate question though.
