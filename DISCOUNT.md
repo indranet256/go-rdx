@@ -85,6 +85,10 @@ Overall, we win complexity wise, because CausalTree/RGA requires a
 supplementary data structure and its computational complexity
 is `O(NlogN)`. DISCONT only reads the inputs and its time
 complexity is pure `O(N)`.
+We can also compare DISCONT to Logoot, a true CRDT using
+dense ID space (strings). With more complicated editing histories
+Logoot IDs become longer and longer. DISCONT uses integer IDs,
+which cause much slimmer overheads.
 
 There is an additional expense though. Specifying DISCONT
 patches requires more context than a single attachment point ID.

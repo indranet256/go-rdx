@@ -307,13 +307,13 @@ Otherwise, the merge is done according to the type's rules.
 [c]: https://github.com/drpcorg/chotki
 [d]: https://en.wikipedia.org/wiki/RDX
 [g]: https://protobuf.dev/programming-guides/encoding/
-[j]: ./JDR.md
-[l]: 
+[j]: ./z.md
+[l]: https://martin.kleppmann.com/papers/local-first.pdf
 [n]: ./DISCOUNT.md
 [m]: https://en.wikipedia.org/wiki/Merge_sort
 [p]: https://en.wikipedia.org/wiki/Remote_procedure_call
 [r]: https://www.educative.io/answers/how-are-vector-clocks-used-in-dynamo
-[t]: ../abc/TLV.md
+[t]: https://en.wikipedia.org/wiki/Type%E2%80%93length%E2%80%93value
 [v]: https://en.wikipedia.org/wiki/Version_vector
 [x]: https://en.wikipedia.org/wiki/Causal_consistency
-[z]: ../abc/ZINT.md
+[z]: ./zipint.go
