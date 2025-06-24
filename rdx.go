@@ -236,20 +236,19 @@ func CompareTuple(a *Iter, b *Iter) int {
 }
 
 func CompareLinear(a *Iter, b *Iter) int {
-	an := bits.ReverseBytes64(a.Id.Seq & ^uint64(0xff))
-	bn := bits.ReverseBytes64(b.Id.Seq & ^uint64(0xff))
-	if an == bn {
-		if a.Id.Src < b.Id.Src {
-			return Less
-		} else if a.Id.Src > b.Id.Src {
-			return Grtr
-		} else {
-			return Eq
-		}
-	} else if an < bn {
+	aa := Revert64(a.Id.Seq >> 6)
+	bb := Revert64(b.Id.Seq >> 6)
+	if aa < bb {
 		return Less
-	} else {
+	} else if aa > bb {
 		return Grtr
+	}
+	if a.Id.Src < b.Id.Src {
+		return Less
+	} else if a.Id.Src > b.Id.Src {
+		return Grtr
+	} else {
+		return Eq
 	}
 }
 
@@ -324,15 +323,6 @@ func CompareMultix(a *Iter, b *Iter) int {
 	return Eq
 }
 
-func LowDiffBit(a, b uint64) uint64 {
-	l := ((a ^ b) &^ 0xff)
-	return l & ((l - 1) << 1)
-}
-
-func HiDiffBit(a, b uint64) uint64 {
-	return uint64(1) << (63 - bits.LeadingZeros64(a^b))
-}
-
 func ReadID(rdx []byte) (val, id ID, rest []byte, err error) {
 	var v []byte
 	var lit byte
@@ -346,4 +336,38 @@ func ReadID(rdx []byte) (val, id ID, rest []byte, err error) {
 	}
 	val = UnzipID(v)
 	return
+}
+
+func ReadInteger(rdx []byte) (val int64, id ID, rest []byte, err error) {
+	var v []byte
+	var lit byte
+	lit, id, v, rest, err = ReadRDX(rdx)
+	if err != nil {
+		return
+	}
+	if lit != Integer || len(v) > 8 {
+		err = ErrBadRecord
+		return
+	}
+	val = UnzipInt64(v)
+	return
+}
+
+func TopBit(v uint64) uint64 {
+	l := bits.LeadingZeros64(v)
+	return uint64(1) << (63 - l)
+}
+
+// L-lexicographically in-between values
+func LBetween(a, b uint64) (ret uint64) {
+	aa := Revert64(a >> 6)
+	bb := Revert64(b >> 6)
+	if aa < bb {
+		top := TopBit(bb - aa)
+		ret = aa + (top >> 6)
+	}
+	if ret >= bb || ret == aa {
+		ret = 1
+	}
+	return Revert64(ret) << 6
 }

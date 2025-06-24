@@ -35,6 +35,7 @@ var RDXCommands = rdx.Command{
 
 func main() {
 	concat := strings.Join(os.Args[1:], " ")
+
 	cmds, err := rdx.ParseJDR([]byte(concat))
 	var out []byte
 	if err == nil {

@@ -83,6 +83,20 @@ func (a ID) Compare(b ID) int {
 	}
 }
 
+const Mask60bit = (uint64(1) << 60) - 1
+
+func Revert64(x uint64) (y uint64) {
+	x = x & Mask60bit
+	shift := 60
+	for x != 0 {
+		y = (y << 6) | (x & 63)
+		shift -= 6
+		x >>= 6
+	}
+	y <<= shift
+	return
+}
+
 const RON64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz~"
 
 var RON64REV = []byte{
