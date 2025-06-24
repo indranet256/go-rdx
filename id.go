@@ -1,16 +1,16 @@
 package rdx
 
 type ID struct {
-	src uint64
-	seq uint64
+	Src uint64
+	Seq uint64
 }
 
 func ZipID(id ID) []byte {
-	return ZipUint64Pair(id.seq, id.src)
+	return ZipUint64Pair(id.Seq, id.Src)
 }
 
 func UnzipID(b []byte) (id ID) {
-	id.seq, id.src = UnzipUint64Pair(b)
+	id.Seq, id.Src = UnzipUint64Pair(b)
 	return
 }
 
@@ -42,41 +42,41 @@ func RON64String(u uint64) []byte {
 }
 
 func (id ID) String() []byte {
-	if id.src == 0 {
-		return RON64String(id.seq)
+	if id.Src == 0 {
+		return RON64String(id.Seq)
 	}
 	var _ret [32]byte
 	ret := _ret[:0]
-	ret = append(ret, RON64String(id.src)...)
+	ret = append(ret, RON64String(id.Src)...)
 	ret = append(ret, '-')
-	ret = append(ret, RON64String(id.seq)...)
+	ret = append(ret, RON64String(id.Seq)...)
 	return ret
 }
 
 func (id ID) IsZero() bool {
-	return id.src == 0 && id.seq == 0
+	return id.Src == 0 && id.Seq == 0
 }
 
 func ParseID(txt []byte) (id ID, rest []byte) {
-	id.src, rest = ParseRON64(txt)
+	id.Src, rest = ParseRON64(txt)
 	if len(rest) > 0 && rest[0] == '-' {
 		rest = rest[1:]
-		id.seq, rest = ParseRON64(rest)
+		id.Seq, rest = ParseRON64(rest)
 	} else {
-		id.seq = id.src
-		id.src = 0
+		id.Seq = id.Src
+		id.Src = 0
 	}
 	return
 }
 
 func (a ID) Compare(b ID) int {
-	if a.seq < b.seq {
+	if a.Seq < b.Seq {
 		return -1
-	} else if a.seq > b.seq {
+	} else if a.Seq > b.Seq {
 		return 1
-	} else if a.src < b.src {
+	} else if a.Src < b.Src {
 		return -1
-	} else if a.src > b.src {
+	} else if a.Src > b.Src {
 		return 1
 	} else {
 		return 0

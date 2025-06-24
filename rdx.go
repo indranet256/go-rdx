@@ -3,6 +3,7 @@ package rdx
 import (
 	"bytes"
 	"errors"
+	"math/bits"
 )
 
 const (
@@ -40,12 +41,12 @@ func IsFIRST(lit byte) bool {
 func ReadRDX(data []byte) (lit byte, id ID, value, rest []byte, err error) {
 	var pair []byte
 	lit, pair, value, rest, err = ReadTLKV(data)
-	id.seq, id.src = UnzipUint64Pair(pair)
+	id.Seq, id.Src = UnzipUint64Pair(pair)
 	return
 }
 
 func WriteRDX(data []byte, lit byte, id ID, value []byte) []byte {
-	pair := ZipUint64Pair(id.seq, id.src)
+	pair := ZipUint64Pair(id.Seq, id.Src)
 	return WriteTLKV(data, lit, pair, value)
 }
 
@@ -235,12 +236,12 @@ func CompareTuple(a *Iter, b *Iter) int {
 }
 
 func CompareLinear(a *Iter, b *Iter) int {
-	an := a.Id.seq >> 6
-	bn := b.Id.seq >> 6
+	an := bits.ReverseBytes64(a.Id.Seq & ^uint64(0xff))
+	bn := bits.ReverseBytes64(b.Id.Seq & ^uint64(0xff))
 	if an == bn {
-		if a.Id.src < b.Id.src {
+		if a.Id.Src < b.Id.Src {
 			return Less
-		} else if a.Id.src > b.Id.src {
+		} else if a.Id.Src > b.Id.Src {
 			return Grtr
 		} else {
 			return Eq
@@ -315,10 +316,34 @@ func CompareEuler(a *Iter, b *Iter) int {
 }
 
 func CompareMultix(a *Iter, b *Iter) int {
-	if a.Id.src < b.Id.src {
+	if a.Id.Src < b.Id.Src {
 		return Less
-	} else if a.Id.src < b.Id.src {
+	} else if a.Id.Src < b.Id.Src {
 		return Grtr
 	}
 	return Eq
+}
+
+func LowDiffBit(a, b uint64) uint64 {
+	l := ((a ^ b) &^ 0xff)
+	return l & ((l - 1) << 1)
+}
+
+func HiDiffBit(a, b uint64) uint64 {
+	return uint64(1) << (63 - bits.LeadingZeros64(a^b))
+}
+
+func ReadID(rdx []byte) (val, id ID, rest []byte, err error) {
+	var v []byte
+	var lit byte
+	lit, id, v, rest, err = ReadRDX(rdx)
+	if err != nil {
+		return
+	}
+	if lit != Reference || len(v) > 16 {
+		err = ErrBadRecord
+		return
+	}
+	val = UnzipID(v)
+	return
 }

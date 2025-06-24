@@ -337,6 +337,18 @@ func appendJDRStamp(jdr []byte, id ID, lit byte) []byte {
 	return jdr
 }
 
+func IsAllTerm(rdx []byte) bool {
+	var err error
+	for len(rdx) > 0 && err == nil {
+		var lit byte
+		lit, _, _, rdx, err = ReadRDX(rdx)
+		if lit != Term {
+			return false
+		}
+	}
+	return err == nil
+}
+
 func IsTupleAllFIRST(rdx []byte) bool {
 	var err error
 	l := 0
