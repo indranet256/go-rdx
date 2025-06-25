@@ -118,7 +118,7 @@ func mergeElementsP(data []byte, bare [][]byte) (ret []byte, err error) {
 }
 
 func mergeElementsL(data []byte, bare [][]byte) ([]byte, error) {
-	return data, nil
+	return HeapMerge(data, bare, CompareLinear)
 }
 
 func mergeElementsE(data []byte, bare [][]byte) ([]byte, error) {

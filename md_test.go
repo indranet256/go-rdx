@@ -89,6 +89,13 @@ func TestTupleMerge(t *testing.T) {
 	}
 }
 
+func TestLinearMerge(t *testing.T) {
+	err := ProcessTestFile("y.L.md", testMerge)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestEulerMerge(t *testing.T) {
 	err := ProcessTestFile("y.E.md", testMerge)
 	if err != nil {
