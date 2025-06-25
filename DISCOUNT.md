@@ -11,7 +11,7 @@ CRDT, DISCONT makes a little twist which is more
 like a roundhouse kick, see below.
 
 Implementation-wise, DISCONT is a [merge sort][m] using a heap of 
-iterators. The technique is popular in the LSM database world.
+iterators. The technique is popular in the [LSM database world][c].
 Although, if we would use any other merge sort implementation,
 that will not change much. 
 When merging versions of the state and patches, DISCONT
@@ -104,6 +104,7 @@ may find that requirement problematic.
 [l]: https://en.wikipedia.org/wiki/Log-structured_merge-tree
 [m]: https://www.geeksforgeeks.org/dsa/merge-sort/
 [i]: ./id.go
+[c]: https://github.com/apache/cassandra/blob/trunk/src/java/org/apache/cassandra/utils/MergeIterator.java#L101C8-L101C9
 
 ##  Growing and splitting text blocks
 

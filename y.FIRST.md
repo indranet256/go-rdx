@@ -1,3 +1,16 @@
+`` `
+#   FIRST element merge
+
+FIRST: Float, Integer, Reference, String, Term.
+Merges are last-write-wins, based on:
+
+ 1. ID seq, then
+ 2. ID src, then
+ 3. type, then
+ 4. value (type dependant).
+
+ If 1-4 are equal, elements are identical.
+```
 a,
 a,
 a,
@@ -36,4 +49,6 @@ b,
 ~,
 "C"@c-3,
 
+```
+`` `
 

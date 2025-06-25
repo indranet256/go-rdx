@@ -1,5 +1,6 @@
 `` `
-This file tests tuple merge rules.
+#   RDX tuple merge rules
+
 Tuples are very important in RDX as they are part primitives
 part collections and, essentially, glue everything together.
 
@@ -224,3 +225,5 @@ special meaning, only the outer envelope counts.
 (@3 1 22 33)
     ~
 (@3 1 22 33)
+```
+`` `

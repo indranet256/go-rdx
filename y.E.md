@@ -1,7 +1,8 @@
-```
+`` `
+#   Eulerian containers (sets, maps) merge
+
 The merge rules for an Eulerian set are rather straightforward.
-```
-```
+
 Versions of the same set get merged, element by element.
 ```
 {2:(5 6)},
@@ -142,5 +143,5 @@ Correspondingly, here is undeletion:
 Again, enveloping is only relevant when our data model is not
 a clean JSON-like tree, but we have to include arbitrary objects
 by reference. If you want to keep things simple, use trees.
-```
+`` `
 

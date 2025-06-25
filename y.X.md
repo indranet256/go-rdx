@@ -1,6 +1,8 @@
 `` `
-X collections merge "normally".
-Namely, X elements get sorted by the author, elements by the same author get merged.
+#   Multiplexed collection merge
+
+X collections are counters, version vectors and suchlike.
+X elements get sorted by the author, elements by the same author get merged.
 For two versions of an element, higher revision wins.
 For two variants of an element <same version>, higher value wins.
 Enveloping rules are standard for all PLEX collections <delete/undelete etc>.
