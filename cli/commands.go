@@ -1,9 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gritzko/rdx"
 )
+
+var ErrBadArguments = errors.New("bad arguments")
 
 func CmdHelp(args, pre []byte) (out []byte, err error) {
 	return
@@ -54,5 +57,22 @@ func CmdBrixNew(args, pre []byte) (out []byte, err error) {
 	if err == nil {
 		out = rdx.WriteRDX(nil, rdx.Term, rdx.ID{}, []byte(w.Hash7574.String()))
 	}
+	return
+}
+
+func CmdBrixGet(args, pre []byte) (out []byte, err error) {
+	if rdx.Peek(args) != rdx.Term {
+		return nil, ErrBadArguments
+	}
+	var id rdx.ID
+	var hashlet []byte
+	hashlet, _, args, err = rdx.ReadTerm(args)
+	var brix rdx.BrixReader
+	err = brix.OpenByHashlet(string(hashlet))
+	if err != nil {
+		return
+	}
+	id, _, args, err = rdx.ReadID(args)
+	out, err = brix.Get(nil, id)
 	return
 }

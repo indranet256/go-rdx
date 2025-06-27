@@ -23,11 +23,12 @@ const MaxInputs = 64
 const MaxNesting = 255
 
 var (
-	ErrBadRDXRecord = errors.New("bad RDX record format")
-	ErrBadUtf8      = errors.New("bad UTF8 codepoint")
-	ErrBadState     = errors.New("bad state")
-	ErrBadOrder     = errors.New("bad RDX order")
-	ErrEoF          = errors.New("end of file")
+	ErrBadRDXRecord       = errors.New("bad RDX record format")
+	ErrWrongRDXRecordType = errors.New("wrong RDX record type")
+	ErrBadUtf8            = errors.New("bad UTF8 codepoint")
+	ErrBadState           = errors.New("bad state")
+	ErrBadOrder           = errors.New("bad RDX order")
+	ErrEoF                = errors.New("end of file")
 )
 
 func IsPLEX(lit byte) bool {
@@ -321,6 +322,15 @@ func CompareMultix(a *Iter, b *Iter) int {
 		return Grtr
 	}
 	return Eq
+}
+
+func ReadTerm(rdx []byte) (val []byte, id ID, rest []byte, err error) {
+	var lit byte
+	lit, id, val, rest, err = ReadRDX(rdx)
+	if err == nil && lit != Term {
+		err = ErrWrongRDXRecordType
+	}
+	return
 }
 
 func ReadID(rdx []byte) (val, id ID, rest []byte, err error) {

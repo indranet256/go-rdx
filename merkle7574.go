@@ -7,10 +7,14 @@ import (
 	"errors"
 )
 
-type Sha256 [32]byte
+const Sha256Bytes = 32
+
+type Sha256 [Sha256Bytes]byte
 type Sha256Merkle7574 [64]Sha256
 
 var Sha256Zero = Sha256{}
+
+var ErrBadSha256Hex = errors.New("malformed SHA256 hex")
 
 func (sha *Sha256) Clear() {
 	copy(sha[:], Sha256Zero[:])
@@ -18,6 +22,18 @@ func (sha *Sha256) Clear() {
 
 func (sha Sha256) String() string {
 	return hex.EncodeToString(sha[:])
+}
+
+func ParseSha256(str []byte) (sha Sha256, err error) {
+	if len(str) != Sha256Bytes*2 {
+		err = ErrBadSha256Hex
+		return
+	}
+	_, err = hex.Decode(sha[:], str)
+	if err != nil {
+		err = ErrBadSha256Hex
+	}
+	return
 }
 
 func (sha Sha256) IsEmpty() bool {

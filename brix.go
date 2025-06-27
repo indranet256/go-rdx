@@ -9,6 +9,7 @@ import (
 	"math/bits"
 	"os"
 	"sort"
+	"strings"
 )
 
 var ErrBadFile = errors.New("not a valid BrixReader file")
@@ -34,13 +35,13 @@ type IndexEntry struct {
 	Bloom uint64
 }
 
-func (ie IndexEntry) MayHaveID(id ID) bool {
+func (ie *IndexEntry) MayHaveID(id ID) bool {
 	bloom := ie.Bloom
 	bit := uint64(1) << (id.Xor() & 63)
 	return 0 != (bit & bloom)
 }
 
-func (ie IndexEntry) AppendBinary(to []byte) ([]byte, error) {
+func (ie *IndexEntry) AppendBinary(to []byte) ([]byte, error) {
 	to = binary.LittleEndian.AppendUint64(to, ie.From.Seq)
 	to = binary.LittleEndian.AppendUint64(to, ie.From.Src)
 	to = binary.LittleEndian.AppendUint64(to, ie.pos)
@@ -48,11 +49,11 @@ func (ie IndexEntry) AppendBinary(to []byte) ([]byte, error) {
 	return to, nil
 }
 
-func (ie IndexEntry) MarshalBinary() (into []byte, err error) {
+func (ie *IndexEntry) MarshalBinary() (into []byte, err error) {
 	return ie.AppendBinary(nil)
 }
 
-func (ie IndexEntry) UnmarshalBinary(from []byte) error {
+func (ie *IndexEntry) UnmarshalBinary(from []byte) error {
 	if len(from) < BrixIndexEntryLen {
 		return ErrBadRecord
 	}
@@ -96,11 +97,11 @@ func (hdr BrixHeader) AppendBinary(to []byte) ([]byte, error) {
 	return to, nil
 }
 
-func (hdr BrixHeader) MarshalBinary() (into []byte, err error) {
+func (hdr *BrixHeader) MarshalBinary() (into []byte, err error) {
 	return hdr.AppendBinary(nil)
 }
 
-func (hdr BrixHeader) UnmarshalBinary(from []byte) error {
+func (hdr *BrixHeader) UnmarshalBinary(from []byte) error {
 	if len(from) < BrixHeaderLen {
 		return ErrBadHeader
 	}
@@ -158,9 +159,22 @@ func (brix *BrixReader) Open(reader ReaderAt) (err error) {
 	if err != nil {
 		return
 	}
+	brix.Pad = make([]byte, 0, BrixPageLen)
 
+	if brix.Header.MetaLen > 0 {
+		err = brix.loadHashes()
+	}
+	if err == nil {
+		err = brix.loadIndex()
+	}
+	return
+}
+
+func (brix *BrixReader) loadHashes() (err error) {
 	meta := make([]byte, brix.Header.MetaLen)
-	n, err = reader.ReadAt(meta, 8*4)
+	brix.Hashes = make([]Sha256, 0, brix.Header.MetaLen/Sha256Bytes)
+	n := 0
+	n, err = brix.Reader.ReadAt(meta, BrixHeaderLen)
 	if err != nil {
 		return err
 	}
@@ -170,9 +184,29 @@ func (brix *BrixReader) Open(reader ReaderAt) (err error) {
 	for m := meta[:]; len(m) > 0; m = m[32:] { // TODO better
 		brix.Hashes = append(brix.Hashes, Sha256(m[:32]))
 	}
-	// TODO Index
+	return
+}
 
-	return nil
+func (brix *BrixReader) loadIndex() (err error) {
+	off := int64(BrixHeaderLen + brix.Header.MetaLen + brix.Header.DataLen)
+	todo := brix.Header.IndexLen
+	brix.Index = make([]IndexEntry, 0, brix.Header.IndexLen/BrixIndexEntryLen)
+	for todo > 0 {
+		var e [BrixIndexEntryLen]byte
+		_, err = brix.Reader.ReadAt(e[:], off)
+		if err != nil {
+			break
+		}
+		off += BrixIndexEntryLen
+		todo -= BrixIndexEntryLen
+		var entry IndexEntry
+		err = entry.UnmarshalBinary(e[:])
+		if err != nil {
+			break
+		}
+		brix.Index = append(brix.Index, entry)
+	}
+	return
 }
 
 func (brix *BrixReader) OpenByPath(path string) error {
@@ -193,6 +227,27 @@ func (brix *BrixReader) OpenByHash(hash Sha256) error {
 	return brix.OpenByPath(string(name))
 }
 
+func (brix *BrixReader) OpenByHashlet(hashlet string) (err error) {
+	var list []os.DirEntry
+	list, err = os.ReadDir(".")
+	var nm string
+	for _, l := range list {
+		if l.IsDir() {
+			continue
+		}
+		nm = l.Name()
+		if !strings.HasSuffix(nm, BrixFileExt) || len(nm) != Sha256Bytes*2+len(BrixFileExt) {
+			continue
+		}
+		if strings.HasPrefix(nm, hashlet) {
+			var hash Sha256
+			hash, err = ParseSha256([]byte(nm)[:Sha256Bytes*2])
+			return brix.OpenByHash(hash)
+		}
+	}
+	return os.ErrNotExist
+}
+
 func (brix *BrixReader) Hash() Sha256 {
 	// todo full rescan
 	return Sha256{}
@@ -210,18 +265,23 @@ func (brix *BrixReader) ReadPage(id ID) (page []byte, err error) {
 	if i+1 < len(brix.Index) {
 		till = brix.Index[i+1].Position()
 	}
-	n, e := brix.Reader.ReadAt(brix.Pad[:till-from], int64(from))
+	start := BrixHeaderLen + brix.Header.MetaLen
+	pad := make([]byte, till-from)
+	_, e := brix.Reader.ReadAt(pad, int64(start+from))
 	if e != nil {
 		return nil, e
 	}
-	zipped := brix.Pad[:n]
+	brix.Pad = brix.Pad[:0]
 	switch brix.Index[i].Compression() {
 	case CompressNot:
-		return zipped, nil
+		brix.Pad = append(brix.Pad, pad...)
+		return brix.Pad, nil
 	case CompressLZ4:
 		l := 0
-		l, err = lz4.UncompressBlock(zipped, brix.Pad[n:])
-		return brix.Pad[n : n+l], err // l is 0 on error
+		brix.Pad = brix.Pad[:cap(brix.Pad)]
+		l, err = lz4.UncompressBlock(pad, brix.Pad)
+		brix.Pad = brix.Pad[0:l]
+		return brix.Pad, err // l is 0 on error
 	default:
 		return nil, ErrorBlockNotSupported
 	}
@@ -262,7 +322,11 @@ func (brix *BrixReader) Get(pad []byte, id ID) (rec []byte, err error) {
 		}
 	}
 	if err == nil {
-		rec, err = Merge(pad, inputs)
+		if len(inputs) == 1 {
+			rec = inputs[0]
+		} else {
+			rec, err = Merge(pad, inputs)
+		}
 	}
 	return
 }
@@ -291,14 +355,14 @@ func (brix *BrixWriter) OpenMerge(inputs []Sha256) (err error) {
 	return
 }
 
-const PageLen = 1 << 12
+const BrixPageLen = 1 << 12
 
 func (brix *BrixWriter) flushBlock() (err error) {
 	idx := &brix.Index[len(brix.Index)-1]
 	var factlen int
 	switch brix.Compress {
 	case CompressLZ4:
-		var ZPad = make([]byte, PageLen)
+		var ZPad = make([]byte, BrixPageLen)
 		factlen, err = lz4.CompressBlock(brix.Block, ZPad, nil)
 		if err != nil {
 			return
@@ -337,7 +401,7 @@ func (brix *BrixWriter) WriteAll(rec []byte) (n int, err error) {
 }
 
 func (brix *BrixWriter) Write(rec []byte) (n int, err error) {
-	if len(brix.Block)+len(rec) > PageLen {
+	if len(brix.Block)+len(rec) > BrixPageLen {
 		err = brix.flushBlock()
 		if err != nil {
 			return
