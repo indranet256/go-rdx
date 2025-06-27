@@ -42,7 +42,9 @@ func IsFIRST(lit byte) bool {
 func ReadRDX(data []byte) (lit byte, id ID, value, rest []byte, err error) {
 	var pair []byte
 	lit, pair, value, rest, err = ReadTLKV(data)
-	id.Seq, id.Src = UnzipUint64Pair(pair)
+	if err == nil {
+		id.Seq, id.Src = UnzipUint64Pair(pair)
+	}
 	return
 }
 

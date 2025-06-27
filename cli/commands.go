@@ -34,22 +34,17 @@ func CmdLinearID(args, pre []byte) (out []byte, err error) {
 }
 
 func CmdBrixNew(args, pre []byte) (out []byte, err error) {
-	w := rdx.BrixWriter{
-		//Compress: rdx.CompressLZ4
-	}
-	err = w.Open()
-	prev := rdx.ID{}
+	w := rdx.Brix{}
+	err = w.Create([]rdx.Sha256{})
 	if len(args) == 0 {
 		args = pre
 	}
-	for len(args) > 0 && err == nil {
-		_, id, _, rest, _ := rdx.ReadRDX(args)
-		if prev.Compare(id) != rdx.Less {
-			return nil, rdx.ErrBadOrder
-		}
-		_, err = w.Write(args[:len(args)-len(rest)])
-		args = rest
+	_, err = w.WriteAll(args)
+	if err != nil {
+		_ = w.Unlink()
+		return
 	}
+	err = w.Seal()
 	if err != nil {
 		return
 	}
@@ -67,7 +62,7 @@ func CmdBrixGet(args, pre []byte) (out []byte, err error) {
 	var id rdx.ID
 	var hashlet []byte
 	hashlet, _, args, err = rdx.ReadTerm(args)
-	var brix rdx.BrixReader
+	var brix rdx.Brix
 	err = brix.OpenByHashlet(string(hashlet))
 	if err != nil {
 		return
