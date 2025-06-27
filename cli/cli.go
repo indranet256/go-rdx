@@ -17,15 +17,37 @@ var RDXCommands = rdx.Command{
 			nil,
 		},
 		rdx.Command{
-			"Linear",
+			"RDX",
 			nil,
-			"RDX Linear actions",
-			[]string{"l", "L"},
+			"RDX related commands",
+			[]string{"rdx", "x"},
 			[]rdx.Command{
-				rdx.Command{"ID",
-					CmdLinearID,
-					"l:id:A1ice-fr0m:B0b-ti11:32  calculate L IDs for an insertion",
-					[]string{"id"},
+				rdx.Command{
+					"Linear",
+					nil,
+					"RDX Linear actions",
+					[]string{"l", "L"},
+					[]rdx.Command{
+						rdx.Command{"ID",
+							CmdLinearID,
+							"l:id:A1ice-fr0m:B0b-ti11:32  calculate L IDs for an insertion",
+							[]string{"id"},
+							nil,
+						},
+					},
+				},
+			},
+		},
+		rdx.Command{
+			"BRIX",
+			nil,
+			"BRIX store actions",
+			[]string{"brix"},
+			[]rdx.Command{
+				rdx.Command{"New",
+					CmdBrixNew,
+					"brix:new:{@bob-123 Name:\"Robert A. Moore\"}  make a BRIX file for the objects listed",
+					[]string{"n", "new"},
 					nil,
 				},
 			},
@@ -46,6 +68,6 @@ func main() {
 		os.Exit(-1)
 	}
 	jdr, err := rdx.WriteAllJDR(nil, out, 0)
-	fmt.Print(string(jdr))
+	fmt.Println(string(jdr))
 	return
 }

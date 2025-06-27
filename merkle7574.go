@@ -2,37 +2,37 @@ package rdx
 
 import (
 	"bytes"
-	"crypto"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 )
 
-type SHA256 [32]byte
-type Sha256Merkle7574 []SHA256
+type Sha256 [32]byte
+type Sha256Merkle7574 [64]Sha256
 
-var Sha256Zero = SHA256{}
+var Sha256Zero = Sha256{}
 
-func (sha *SHA256) Clear() {
+func (sha *Sha256) Clear() {
 	copy(sha[:], Sha256Zero[:])
 }
 
-func (sha SHA256) String() string {
+func (sha Sha256) String() string {
 	return hex.EncodeToString(sha[:])
 }
 
-func (sha SHA256) IsEmpty() bool {
+func (sha Sha256) IsEmpty() bool {
 	return bytes.Equal(sha[:], Sha256Zero[:])
 }
 
-func SHA256Of(data []byte) (ret SHA256) {
-	hash := crypto.SHA256.New()
+func Sha256Of(data []byte) (ret Sha256) {
+	hash := sha256.New()
 	hash.Write(data[:])
 	hash.Sum(ret[:0])
 	return
 }
 
-func (sha SHA256) Merkle2(b SHA256) (sum SHA256) {
-	hash := crypto.SHA256.New()
+func (sha Sha256) Merkle2(b Sha256) (sum Sha256) {
+	hash := sha256.New()
 	hash.Write(sha[:])
 	hash.Write(b[:])
 	hash.Sum(sum[:0])
@@ -41,7 +41,7 @@ func (sha SHA256) Merkle2(b SHA256) (sum SHA256) {
 
 var ErrOutOfRange = errors.New("out of hash tree range")
 
-func (line Sha256Merkle7574) Append(next SHA256) error {
+func (line *Sha256Merkle7574) Append(next Sha256) error {
 	p := next
 	i := 0
 	for ; !line[i].IsEmpty() && i < len(line); i++ {
@@ -55,8 +55,8 @@ func (line Sha256Merkle7574) Append(next SHA256) error {
 	return nil
 }
 
-func (line Sha256Merkle7574) Sum() (sum SHA256) {
-	hash := crypto.SHA256.New()
+func (line *Sha256Merkle7574) Sum() (sum Sha256) {
+	hash := sha256.New()
 	for i := 0; i < len(line); i++ {
 		hash.Write(line[i][:])
 	}

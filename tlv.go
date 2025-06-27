@@ -8,6 +8,7 @@ import (
 var (
 	ErrIncomplete = errors.New("incomplete data")
 	ErrBadRecord  = errors.New("bad TLV record format")
+	ErrBadHeader  = errors.New("bad BRIX file header")
 	ErrBadNesting = errors.New("bad TLV nesting")
 )
 
@@ -80,6 +81,9 @@ func WriteTLV(data []byte, lit byte, value []byte) []byte {
 
 func WriteTLKV(data []byte, lit byte, key, value []byte) []byte {
 	ret := data
+	if len(key) > 0xff { // todo
+		key = key[:0xff]
+	}
 	l := len(key) + len(value) + 1
 	if l > 0xff {
 		ret = append(ret, lit)

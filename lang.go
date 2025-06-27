@@ -28,10 +28,12 @@ func ReadCommand(rdx []byte) (cmd, args, rest []byte, err error) {
 	if err != nil {
 		return
 	}
-	orig = rdx
-	lit, _, args, rest, err = ReadRDX(rdx)
-	if IsFIRST(lit) {
-		args = orig[:len(orig)-len(rest)]
+	var val []byte
+	lit, _, val, rest, err = ReadRDX(rdx)
+	if lit == Tuple {
+		args = val
+	} else {
+		args = rdx
 	}
 	return
 }

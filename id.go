@@ -1,9 +1,14 @@
 package rdx
 
+import "math"
+
 type ID struct {
 	Src uint64
 	Seq uint64
 }
+
+var ZeroID = ID{}
+var MaxID = ID{math.MaxUint64, math.MaxUint64}
 
 func ZipID(id ID) []byte {
 	return ZipUint64Pair(id.Seq, id.Src)
@@ -71,16 +76,25 @@ func ParseID(txt []byte) (id ID, rest []byte) {
 
 func (a ID) Compare(b ID) int {
 	if a.Seq < b.Seq {
-		return -1
+		return Less
 	} else if a.Seq > b.Seq {
-		return 1
+		return Grtr
 	} else if a.Src < b.Src {
-		return -1
+		return Less
 	} else if a.Src > b.Src {
-		return 1
+		return Grtr
 	} else {
-		return 0
+		return Eq
 	}
+}
+
+func (a ID) Xor() uint64 {
+	x := a.Src ^ a.Seq
+	x ^= x >> 32
+	x ^= x >> 16
+	x ^= x >> 8
+	x ^= x >> 4
+	return x
 }
 
 const Mask60bit = (uint64(1) << 60) - 1

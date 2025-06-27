@@ -29,3 +29,30 @@ func CmdLinearID(args, pre []byte) (out []byte, err error) {
 	}
 	return
 }
+
+func CmdBrixNew(args, pre []byte) (out []byte, err error) {
+	w := rdx.BrixWriter{
+		//Compress: rdx.CompressLZ4
+	}
+	err = w.Open()
+	prev := rdx.ID{}
+	if len(args) == 0 {
+		args = pre
+	}
+	for len(args) > 0 && err == nil {
+		_, id, _, rest, _ := rdx.ReadRDX(args)
+		if prev.Compare(id) != rdx.Less {
+			return nil, rdx.ErrBadOrder
+		}
+		_, err = w.Write(args[:len(args)-len(rest)])
+		args = rest
+	}
+	if err != nil {
+		return
+	}
+	err = w.Close()
+	if err == nil {
+		out = rdx.WriteRDX(nil, rdx.Term, rdx.ID{}, []byte(w.Hash7574.String()))
+	}
+	return
+}
