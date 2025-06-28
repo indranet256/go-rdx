@@ -3,6 +3,7 @@ package rdx
 import "errors"
 
 var ErrBadCommand = errors.New("bad command syntax")
+var ErrUnknownCommand = errors.New("unknown command")
 
 type CmdFunc func(args, pre []byte) (out []byte, err error)
 
@@ -82,7 +83,7 @@ func ExecuteCommand(cmd, args, pre []byte, root *Command) (out []byte, err error
 	default:
 	}
 	if cc == nil {
-		err = ErrBadCommand
+		err = ErrUnknownCommand
 	} else if cc.Func != nil {
 		out, err = cc.Func(args, pre)
 	} else {

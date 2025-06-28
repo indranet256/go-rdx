@@ -178,6 +178,10 @@ func (brix *Brix) Open(reader ReaderAt) (err error) {
 	if err == nil {
 		err = brix.loadIndex()
 	}
+	if len(brix.Meta) > 0 && err == nil {
+		brix.Base = &Brix{}
+		err = brix.Base.OpenByHash(brix.Meta[0])
+	}
 	return
 }
 
@@ -220,13 +224,12 @@ func (brix *Brix) loadIndex() (err error) {
 	return
 }
 
-func (brix *Brix) OpenByPath(path string) error {
-	file, err := os.Open(path)
-	if err != nil {
-		return err
-	} else {
-		return brix.Open(file)
+func (brix *Brix) OpenByPath(path string) (err error) {
+	brix.File, err = os.Open(path)
+	if err == nil {
+		err = brix.Open(brix.File)
 	}
+	return
 }
 
 const BrixFileExt = ".brix"
@@ -235,10 +238,11 @@ func (brix *Brix) OpenByHash(hash Sha256) error {
 	name := make([]byte, 0, 32+16)
 	name = append(name, hash.String()...)
 	name = append(name, BrixFileExt...)
+	brix.Hash7574 = hash
 	return brix.OpenByPath(string(name))
 }
 
-func (brix *Brix) OpenByHashlet(hashlet string) (err error) {
+func FindByHashlet(hashlet string) (sha Sha256, err error) {
 	var list []os.DirEntry
 	list, err = os.ReadDir(".")
 	var nm string
@@ -251,12 +255,22 @@ func (brix *Brix) OpenByHashlet(hashlet string) (err error) {
 			continue
 		}
 		if strings.HasPrefix(nm, hashlet) {
-			var hash Sha256
-			hash, err = ParseSha256([]byte(nm)[:Sha256Bytes*2])
-			return brix.OpenByHash(hash)
+			sha, err = ParseSha256([]byte(nm)[:Sha256Bytes*2])
+			return
 		}
 	}
-	return os.ErrNotExist
+	err = os.ErrNotExist
+	return
+
+}
+
+func (brix *Brix) OpenByHashlet(hashlet string) (err error) {
+	var sha Sha256
+	sha, err = FindByHashlet(hashlet)
+	if err == nil {
+		err = brix.OpenByHash(sha)
+	}
+	return
 }
 
 func (brix *Brix) findPage(id ID) int {
@@ -352,7 +366,7 @@ func (brix *Brix) Get(pad []byte, id ID) (rec []byte, err error) {
 	var inputs = make([][]byte, 0, 64)
 	for c := brix; c != nil && err == nil; c = c.Base {
 		var in []byte
-		in, e := brix.ReadRecord(id)
+		in, e := c.ReadRecord(id)
 		if e == ErrRecordNotFound {
 			continue
 		} else if e == nil {
@@ -390,10 +404,8 @@ func (brix *Brix) Create(meta []Sha256) (err error) {
 	brix.Reader = brix.File
 	brix.Meta = append(brix.Meta, meta...)
 	brix.Index = append(brix.Index, IndexEntry{})
-	hdr := BrixHeader{
-		MetaLen: uint64(len(meta) * Sha256Bytes),
-	}
-	h, _ := hdr.MarshalBinary()
+	brix.Header.MetaLen = uint64(len(meta) * Sha256Bytes)
+	h, _ := brix.Header.MarshalBinary()
 	_, err = brix.File.Write(h)
 	for i := 0; i < len(meta) && err == nil; i++ {
 		_, err = brix.File.Write(meta[i][:])
@@ -486,7 +498,7 @@ func (brix *Brix) Write(rec []byte) (n int, err error) {
 }
 
 func (brix *Brix) IsWritable() bool {
-	return brix.At.PageNo == -1
+	return brix.File != nil && brix.At.PageNo == -1
 }
 
 func (brix *Brix) Seal() (err error) {
@@ -527,9 +539,11 @@ func (brix *Brix) Seal() (err error) {
 		return
 	}
 	err = brix.File.Close()
-	brix.File, err = os.OpenFile(newpath, os.O_RDONLY, 0)
-	brix.Reader = brix.File
-	brix.At = &BrixIterator{}
+	brix.File = nil
+
+	if err == nil {
+		err = brix.OpenByHash(brix.Hash7574)
+	}
 
 	return
 }
