@@ -60,7 +60,7 @@ func testMerge(rdx []byte) (err error) {
 		if err != nil {
 			break
 		}
-		if i.Lit == Term && bytes.Equal(i.Value, Tilde) {
+		if i.Lit() == Term && bytes.Equal(i.Value, Tilde) {
 			err = i.Next()
 			if err != nil {
 				break

@@ -34,7 +34,7 @@ func CmdLinearID(args, pre []byte) (out []byte, err error) {
 }
 
 func CmdBrixNew(args, pre []byte) (out []byte, err error) {
-	w := rdx.Brix{}
+	w := rdx.Brik{}
 	err = w.Create([]rdx.Sha256{})
 	if len(args) == 0 {
 		args = pre
@@ -66,7 +66,7 @@ func CmdBrixGet(args, pre []byte) (out []byte, err error) {
 		return nil, err
 	}
 	var brix rdx.Brix
-	err = brix.OpenByHashlet(string(hashlet))
+	brix, err = brix.OpenByHashlet(string(hashlet))
 	if err != nil {
 		return
 	}
@@ -77,7 +77,7 @@ func CmdBrixGet(args, pre []byte) (out []byte, err error) {
 
 // brix:add (3c0dce, {@alice-345 5:"five"})
 func CmdBrixAdd(args, pre []byte) (out []byte, err error) {
-	w := rdx.Brix{}
+	w := rdx.Brik{}
 	var hashlet []byte
 	hashlet, _, args, err = rdx.ReadTerm(args)
 	if err != nil {
@@ -113,5 +113,10 @@ func CmdBrixAdd(args, pre []byte) (out []byte, err error) {
 	if err == nil {
 		out = rdx.WriteRDX(nil, rdx.Term, rdx.ID{}, []byte(w.Hash7574.String()))
 	}
+	return
+}
+
+// brix:merge (3c0dce 1f48e2)
+func CmdBrixMerge(args, pre []byte) (out []byte, err error) {
 	return
 }

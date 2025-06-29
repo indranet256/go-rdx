@@ -1,16 +1,21 @@
 package rdx
 
 type Iter struct {
-	Lit   byte
 	Id    ID
 	Value []byte
 	Rest  []byte
 	Last  []byte
 }
 
+func (i *Iter) Lit() byte {
+	if len(i.Last) == 0 {
+		return 0
+	}
+	return i.Last[0] & ^CaseBit
+}
+
 func (i *Iter) Next() (err error) {
 	if len(i.Rest) == 0 {
-		i.Lit = 0
 		i.Id = ID{}
 		i.Value = nil
 		i.Rest = nil
@@ -18,7 +23,7 @@ func (i *Iter) Next() (err error) {
 		return ErrEoF
 	}
 	rest := i.Rest
-	i.Lit, i.Id, i.Value, i.Rest, err = ReadRDX(rest)
+	_, i.Id, i.Value, i.Rest, err = ReadRDX(rest)
 	i.Last = rest[:len(rest)-len(i.Rest)]
 	return err
 }
@@ -37,9 +42,13 @@ func Heapize(rdx [][]byte, z Compare) (heap Heap, err error) {
 			break
 		}
 		heap = append(heap, &i)
-		heap.Up(len(heap)-1, z)
+		heap.LastUp(z)
 	}
 	return
+}
+
+func (heap *Heap) LastUp(z Compare) {
+	heap.Up(len(*heap)-1, z)
 }
 
 func Iterize(rdx [][]byte) (heap Heap, err error) {

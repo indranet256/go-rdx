@@ -135,7 +135,7 @@ func mergeElementsX(data []byte, bare [][]byte) ([]byte, error) {
 func mergeElementsSame(data []byte, heap Heap) (ret []byte, err error) {
 	vals := make([][]byte, 0, MaxInputs)
 	stack := make(Marks, 0, 16)
-	lit := heap[0].Lit
+	lit := heap[0].Lit()
 	id := heap[0].Id
 	ret = OpenTLV(data, lit, &stack)
 	key := ZipID(id)
@@ -256,11 +256,13 @@ func CompareLinear(a *Iter, b *Iter) int {
 }
 
 func CompareType(a *Iter, b *Iter) int {
-	if a.Lit == b.Lit {
+	al := a.Lit()
+	bl := b.Lit()
+	if al == bl {
 		return Eq
 	}
-	ap := IsPLEX(a.Lit)
-	bp := IsPLEX(b.Lit)
+	ap := IsPLEX(al)
+	bp := IsPLEX(bl)
 	if ap != bp {
 		if ap {
 			return Grtr
@@ -268,7 +270,7 @@ func CompareType(a *Iter, b *Iter) int {
 			return Less
 		}
 	}
-	if a.Lit < b.Lit {
+	if al < bl {
 		return Less
 	} else {
 		return Grtr
@@ -280,16 +282,18 @@ func CompareID(a *Iter, b *Iter) int {
 }
 
 func CompareValue(a *Iter, b *Iter) int {
-	if a.Lit == Tuple {
+	al := a.Lit()
+	bl := b.Lit()
+	if al == Tuple {
 		a = UnwrapTuple(a)
 	}
-	if b.Lit == Tuple {
+	if bl == Tuple {
 		b = UnwrapTuple(b)
 	}
-	if a.Lit != b.Lit {
+	if al != bl {
 		return CompareType(a, b)
 	}
-	switch a.Lit {
+	switch al {
 	case Float:
 		return CompareFloat(a, b)
 	case Integer:

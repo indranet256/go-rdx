@@ -20,6 +20,10 @@ func (sha *Sha256) Clear() {
 	copy(sha[:], Sha256Zero[:])
 }
 
+func (sha Sha256) Equal(b Sha256) bool {
+	return bytes.Equal(sha[:], b[:])
+}
+
 func (sha Sha256) String() string {
 	return hex.EncodeToString(sha[:])
 }
