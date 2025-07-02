@@ -1,4 +1,4 @@
-package rdx
+package main
 import "errors"
 // action indices for the parser
 
@@ -26,11 +26,12 @@ const (JDRenum = 0
     JDRCloseX = JDRenum+34
     JDRComma = JDRenum+35
     JDRColon = JDRenum+36
-    JDROpen = JDRenum+37
-    JDRClose = JDRenum+38
-    JDRInter = JDRenum+39
-    JDRFIRST = JDRenum+41
-    JDRRoot = JDRenum+42
+    JDRSemicolon = JDRenum+37
+    JDROpen = JDRenum+38
+    JDRClose = JDRenum+39
+    JDRInter = JDRenum+40
+    JDRFIRST = JDRenum+42
+    JDRRoot = JDRenum+43
 )
 
 // user functions (callbacks) for the parser
@@ -57,6 +58,7 @@ const (JDRenum = 0
 // func JDRonCloseX (tok []byte, state *JDRstate) error
 // func JDRonComma (tok []byte, state *JDRstate) error
 // func JDRonColon (tok []byte, state *JDRstate) error
+// func JDRonSemicolon (tok []byte, state *JDRstate) error
 // func JDRonOpen (tok []byte, state *JDRstate) error
 // func JDRonClose (tok []byte, state *JDRstate) error
 // func JDRonInter (tok []byte, state *JDRstate) error
@@ -233,6 +235,13 @@ action JDRColon1 {
         fbreak;
     }
 }
+action JDRSemicolon0 { mark0[JDRSemicolon] = p; }
+action JDRSemicolon1 {
+    err = JDRonSemicolon(data[mark0[JDRSemicolon] : p], state); 
+    if err!=nil {
+        fbreak;
+    }
+}
 action JDROpen0 { mark0[JDROpen] = p; }
 action JDROpen1 {
     err = JDRonOpen(data[mark0[JDROpen] : p], state); 
@@ -308,9 +317,10 @@ JDROpenX = (   "<" )  >JDROpenX0 %JDROpenX1;
 JDRCloseX = (   ">" )  >JDRCloseX0 %JDRCloseX1;
 JDRComma = (   "," )  >JDRComma0 %JDRComma1;
 JDRColon = (   ":" )  >JDRColon0 %JDRColon1;
+JDRSemicolon = (   ";" )  >JDRSemicolon0 %JDRSemicolon1;
 JDROpen = (   (JDROpenP  |  JDROpenL  |  JDROpenE  |  JDROpenX)  JDRws*  (JDRStamp  JDRws*  |  JDRNoStamp) )  >JDROpen0 %JDROpen1;
 JDRClose = (   (JDRCloseP  |  JDRCloseL  |  JDRCloseE  |  JDRCloseX)  JDRws* )  >JDRClose0 %JDRClose1;
-JDRInter = (   (JDRComma  |  JDRColon)  JDRws* )  >JDRInter0 %JDRInter1;
+JDRInter = (   (JDRComma  |  JDRColon  |  JDRSemicolon)  JDRws* )  >JDRInter0 %JDRInter1;
 JDRdelim = (   JDROpen  |  JDRClose  |  JDRInter ); # no delim callback
 JDRFIRST = (   (  JDRFloat  |  JDRInt  |  JDRRef  |  JDRString  |  JDRMLString  |  JDRTerm  )  JDRws*  (  JDRStamp  JDRws*  |  JDRNoStamp) )  >JDRFIRST0 %JDRFIRST1;
 JDRRoot = (   (  JDRws  |  JDRFIRST  |  JDRdelim  )**   )  >JDRRoot0 %JDRRoot1;
@@ -331,7 +341,7 @@ func JDRlexer (state *JDRstate) (err error) {
     %% write init;
     %% write exec;
 
-    if (p < len(data) || cs < JDR_first_final) {
+    if (p!=len(data) || cs < JDR_first_final) {
         state.text = state.text[p:];
         return errors.New("JDR bad syntax")
     }

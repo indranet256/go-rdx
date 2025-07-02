@@ -1,6 +1,8 @@
 package rdx
 
-import "strconv"
+import (
+	"strconv"
+)
 
 type JDRstate struct {
 	jdr []byte
@@ -9,6 +11,7 @@ type JDRstate struct {
 	stack Marks
 	pre   byte
 	val   []byte
+	runp  int
 	line  int
 	col   int
 }
@@ -165,6 +168,30 @@ func closeInlineTuple(state *JDRstate) (err error) {
 	return
 }
 
+func JDRonSemicolon(tok []byte, state *JDRstate) (err error) {
+	if (&(state.stack)).Top() == inlineTuple {
+		if state.pre == ':' {
+			err = appendRDXEmptyTuple(state)
+		}
+		err = closeInlineTuple(state)
+	} else {
+		p := 0
+		if len(state.stack) > 0 {
+			last := &state.stack[len(state.stack)-1]
+			p = last.pos + 2
+			if (last.lit & CaseBit) == 0 {
+				p += 3
+			}
+		}
+		if state.runp > p {
+			p = state.runp
+		}
+		state.rdx = SpliceTLV(state.rdx, Tuple, p)
+	}
+	state.runp = len(state.rdx)
+	return
+}
+
 func JDRonOpenPLEX(tok []byte, state *JDRstate, plex byte) (err error) {
 	if (&(state.stack)).Top() == inlineTuple && state.pre != ':' {
 		err = closeInlineTuple(state)
@@ -228,6 +255,7 @@ func JDRonComma(tok []byte, state *JDRstate) (err error) {
 	if state.pre == 0 || state.pre == ',' {
 		appendRDXEmptyTuple(state)
 	}
+	state.runp = len(state.rdx)
 	return
 }
 func JDRonColon(tok []byte, state *JDRstate) (err error) {

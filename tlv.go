@@ -116,6 +116,22 @@ func (stack Marks) Len() int {
 	return len(stack)
 }
 
+func SpliceTLV(data []byte, lit byte, pos int) []byte {
+	l := len(data) - pos + 1
+	if l <= 0xff {
+		data = append(data, 0, 0, 0)
+		copy(data[pos+3:], data[pos:])
+		data[pos] = lit | CaseBit
+		data[pos+1] = byte(l)
+	} else {
+		data = append(data, 0, 0, 0, 0, 0, 0)
+		copy(data[pos+6:], data[pos:])
+		data[pos] = lit &^ CaseBit
+		binary.LittleEndian.PutUint32(data[pos+1:pos+5], uint32(l))
+	}
+	return data
+}
+
 func OpenTLV(data []byte, lit byte, stack *Marks) []byte {
 	if lit < 'A' || lit > 'Z' {
 		panic("bad lit")
