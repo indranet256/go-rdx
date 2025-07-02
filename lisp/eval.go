@@ -1,6 +1,9 @@
 package main
 
-import rdx "github.com/gritzko/rdx"
+import (
+	"errors"
+	rdx "github.com/gritzko/rdx"
+)
 
 type Context struct {
 	vars  map[string][]byte
@@ -12,9 +15,33 @@ type Context struct {
 
 type Command func(ctx *Context, rdx []byte) (out []byte, err error)
 
-func (ctx *Context) Call(fname, args []byte) (out []byte, err error) {
-	fn := ctx.funs[string(fname)]
-	return fn(ctx, args)
+var ErrNotACall = errors.New("not a function call")
+
+func (ctx *Context) resolve(path []byte) (c *Context, fn Command, va []byte) {
+	if len(path) == 0 || rdx.Peek(path) != rdx.Term {
+		return
+	}
+	var err error
+	var val []byte
+	_, _, val, path, err = rdx.ReadTLKV(path)
+	if err != nil {
+		return
+	} else if len(path) == 0 {
+		f := ctx.funs[string(val)]
+		if f != nil {
+			return ctx, f, nil
+		}
+		v := ctx.vars[string(val)]
+		if v != nil {
+			return ctx, nil, v
+		}
+	} else {
+		sub := ctx.subs[string(val)]
+		if sub != nil {
+			c, fn, va = sub.resolve(path)
+		}
+	}
+	return
 }
 
 func (ctx *Context) Evaluate(pre, args []byte) (out []byte, err error) {
@@ -28,37 +55,37 @@ func (ctx *Context) Evaluate(pre, args []byte) (out []byte, err error) {
 		}
 		switch lit {
 		case rdx.Term:
-			v, found := ctx.vars[string(val)]
-			if found {
-				out = append(out, v...)
+			whole := args[:len(args)-len(rest)]
+			c, fn, va := ctx.resolve(whole)
+			if va != nil {
+				out = append(out, va...)
+				args = rest
+			} else if fn != nil {
+				var fnargs []byte
+				if len(rest) > 0 && rdx.Peek(rest) == rdx.Tuple {
+					_, _, fnargs, rest, err = rdx.ReadTLKV(rest)
+				}
+				var res []byte
+				res, err = fn(c, fnargs)
+				out = append(out, res...)
+				args = rest
 			} else {
 				out = append(out, args[:len(args)-len(rest)]...)
 			}
 		case rdx.Tuple:
-			var lit2 byte
-			var id2, val2, rest2, ret []byte
-			lit2, id2, val2, rest2, err = rdx.ReadTLKV(val)
-			if lit2 == rdx.Term && ctx.funs[string(val2)] != nil {
-				ret, err = ctx.Call(val2, rest2)
-				if err != nil {
-					break
-				}
-				out = append(out, ret...)
-			} else {
-				out = rdx.OpenTLV(out, lit, &ctx.stack)
-				out = append(out, byte(len(id2)))
-				out = append(out, id2...)
-				out, err = ctx.Evaluate(out, val)
-				out, err = rdx.CloseTLV(out, lit, &ctx.stack)
-			}
+			err = nil
+			out = nil
+			out = rdx.OpenTLV(out, lit, &ctx.stack)
+			out = append(out, byte(len(id)))
+			out = append(out, id...)
+			out, err = ctx.Evaluate(out, val)
+			out, err = rdx.CloseTLV(out, lit, &ctx.stack)
 		case rdx.Linear:
 			fallthrough
 		case rdx.Euler:
 			fallthrough
 		case rdx.Multix:
 			out = rdx.OpenTLV(out, lit, &ctx.stack)
-			out = append(out, byte(len(id)))
-			out = append(out, id...)
 			out, err = ctx.Evaluate(out, val)
 			out, err = rdx.CloseTLV(out, lit, &ctx.stack)
 		default:
