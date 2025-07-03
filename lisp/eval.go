@@ -53,13 +53,18 @@ func (ctx *Context) Evaluate(pre, args []byte) (out []byte, err error) {
 		if err != nil {
 			break
 		}
-		switch lit {
-		case rdx.Term:
-			whole := args[:len(args)-len(rest)]
-			c, fn, va := ctx.resolve(whole)
+		whole := args[:len(args)-len(rest)]
+
+		if lit == rdx.Term || lit == rdx.Tuple {
+			path := whole
+			if lit == rdx.Tuple {
+				path = val
+			}
+			c, fn, va := ctx.resolve(path)
 			if va != nil {
 				out = append(out, va...)
 				args = rest
+				continue
 			} else if fn != nil {
 				var fnargs []byte
 				if len(rest) > 0 && rdx.Peek(rest) == rdx.Tuple {
@@ -69,27 +74,18 @@ func (ctx *Context) Evaluate(pre, args []byte) (out []byte, err error) {
 				res, err = fn(c, fnargs)
 				out = append(out, res...)
 				args = rest
-			} else {
-				out = append(out, args[:len(args)-len(rest)]...)
+				continue
 			}
-		case rdx.Tuple:
-			err = nil
-			out = nil
+		}
+
+		if rdx.IsFIRST(lit) {
+			out = append(out, whole...)
+		} else {
 			out = rdx.OpenTLV(out, lit, &ctx.stack)
 			out = append(out, byte(len(id)))
 			out = append(out, id...)
 			out, err = ctx.Evaluate(out, val)
 			out, err = rdx.CloseTLV(out, lit, &ctx.stack)
-		case rdx.Linear:
-			fallthrough
-		case rdx.Euler:
-			fallthrough
-		case rdx.Multix:
-			out = rdx.OpenTLV(out, lit, &ctx.stack)
-			out, err = ctx.Evaluate(out, val)
-			out, err = rdx.CloseTLV(out, lit, &ctx.stack)
-		default:
-			out = append(out, args[:len(args)-len(rest)]...)
 		}
 		args = rest
 	}

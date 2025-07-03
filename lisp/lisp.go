@@ -15,6 +15,13 @@ var TopContext = Context{
 		"echo": Echo,
 		"join": Join,
 	},
+	subs: map[string]*Context{
+		"crypto": &Context{
+			funs: map[string]Command{
+				"sha256": Hash,
+			},
+		},
+	},
 }
 
 func main() {
