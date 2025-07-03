@@ -84,8 +84,13 @@ func (ctx *Context) Evaluate(pre, args []byte) (out []byte, err error) {
 			out = rdx.OpenTLV(out, lit, &ctx.stack)
 			out = append(out, byte(len(id)))
 			out = append(out, id...)
+			ol := len(out)
 			out, err = ctx.Evaluate(out, val)
-			out, err = rdx.CloseTLV(out, lit, &ctx.stack)
+			if ol == len(out) {
+				out, err = rdx.CancelTLV(out, lit, &ctx.stack)
+			} else {
+				out, err = rdx.CloseTLV(out, lit, &ctx.stack)
+			}
 		}
 		args = rest
 	}

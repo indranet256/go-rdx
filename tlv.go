@@ -163,6 +163,20 @@ func upper(lit byte) byte {
 	return lit &^ CaseBit
 }
 
+func CancelTLV(data []byte, lit byte, stack *Marks) (ret []byte, err error) {
+	if len(*stack) == 0 {
+		return nil, ErrBadNesting
+	}
+	nl := len(*stack) - 1
+	last := (*stack)[nl]
+	if upper(last.Lit) != lit {
+		return nil, ErrBadNesting
+	}
+	*stack = (*stack)[:nl]
+	ret = data[:last.Pos]
+	return
+}
+
 func CloseTLV(data []byte, lit byte, stack *Marks) (ret []byte, err error) {
 	if len(*stack) == 0 {
 		return nil, ErrBadNesting
