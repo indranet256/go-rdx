@@ -143,24 +143,6 @@ func (ih Heap) Down(i0 int, z Compare) bool {
 	return i > i0
 }
 
-func (heap Heap) TopIDs() Heap {
-	if len(heap) == 0 {
-		return heap
-	}
-	eqs := 1
-	for i := 1; i < len(heap); i++ {
-		z := heap[i].Id.Compare(heap[0].Id)
-		if z > Eq || (z == Eq && CompareType(heap[i], heap[0]) > Eq) {
-			heap[0], heap[i] = heap[i], heap[0]
-			eqs = 1
-		} else if z == Eq {
-			heap[eqs], heap[i] = heap[i], heap[eqs]
-			eqs++
-		}
-	}
-	return heap[:eqs]
-}
-
 func (heap *Heap) MergeNext(data []byte, Z Compare) ([]byte, error) {
 	var err error = nil
 	h := *heap
@@ -170,8 +152,7 @@ func (heap *Heap) MergeNext(data []byte, Z Compare) ([]byte, error) {
 		data = append(data, h[0].Last...)
 	} else {
 		eqs := h[:eqlen]
-		tops := eqs.TopIDs()
-		data, err = mergeElementsSame(data, tops)
+		data, err = mergeSameSpotElements(data, eqs)
 	}
 	if err == nil {
 		h, err = h.NextK(eqlen, Z)

@@ -99,17 +99,25 @@ func WriteTLKV(data []byte, lit byte, key, value []byte) []byte {
 }
 
 type Mark struct {
-	pos int
-	lit byte
+	Pos  int
+	Mark int
+	Lit  byte
 }
 
 type Marks []Mark
 
-func (stack *Marks) Top() byte {
+func (stack *Marks) Top() *Mark {
+	if len(*stack) == 0 {
+		return nil
+	}
+	return &(*stack)[len(*stack)-1]
+}
+
+func (stack *Marks) TopLit() byte {
 	if len(*stack) == 0 {
 		return 0
 	}
-	return (*stack)[len(*stack)-1].lit
+	return stack.Top().Lit
 }
 
 func (stack Marks) Len() int {
@@ -134,19 +142,19 @@ func SpliceTLV(data []byte, lit byte, pos int) []byte {
 
 func OpenTLV(data []byte, lit byte, stack *Marks) []byte {
 	if lit < 'A' || lit > 'Z' {
-		panic("bad lit")
+		panic("bad Lit")
 	}
-	*stack = append(*stack, Mark{len(data), lit})
+	*stack = append(*stack, Mark{len(data), 0, lit})
 	data = append(data, lit, 0, 0, 0, 0)
 	return data
 }
 
 func OpenShortTLV(data []byte, lit byte, stack *Marks) []byte {
 	if lit < 'A' || lit > 'Z' {
-		panic("bad lit")
+		panic("bad Lit")
 	}
 	lit |= CaseBit
-	*stack = append(*stack, Mark{len(data), lit})
+	*stack = append(*stack, Mark{len(data), 0, lit})
 	data = append(data, lit, 0)
 	return data
 }
@@ -162,19 +170,19 @@ func CloseTLV(data []byte, lit byte, stack *Marks) (ret []byte, err error) {
 	nl := len(*stack) - 1
 	last := (*stack)[nl]
 	*stack = (*stack)[:nl]
-	if upper(last.lit) != lit || last.pos+2 > len(data) || data[last.pos]&^CaseBit != lit {
+	if upper(last.Lit) != lit || last.Pos+2 > len(data) || data[last.Pos]&^CaseBit != lit {
 		return nil, ErrBadNesting
 	}
-	fact := len(data) - last.pos
-	if 0 == (data[last.pos] & CaseBit) { // A
+	fact := len(data) - last.Pos
+	if 0 == (data[last.Pos] & CaseBit) { // A
 		fact -= 5
 		if fact < 0 {
 			return nil, ErrBadNesting
 		}
 		if fact < 0x100 {
-			copy(data[last.pos+2:len(data)-3], data[last.pos+5:len(data)])
+			copy(data[last.Pos+2:len(data)-3], data[last.Pos+5:len(data)])
 			data = data[:len(data)-3]
-			data[last.pos] |= CaseBit
+			data[last.Pos] |= CaseBit
 		}
 	} else { // a
 		fact -= 2
@@ -184,14 +192,14 @@ func CloseTLV(data []byte, lit byte, stack *Marks) (ret []byte, err error) {
 		if fact >= 0x100 {
 			l := len(data)
 			data = append(data, 0, 0, 0)
-			copy(data[last.pos+5:len(data)], data[last.pos+2:l])
-			data[last.pos] &= ^CaseBit
+			copy(data[last.Pos+5:len(data)], data[last.Pos+2:l])
+			data[last.Pos] &= ^CaseBit
 		}
 	}
 	if fact < 0x100 {
-		data[last.pos+1] = byte(fact)
+		data[last.Pos+1] = byte(fact)
 	} else {
-		binary.LittleEndian.PutUint32(data[last.pos+1:], uint32(fact))
+		binary.LittleEndian.PutUint32(data[last.Pos+1:], uint32(fact))
 	}
 	return data, nil
 }

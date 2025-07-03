@@ -11,9 +11,10 @@ type JDRstate struct {
 	stack Marks
 	pre   byte
 	val   []byte
-	runp  int
-	line  int
-	col   int
+
+	mark int
+	line int
+	col  int
 }
 
 var emptyTuple []byte = []byte{'p', 1, 0}
@@ -76,7 +77,7 @@ func (state *JDRstate) closeInline() (err error) {
 }
 
 func JDRonFIRST0(tok []byte, state *JDRstate, lit byte) (err error) {
-	if state.stack.Top() == inlineTuple && state.pre != ':' {
+	if state.stack.TopLit() == inlineTuple && state.pre != ':' {
 		err = state.closeInline()
 	}
 	state.rdx = OpenTLV(state.rdx, lit, &state.stack)
@@ -111,7 +112,7 @@ func JDRonNoStamp(tok []byte, state *JDRstate) error {
 }
 
 func JDRonFIRST(tok []byte, state *JDRstate) (err error) {
-	lit := state.stack.Top()
+	lit := state.stack.TopLit()
 	switch lit {
 	case Float:
 		f, _ := strconv.ParseFloat(string(state.val), 64)
@@ -145,12 +146,13 @@ func retrofitRDXTuple(state *JDRstate) (err error) {
 		}
 		state.stack = state.stack[:len(state.stack)+1]
 		last := &state.stack[len(state.stack)-1]
-		last.lit = 'p'
+		last.Lit = 'p'
+		last.Mark = 0
 		state.rdx = append(state.rdx, 0, 0, 0)
-		copy(state.rdx[last.pos+3:len(state.rdx)], state.rdx[last.pos:len(state.rdx)-3])
-		state.rdx[last.pos] = 'p'
-		state.rdx[last.pos+1] = 0
-		state.rdx[last.pos+2] = 0
+		copy(state.rdx[last.Pos+3:len(state.rdx)], state.rdx[last.Pos:len(state.rdx)-3])
+		state.rdx[last.Pos] = 'p'
+		state.rdx[last.Pos+1] = 0
+		state.rdx[last.Pos+2] = 0
 	}
 	return
 }
@@ -169,7 +171,7 @@ func closeInlineTuple(state *JDRstate) (err error) {
 }
 
 func JDRonSemicolon(tok []byte, state *JDRstate) (err error) {
-	if (&(state.stack)).Top() == inlineTuple {
+	if state.stack.TopLit() == inlineTuple {
 		if state.pre == ':' {
 			err = appendRDXEmptyTuple(state)
 		}
@@ -178,22 +180,30 @@ func JDRonSemicolon(tok []byte, state *JDRstate) (err error) {
 		p := 0
 		if len(state.stack) > 0 {
 			last := &state.stack[len(state.stack)-1]
-			p = last.pos + 2
-			if (last.lit & CaseBit) == 0 {
+			p = last.Pos + 2
+			if (last.Lit & CaseBit) == 0 {
 				p += 3
 			}
-		}
-		if state.runp > p {
-			p = state.runp
+			if state.stack.Top().Mark > p {
+				p = state.stack.Top().Mark
+			}
+		} else {
+			if state.mark > p {
+				p = state.mark
+			}
 		}
 		state.rdx = SpliceTLV(state.rdx, Tuple, p)
 	}
-	state.runp = len(state.rdx)
+	if len(state.stack) > 0 {
+		state.stack.Top().Mark = len(state.rdx)
+	} else {
+		state.mark = len(state.rdx) // FIXME ugly
+	}
 	return
 }
 
 func JDRonOpenPLEX(tok []byte, state *JDRstate, plex byte) (err error) {
-	if (&(state.stack)).Top() == inlineTuple && state.pre != ':' {
+	if (&(state.stack)).TopLit() == inlineTuple && state.pre != ':' {
 		err = closeInlineTuple(state)
 	}
 	if err == nil {
@@ -203,12 +213,12 @@ func JDRonOpenPLEX(tok []byte, state *JDRstate, plex byte) (err error) {
 }
 
 func JDRonClosePLEX(tok []byte, state *JDRstate, lit byte) (err error) {
-	if state.stack.Top() == inlineTuple {
+	if state.stack.TopLit() == inlineTuple {
 		err = closeInlineTuple(state)
 	} else if state.pre == ',' {
 		err = appendRDXEmptyTuple(state)
 	}
-	if !IsPLEX(lit) || lit != state.stack.Top() {
+	if !IsPLEX(lit) || lit != state.stack.TopLit() {
 		err = ErrBadNesting
 	}
 	if err != nil {
@@ -249,17 +259,21 @@ func JDRonCloseX(tok []byte, state *JDRstate) error {
 	return JDRonClosePLEX(tok, state, Multix)
 }
 func JDRonComma(tok []byte, state *JDRstate) (err error) {
-	if state.stack.Top() == inlineTuple {
+	if state.stack.TopLit() == inlineTuple {
 		err = closeInlineTuple(state)
 	}
 	if state.pre == 0 || state.pre == ',' {
-		appendRDXEmptyTuple(state)
+		_ = appendRDXEmptyTuple(state)
 	}
-	state.runp = len(state.rdx)
+	if len(state.stack) > 0 {
+		state.stack.Top().Mark = len(state.rdx)
+	} else {
+		state.mark = len(state.rdx)
+	}
 	return
 }
 func JDRonColon(tok []byte, state *JDRstate) (err error) {
-	if state.stack.Top() != inlineTuple {
+	if state.stack.TopLit() != inlineTuple {
 		err = retrofitRDXTuple(state)
 	} else if state.pre == 0 || state.pre == ':' {
 		err = appendRDXEmptyTuple(state)
@@ -275,7 +289,7 @@ func JDRonClose(tok []byte, state *JDRstate) error { return nil }
 func JDRonInter(tok []byte, state *JDRstate) error { return nil }
 
 func JDRonRoot(tok []byte, state *JDRstate) (err error) {
-	if state.stack.Top() == inlineTuple {
+	if state.stack.TopLit() == inlineTuple {
 		err = closeInlineTuple(state)
 	}
 	if state.stack.Len() > 0 {

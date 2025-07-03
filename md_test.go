@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -73,6 +74,25 @@ func testMerge(rdx []byte) (err error) {
 		}
 	}
 	return err
+}
+
+func TestOneSpecialCase(t *testing.T) {
+	inputs := [][]byte{[]byte("(@1 two:2)"),
+		[]byte("(@2 four:4)")}
+	rdxins := [][]byte{}
+	for _, in := range inputs {
+		rdx, err := ParseJDR(in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rdxins = append(rdxins, rdx)
+	}
+	out, err := Merge(nil, rdxins)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jdr, _, err := WriteJDR(nil, out, 0)
+	assert.Equal(t, "(@2 four:4)", string(jdr))
 }
 
 func TestFirstMerge(t *testing.T) {

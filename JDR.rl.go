@@ -1,4 +1,3 @@
-//line JDR.go.rl:1
 package rdx
 
 import "errors"
@@ -69,9 +68,6 @@ const (
 // func JDRonFIRST (tok []byte, state *JDRstate) error
 // func JDRonRoot (tok []byte, state *JDRstate) error
 
-//line JDR.go.rl:330
-
-//line JDR.rl.go:75
 var _JDR_actions []byte = []byte{
 	0, 1, 0, 1, 1, 1, 2, 1, 3,
 	1, 4, 1, 5, 1, 6, 1, 7,
@@ -1077,21 +1073,17 @@ const JDR_en_main int = 38
 
 // the public API function
 //
-//line JDR.go.rl:333
+
 func JDRlexer(state *JDRstate) (err error) {
 
 	data := state.jdr
 	var mark0 [64]int
 	cs, p, pe, eof := 0, 0, len(data), len(data)
 
-//line JDR.rl.go:1088
 	{
 		cs = JDR_start
 	}
 
-//line JDR.go.rl:342
-
-//line JDR.rl.go:1093
 	{
 		var _klen int
 		var _trans int
@@ -1171,10 +1163,9 @@ func JDRlexer(state *JDRstate) (err error) {
 			_acts++
 			switch _JDR_actions[_acts-1] {
 			case 0:
-//line JDR.go.rl:77
+
 				mark0[JDRNL] = p
 			case 1:
-//line JDR.go.rl:78
 
 				err = JDRonNL(data[mark0[JDRNL]:p], state)
 				if err != nil {
@@ -1184,10 +1175,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 2:
-//line JDR.go.rl:84
+
 				mark0[JDRUtf8cp1] = p
 			case 3:
-//line JDR.go.rl:85
 
 				err = JDRonUtf8cp1(data[mark0[JDRUtf8cp1]:p], state)
 				if err != nil {
@@ -1197,10 +1187,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 4:
-//line JDR.go.rl:91
+
 				mark0[JDRUtf8cp2] = p
 			case 5:
-//line JDR.go.rl:92
 
 				err = JDRonUtf8cp2(data[mark0[JDRUtf8cp2]:p], state)
 				if err != nil {
@@ -1210,10 +1199,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 6:
-//line JDR.go.rl:98
+
 				mark0[JDRUtf8cp3] = p
 			case 7:
-//line JDR.go.rl:99
 
 				err = JDRonUtf8cp3(data[mark0[JDRUtf8cp3]:p], state)
 				if err != nil {
@@ -1223,10 +1211,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 8:
-//line JDR.go.rl:105
+
 				mark0[JDRUtf8cp4] = p
 			case 9:
-//line JDR.go.rl:106
 
 				err = JDRonUtf8cp4(data[mark0[JDRUtf8cp4]:p], state)
 				if err != nil {
@@ -1236,10 +1223,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 10:
-//line JDR.go.rl:112
+
 				mark0[JDRInt] = p
 			case 11:
-//line JDR.go.rl:113
 
 				err = JDRonInt(data[mark0[JDRInt]:p], state)
 				if err != nil {
@@ -1249,10 +1235,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 12:
-//line JDR.go.rl:119
+
 				mark0[JDRFloat] = p
 			case 13:
-//line JDR.go.rl:120
 
 				err = JDRonFloat(data[mark0[JDRFloat]:p], state)
 				if err != nil {
@@ -1262,10 +1247,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 14:
-//line JDR.go.rl:126
+
 				mark0[JDRTerm] = p
 			case 15:
-//line JDR.go.rl:127
 
 				err = JDRonTerm(data[mark0[JDRTerm]:p], state)
 				if err != nil {
@@ -1275,10 +1259,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 16:
-//line JDR.go.rl:133
+
 				mark0[JDRRef] = p
 			case 17:
-//line JDR.go.rl:134
 
 				err = JDRonRef(data[mark0[JDRRef]:p], state)
 				if err != nil {
@@ -1288,10 +1271,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 18:
-//line JDR.go.rl:140
+
 				mark0[JDRString] = p
 			case 19:
-//line JDR.go.rl:141
 
 				err = JDRonString(data[mark0[JDRString]:p], state)
 				if err != nil {
@@ -1301,10 +1283,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 20:
-//line JDR.go.rl:147
+
 				mark0[JDRMLString] = p
 			case 21:
-//line JDR.go.rl:148
 
 				err = JDRonMLString(data[mark0[JDRMLString]:p], state)
 				if err != nil {
@@ -1314,10 +1295,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 22:
-//line JDR.go.rl:154
+
 				mark0[JDRStamp] = p
 			case 23:
-//line JDR.go.rl:155
 
 				err = JDRonStamp(data[mark0[JDRStamp]:p], state)
 				if err != nil {
@@ -1327,10 +1307,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 24:
-//line JDR.go.rl:161
+
 				mark0[JDRNoStamp] = p
 			case 25:
-//line JDR.go.rl:162
 
 				err = JDRonNoStamp(data[mark0[JDRNoStamp]:p], state)
 				if err != nil {
@@ -1340,10 +1319,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 26:
-//line JDR.go.rl:168
+
 				mark0[JDROpenP] = p
 			case 27:
-//line JDR.go.rl:169
 
 				err = JDRonOpenP(data[mark0[JDROpenP]:p], state)
 				if err != nil {
@@ -1353,10 +1331,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 28:
-//line JDR.go.rl:175
+
 				mark0[JDRCloseP] = p
 			case 29:
-//line JDR.go.rl:176
 
 				err = JDRonCloseP(data[mark0[JDRCloseP]:p], state)
 				if err != nil {
@@ -1366,10 +1343,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 30:
-//line JDR.go.rl:182
+
 				mark0[JDROpenL] = p
 			case 31:
-//line JDR.go.rl:183
 
 				err = JDRonOpenL(data[mark0[JDROpenL]:p], state)
 				if err != nil {
@@ -1379,10 +1355,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 32:
-//line JDR.go.rl:189
+
 				mark0[JDRCloseL] = p
 			case 33:
-//line JDR.go.rl:190
 
 				err = JDRonCloseL(data[mark0[JDRCloseL]:p], state)
 				if err != nil {
@@ -1392,10 +1367,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 34:
-//line JDR.go.rl:196
+
 				mark0[JDROpenE] = p
 			case 35:
-//line JDR.go.rl:197
 
 				err = JDRonOpenE(data[mark0[JDROpenE]:p], state)
 				if err != nil {
@@ -1405,10 +1379,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 36:
-//line JDR.go.rl:203
+
 				mark0[JDRCloseE] = p
 			case 37:
-//line JDR.go.rl:204
 
 				err = JDRonCloseE(data[mark0[JDRCloseE]:p], state)
 				if err != nil {
@@ -1418,10 +1391,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 38:
-//line JDR.go.rl:210
+
 				mark0[JDROpenX] = p
 			case 39:
-//line JDR.go.rl:211
 
 				err = JDRonOpenX(data[mark0[JDROpenX]:p], state)
 				if err != nil {
@@ -1431,10 +1403,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 40:
-//line JDR.go.rl:217
+
 				mark0[JDRCloseX] = p
 			case 41:
-//line JDR.go.rl:218
 
 				err = JDRonCloseX(data[mark0[JDRCloseX]:p], state)
 				if err != nil {
@@ -1444,10 +1415,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 42:
-//line JDR.go.rl:224
+
 				mark0[JDRComma] = p
 			case 43:
-//line JDR.go.rl:225
 
 				err = JDRonComma(data[mark0[JDRComma]:p], state)
 				if err != nil {
@@ -1457,10 +1427,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 44:
-//line JDR.go.rl:231
+
 				mark0[JDRColon] = p
 			case 45:
-//line JDR.go.rl:232
 
 				err = JDRonColon(data[mark0[JDRColon]:p], state)
 				if err != nil {
@@ -1470,10 +1439,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 46:
-//line JDR.go.rl:238
+
 				mark0[JDRSemicolon] = p
 			case 47:
-//line JDR.go.rl:239
 
 				err = JDRonSemicolon(data[mark0[JDRSemicolon]:p], state)
 				if err != nil {
@@ -1483,10 +1451,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 48:
-//line JDR.go.rl:245
+
 				mark0[JDROpen] = p
 			case 49:
-//line JDR.go.rl:246
 
 				err = JDRonOpen(data[mark0[JDROpen]:p], state)
 				if err != nil {
@@ -1496,10 +1463,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 50:
-//line JDR.go.rl:252
+
 				mark0[JDRClose] = p
 			case 51:
-//line JDR.go.rl:253
 
 				err = JDRonClose(data[mark0[JDRClose]:p], state)
 				if err != nil {
@@ -1509,10 +1475,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 52:
-//line JDR.go.rl:259
+
 				mark0[JDRInter] = p
 			case 53:
-//line JDR.go.rl:260
 
 				err = JDRonInter(data[mark0[JDRInter]:p], state)
 				if err != nil {
@@ -1522,10 +1487,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 54:
-//line JDR.go.rl:266
+
 				mark0[JDRFIRST] = p
 			case 55:
-//line JDR.go.rl:267
 
 				err = JDRonFIRST(data[mark0[JDRFIRST]:p], state)
 				if err != nil {
@@ -1535,9 +1499,9 @@ func JDRlexer(state *JDRstate) (err error) {
 				}
 
 			case 56:
-//line JDR.go.rl:273
+
 				mark0[JDRRoot] = p
-//line JDR.rl.go:1510
+
 			}
 		}
 
@@ -1560,7 +1524,6 @@ func JDRlexer(state *JDRstate) (err error) {
 				__acts++
 				switch _JDR_actions[__acts-1] {
 				case 1:
-//line JDR.go.rl:78
 
 					err = JDRonNL(data[mark0[JDRNL]:p], state)
 					if err != nil {
@@ -1570,7 +1533,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 11:
-//line JDR.go.rl:113
 
 					err = JDRonInt(data[mark0[JDRInt]:p], state)
 					if err != nil {
@@ -1580,7 +1542,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 13:
-//line JDR.go.rl:120
 
 					err = JDRonFloat(data[mark0[JDRFloat]:p], state)
 					if err != nil {
@@ -1590,7 +1551,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 15:
-//line JDR.go.rl:127
 
 					err = JDRonTerm(data[mark0[JDRTerm]:p], state)
 					if err != nil {
@@ -1600,7 +1560,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 17:
-//line JDR.go.rl:134
 
 					err = JDRonRef(data[mark0[JDRRef]:p], state)
 					if err != nil {
@@ -1610,7 +1569,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 19:
-//line JDR.go.rl:141
 
 					err = JDRonString(data[mark0[JDRString]:p], state)
 					if err != nil {
@@ -1620,7 +1578,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 21:
-//line JDR.go.rl:148
 
 					err = JDRonMLString(data[mark0[JDRMLString]:p], state)
 					if err != nil {
@@ -1630,7 +1587,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 23:
-//line JDR.go.rl:155
 
 					err = JDRonStamp(data[mark0[JDRStamp]:p], state)
 					if err != nil {
@@ -1640,10 +1596,9 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 24:
-//line JDR.go.rl:161
+
 					mark0[JDRNoStamp] = p
 				case 25:
-//line JDR.go.rl:162
 
 					err = JDRonNoStamp(data[mark0[JDRNoStamp]:p], state)
 					if err != nil {
@@ -1653,7 +1608,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 27:
-//line JDR.go.rl:169
 
 					err = JDRonOpenP(data[mark0[JDROpenP]:p], state)
 					if err != nil {
@@ -1663,7 +1617,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 29:
-//line JDR.go.rl:176
 
 					err = JDRonCloseP(data[mark0[JDRCloseP]:p], state)
 					if err != nil {
@@ -1673,7 +1626,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 31:
-//line JDR.go.rl:183
 
 					err = JDRonOpenL(data[mark0[JDROpenL]:p], state)
 					if err != nil {
@@ -1683,7 +1635,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 33:
-//line JDR.go.rl:190
 
 					err = JDRonCloseL(data[mark0[JDRCloseL]:p], state)
 					if err != nil {
@@ -1693,7 +1644,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 35:
-//line JDR.go.rl:197
 
 					err = JDRonOpenE(data[mark0[JDROpenE]:p], state)
 					if err != nil {
@@ -1703,7 +1653,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 37:
-//line JDR.go.rl:204
 
 					err = JDRonCloseE(data[mark0[JDRCloseE]:p], state)
 					if err != nil {
@@ -1713,7 +1662,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 39:
-//line JDR.go.rl:211
 
 					err = JDRonOpenX(data[mark0[JDROpenX]:p], state)
 					if err != nil {
@@ -1723,7 +1671,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 41:
-//line JDR.go.rl:218
 
 					err = JDRonCloseX(data[mark0[JDRCloseX]:p], state)
 					if err != nil {
@@ -1733,7 +1680,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 43:
-//line JDR.go.rl:225
 
 					err = JDRonComma(data[mark0[JDRComma]:p], state)
 					if err != nil {
@@ -1743,7 +1689,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 45:
-//line JDR.go.rl:232
 
 					err = JDRonColon(data[mark0[JDRColon]:p], state)
 					if err != nil {
@@ -1753,7 +1698,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 47:
-//line JDR.go.rl:239
 
 					err = JDRonSemicolon(data[mark0[JDRSemicolon]:p], state)
 					if err != nil {
@@ -1763,7 +1707,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 49:
-//line JDR.go.rl:246
 
 					err = JDRonOpen(data[mark0[JDROpen]:p], state)
 					if err != nil {
@@ -1773,7 +1716,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 51:
-//line JDR.go.rl:253
 
 					err = JDRonClose(data[mark0[JDRClose]:p], state)
 					if err != nil {
@@ -1783,7 +1725,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 53:
-//line JDR.go.rl:260
 
 					err = JDRonInter(data[mark0[JDRInter]:p], state)
 					if err != nil {
@@ -1793,7 +1734,6 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 55:
-//line JDR.go.rl:267
 
 					err = JDRonFIRST(data[mark0[JDRFIRST]:p], state)
 					if err != nil {
@@ -1803,10 +1743,9 @@ func JDRlexer(state *JDRstate) (err error) {
 					}
 
 				case 56:
-//line JDR.go.rl:273
+
 					mark0[JDRRoot] = p
 				case 57:
-//line JDR.go.rl:274
 
 					err = JDRonRoot(data[mark0[JDRRoot]:p], state)
 					if err != nil {
@@ -1815,7 +1754,6 @@ func JDRlexer(state *JDRstate) (err error) {
 
 					}
 
-//line JDR.rl.go:1760
 				}
 			}
 		}
@@ -1824,8 +1762,6 @@ func JDRlexer(state *JDRstate) (err error) {
 		{
 		}
 	}
-
-//line JDR.go.rl:343
 
 	if p != len(data) || cs < JDR_first_final {
 		state.jdr = state.jdr[p:]

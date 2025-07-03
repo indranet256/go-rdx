@@ -10,7 +10,6 @@ you can learn these rules too.
 First of all, an empty tuple is the RDX value for "nothing".
 As such, it can act as a tombstone or as a "null".
 ```
-0:0
 1
 2
     ~
@@ -24,7 +23,7 @@ As such, it can act as a tombstone or as a "null".
 1:2:3
 1:():3
     ~
-1:2:3
+1::3
 
 ```
 Any element, including a tuple, can have a revision id attached.
@@ -136,7 +135,7 @@ So, for two distinct tuples, higher id wins:
 1:2:3
 3:2:1
     ~
-3:2:1
+3:2:3
 ```
 For two *variants* of a PLEX element (same id), nested elements
 will be merged, recursively. When merging specifically a tuple,

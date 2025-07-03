@@ -132,18 +132,35 @@ func mergeElementsX(data []byte, bare [][]byte) ([]byte, error) {
 	return HeapMerge(data, bare, CompareMultix)
 }
 
-func mergeElementsSame(data []byte, heap Heap) (ret []byte, err error) {
+func mergeSameSpotElements(data []byte, heap Heap) (ret []byte, err error) {
+	eq := 1
+	for i := 1; i < len(heap); i++ {
+		z := CompareLWW(heap[0], heap[i])
+		if z < Eq {
+			heap[0], heap[i] = heap[i], heap[0]
+			eq = 1
+		} else if z > Eq {
+			pl := len(heap) - 1
+			heap[pl], heap[i] = heap[i], heap[pl]
+			heap = heap[:pl]
+			i--
+		} else {
+			heap[eq], heap[i] = heap[i], heap[eq]
+			eq++
+		}
+	}
+	eqs := heap[:eq]
+	lit := eqs[0].Lit()
 	vals := make([][]byte, 0, MaxInputs)
 	stack := make(Marks, 0, 16)
-	lit := heap[0].Lit()
 	id := heap[0].Id
 	ret = OpenTLV(data, lit, &stack)
 	key := ZipID(id)
 	ret = append(ret, byte(len(key)))
 	ret = append(ret, key...) // TODO
-	for _, val := range heap {
+	for _, val := range eqs {
 		vals = append(vals, val.Value)
-	}
+	} // FIXME 1
 	switch lit {
 	case Float:
 		ret, err = mergeValuesF(ret, vals)
@@ -185,7 +202,7 @@ type Compare func(a *Iter, b *Iter) int
 func CompareLWW(a *Iter, b *Iter) int {
 	z := CompareID(a, b)
 	if z == Eq {
-		z = CompareValue(a, b)
+		z = CompareType(a, b)
 	}
 	return z
 }
@@ -284,11 +301,13 @@ func CompareID(a *Iter, b *Iter) int {
 func CompareValue(a *Iter, b *Iter) int {
 	al := a.Lit()
 	bl := b.Lit()
-	if al == Tuple {
+	for al == Tuple {
 		a = UnwrapTuple(a)
+		al = a.Lit()
 	}
-	if bl == Tuple {
+	for bl == Tuple {
 		b = UnwrapTuple(b)
+		bl = b.Lit()
 	}
 	if al != bl {
 		return CompareType(a, b)
