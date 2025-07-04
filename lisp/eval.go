@@ -16,6 +16,8 @@ type Context struct {
 type Command func(ctx *Context, rdx []byte) (out []byte, err error)
 
 var ErrNotACall = errors.New("not a function call")
+var ErrSkip = errors.New("skip an element")
+var ErrRepeat = errors.New("repeat an element")
 
 func (ctx *Context) resolve(path []byte) (c *Context, fn Command, va []byte) {
 	if len(path) == 0 || rdx.Peek(path) != rdx.Term {
@@ -46,15 +48,20 @@ func (ctx *Context) resolve(path []byte) (c *Context, fn Command, va []byte) {
 
 func (ctx *Context) Evaluate(pre, args []byte) (out []byte, err error) {
 	out = pre
-	for len(args) > 0 && err == nil {
+	rest := args
+	var repeat []byte = nil
+	for len(rest) > 0 && err == nil {
 		var lit byte
-		var id, val, rest []byte
-		lit, id, val, rest, err = rdx.ReadTLKV(args)
+		var id, val, next []byte
+		lit, id, val, next, err = rdx.ReadTLKV(rest)
 		if err != nil {
 			break
 		}
-		whole := args[:len(args)-len(rest)]
-
+		whole := rest[:len(rest)-len(next)]
+		if repeat != nil {
+			next = repeat
+			repeat = nil
+		}
 		if lit == rdx.Term || lit == rdx.Tuple {
 			path := whole
 			if lit == rdx.Tuple {
@@ -63,17 +70,28 @@ func (ctx *Context) Evaluate(pre, args []byte) (out []byte, err error) {
 			c, fn, va := ctx.resolve(path)
 			if va != nil {
 				out = append(out, va...)
-				args = rest
+				rest = next
 				continue
 			} else if fn != nil {
 				var fnargs []byte
-				if len(rest) > 0 && rdx.Peek(rest) == rdx.Tuple {
-					_, _, fnargs, rest, err = rdx.ReadTLKV(rest)
+				if len(next) > 0 && rdx.Peek(next) == rdx.Tuple {
+					_, _, fnargs, next, err = rdx.ReadTLKV(next)
 				}
 				var res []byte
 				res, err = fn(c, fnargs)
 				out = append(out, res...)
-				args = rest
+				if err != nil {
+					if err == ErrRepeat {
+						repeat = rest
+						err = nil
+					} else if err == ErrSkip {
+						if len(next) != 0 {
+							_, _, _, next, err = rdx.ReadTLKV(next)
+						}
+						err = nil
+					}
+				}
+				rest = next
 				continue
 			}
 		}
@@ -92,7 +110,7 @@ func (ctx *Context) Evaluate(pre, args []byte) (out []byte, err error) {
 				out, err = rdx.CloseTLV(out, lit, &ctx.stack)
 			}
 		}
-		args = rest
+		rest = next
 	}
 	return
 }

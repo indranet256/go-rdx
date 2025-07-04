@@ -10,6 +10,9 @@ func CmdIDInts(ctx *Context, args []byte) (out []byte, err error) {
 	for rdx.Peek(args) == rdx.Reference {
 		var a rdx.ID
 		a, _, args, err = rdx.ReadID(args)
+		if err != nil {
+			break
+		}
 		out = rdx.OpenShortTLV(out, rdx.Tuple, &stack)
 		out = append(out, 0)
 		out = rdx.AppendInteger(out, int64(a.Src))
@@ -19,7 +22,22 @@ func CmdIDInts(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 
-func LinearID(ctx *Context, args []byte) (out []byte, err error) {
+func CmdMerge(ctx *Context, args []byte) (out []byte, err error) {
+	inputs := make([][]byte, 0, 10)
+	for len(args) > 0 {
+		_, _, _, rest, e := rdx.ReadRDX(args)
+		if e != nil {
+			err = e
+			return
+		}
+		inputs = append(inputs, args[:len(args)-len(rest)])
+		args = rest
+	}
+	out, err = rdx.Merge(nil, inputs)
+	return
+}
+
+func CmdFitID(ctx *Context, args []byte) (out []byte, err error) {
 	a := rdx.ID{0, 0}
 	b := rdx.ID{0, 0xffffffffffffffff}
 	n := int64(1)
