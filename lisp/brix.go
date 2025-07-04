@@ -4,12 +4,9 @@ import (
 	"github.com/gritzko/rdx"
 )
 
-func CmdBrixNew(args, pre []byte) (out []byte, err error) {
+func CmdBrixNew(ctx *Context, args []byte) (out []byte, err error) {
 	w := rdx.Brik{}
 	err = w.Create([]rdx.Sha256{})
-	if len(args) == 0 {
-		args = pre
-	}
 	_, err = w.WriteAll(args)
 	if err != nil {
 		_ = w.Unlink()
@@ -26,7 +23,7 @@ func CmdBrixNew(args, pre []byte) (out []byte, err error) {
 	return
 }
 
-func CmdBrixGet(args, pre []byte) (out []byte, err error) {
+func CmdBrixGet(ctx *Context, args []byte) (out []byte, err error) {
 	if rdx.Peek(args) != rdx.Term {
 		return nil, ErrBadArguments
 	}
@@ -47,7 +44,7 @@ func CmdBrixGet(args, pre []byte) (out []byte, err error) {
 }
 
 // brix:add (3c0dce, {@alice-345 5:"five"})
-func CmdBrixAdd(args, pre []byte) (out []byte, err error) {
+func CmdBrixAdd(ctx *Context, args []byte) (out []byte, err error) {
 	w := rdx.Brik{}
 	var hashlet []byte
 	hashlet, _, args, err = rdx.ReadTerm(args)
@@ -68,9 +65,6 @@ func CmdBrixAdd(args, pre []byte) (out []byte, err error) {
 	}
 	deps = append(deps, hash)
 	err = w.Create(deps)
-	if len(args) == 0 {
-		args = pre
-	}
 	_, err = w.WriteAll(args)
 	if err != nil {
 		_ = w.Unlink()

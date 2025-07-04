@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func Echo(ctx *Context, arg []byte) (out []byte, err error) {
+func CmdEcho(ctx *Context, arg []byte) (out []byte, err error) {
 	var jdr, eval []byte
 	eval, err = ctx.Evaluate(nil, arg)
 	if err != nil {
@@ -54,7 +54,7 @@ func flatten(ctx *Context, arg, j []byte) (out []byte, err error) {
 	return
 }
 
-func Join(ctx *Context, arg []byte) (ret []byte, err error) {
+func CmdJoin(ctx *Context, arg []byte) (ret []byte, err error) {
 	if len(arg) == 0 {
 		return
 	}

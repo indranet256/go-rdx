@@ -9,6 +9,13 @@ that all CRDTs are now implemented by iterator
 heap merge, mainly thanks to the new [DISCONT][d]
 linear collection CRDT.
 
+##  Changelog
+
+  - 4 Jul 2025: added a small LISP for scripting and testing
+    (many thanks to I.Ramadhan)
+  - 29 Jun 2025: implemented the basics of the Merklefied LSM 
+    format BRIX  
+
 [c]: http://github.com/drpcorg/chotki
 [d]: ./DISCOUNT.md
 [l]: http://github.com/gritzko/librdx

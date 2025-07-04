@@ -15,18 +15,25 @@ var TopContext = Context{
 		"__version": rdx.WriteRDX(nil, rdx.String, rdx.ID{}, []byte("RDXLisp v0.0.1")),
 	},
 	funs: map[string]Command{
-		"echo": Echo,
-		"join": Join,
+		"echo": CmdEcho,
+		"join": CmdJoin,
 	},
 	subs: map[string]*Context{
 		"rdx": &Context{
 			funs: map[string]Command{
-				"idint": IDInts,
+				"idint": CmdIDInts,
 			},
 		},
 		"crypto": &Context{
 			funs: map[string]Command{
-				"sha256": Hash,
+				"sha256": CmdHash,
+			},
+		},
+		"brix": &Context{
+			funs: map[string]Command{
+				"new": CmdBrixNew,
+				"get": CmdBrixGet,
+				"add": CmdBrixAdd,
 			},
 		},
 	},

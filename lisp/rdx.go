@@ -5,7 +5,7 @@ import (
 	"github.com/gritzko/rdx"
 )
 
-func IDInts(ctx *Context, args []byte) (out []byte, err error) {
+func CmdIDInts(ctx *Context, args []byte) (out []byte, err error) {
 	stack := rdx.Marks{}
 	for rdx.Peek(args) == rdx.Reference {
 		var a rdx.ID
