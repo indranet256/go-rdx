@@ -1,11 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gritzko/rdx"
 	"os"
 	"strings"
 )
+
+var ErrBadArguments = errors.New("bad arguments")
 
 var TopContext = Context{
 	vars: map[string][]byte{
@@ -16,6 +19,11 @@ var TopContext = Context{
 		"join": Join,
 	},
 	subs: map[string]*Context{
+		"rdx": &Context{
+			funs: map[string]Command{
+				"idint": IDInts,
+			},
+		},
 		"crypto": &Context{
 			funs: map[string]Command{
 				"sha256": Hash,

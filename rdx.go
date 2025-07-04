@@ -406,3 +406,8 @@ func LBetween(a, b uint64) (ret uint64) {
 	}
 	return Revert64(ret) << 6
 }
+
+func AppendInteger(data []byte, val int64) []byte {
+	b := ZipInt64(val)
+	return WriteTLKV(data, Integer, nil, b)
+}
