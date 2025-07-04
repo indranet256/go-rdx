@@ -15,6 +15,8 @@ var TopContext = Context{
 		"__version": rdx.WriteRDX(nil, rdx.String, rdx.ID{}, []byte("RDXLisp v0.0.1")),
 	},
 	funs: map[string]Command{
+		"if":   CmdIf,
+		"eq":   CmdEq,
 		"echo": CmdEcho,
 		"join": CmdJoin,
 	},
@@ -22,6 +24,8 @@ var TopContext = Context{
 		"rdx": &Context{
 			funs: map[string]Command{
 				"idint": CmdIDInts,
+				"fitid": CmdFitID,
+				"merge": CmdMerge,
 			},
 		},
 		"crypto": &Context{
@@ -73,7 +77,9 @@ func main() {
 		fmt.Printf("bad command: %s\n", err.Error())
 		os.Exit(-1)
 	}
-	jdr, err := rdx.WriteAllJDR(nil, out, 0)
-	fmt.Print(string(jdr))
+	_ = out
+	// todo repl mode
+	//jdr, err := rdx.WriteAllJDR(nil, out, 0)
+	//fmt.Print(string(jdr))
 	return
 }
