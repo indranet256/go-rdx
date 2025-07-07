@@ -29,11 +29,16 @@ func flatten(ctx *Context, arg, j []byte) (out []byte, err error) {
 		case rdx.String:
 			out = append(out, val...)
 		case rdx.Term:
-			v, ok := ctx.vars[string(val)]
+			v, ok := ctx.names[string(val)]
 			if ok {
-				var tmp []byte
-				tmp, err = flatten(ctx, v, j)
-				out = append(out, tmp...)
+				switch v.(type) {
+				case []byte:
+					var tmp []byte
+					tmp, err = flatten(ctx, v.([]byte), j)
+					out = append(out, tmp...)
+				default:
+					return nil, ErrUnexpectedNameType
+				}
 			} else {
 				out = append(out, val...)
 			}

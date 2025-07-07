@@ -11,33 +11,29 @@ import (
 var ErrBadArguments = errors.New("bad arguments")
 
 var TopContext = Context{
-	vars: map[string][]byte{
+	names: map[string]any{
 		"__version": rdx.WriteRDX(nil, rdx.String, rdx.ID{}, []byte("RDXLisp v0.0.1")),
-	},
-	funs: map[string]Command{
-		"if":   CmdIf,
-		"eq":   CmdEq,
-		"echo": CmdEcho,
-		"join": CmdJoin,
-	},
-	subs: map[string]*Context{
+		"if":        Control(CmdIf),
+		"eq":        Command(CmdEq),
+		"echo":      Command(CmdEcho),
+		"join":      Command(CmdJoin),
 		"rdx": &Context{
-			funs: map[string]Command{
-				"idint": CmdIDInts,
-				"fitid": CmdFitID,
-				"merge": CmdMerge,
+			names: map[string]any{
+				"idint": Command(CmdIDInts),
+				"fitid": Command(CmdFitID),
+				"merge": Command(CmdMerge),
 			},
 		},
 		"crypto": &Context{
-			funs: map[string]Command{
-				"sha256": CmdHash,
+			names: map[string]any{
+				"sha256": Command(CmdHash),
 			},
 		},
 		"brix": &Context{
-			funs: map[string]Command{
-				"new": CmdBrixNew,
-				"get": CmdBrixGet,
-				"add": CmdBrixAdd,
+			names: map[string]any{
+				"new": Command(CmdBrixNew),
+				"get": Command(CmdBrixGet),
+				"add": Command(CmdBrixAdd),
 			},
 		},
 	},
