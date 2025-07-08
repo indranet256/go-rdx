@@ -135,3 +135,78 @@ With these techniques, we effectively achieve the same
 effect as CT/RGA sequential-ID blocks, minimizing the
 metadata overhead for solid chunks of text. Whether the
 gain is worth the complexity is a separate question though.
+
+##  The pomological proof
+
+<img src="img/IMG_1945.jpg" width="45%" align="left"/>
+This picture depends three main cases for DISCONT.
+The vertical axis is the ID value, the horizontal axis is
+the factual position in the array. So, arrays read left-
+to-right.
+
+  - Case A is the normal Figma numbering, no issues. Elements
+    (green apple, red apple, peach) are sorted in the order of
+    their IDs, everything is straightforward.
+
+  - Case B is the moment of numbering space saturation. Elements
+    orange and pear, once inserted, have IDs that differ by 1,
+    so no new IDs can be inserted between them.
+
+  - Case C is where we use the train-insertion technique to add
+    two cherries and a grape; their IDs are lower than the orange
+    and the pear have.
+
+Now, imagine we merge any number of versions of that array.
+All versions fall into one of the classes: A, B, or C. Those that
+have the orange are B, those that also have a cherry are C.
+Let's think how merge sort would process all these inputs.
+(Note that our version of merge sort merges copies of the same element.)
+In case we have no C inputs, there is nothing to talk about,
+merge sort works normally.
+
+Now suppose we have B and C inputs. Apples will be merged just fine,
+there is no intrigue. Then, copies of the orange will be merged.
+Then, the train will immediately follow because IDs of its elements
+are lower than the ID of the orange, so if the orange "won" in the
+comparison, the cherry will win immediately next. We may have several
+C inputs with varying numbers of elements in the train, but the cherry
+train will be definitely handled before we get to the pear.
+
+Now suppose we have A, B and C inputs. In such a case, there is no
+intrigue either; as the orange is present in the inputs, its turn
+will be after the apples, before the pear, so the cherry train will
+be processed in the right order, immediately after the orange.
+
+This logic applies recursively, we may add another nested train
+between the cherries and the grape. Similarly, we may add several
+insertion trains at the top level.
+
+The key trick is: once the head of the train (the orange) is present,
+it orders normally in the top-level array, and its train immediately
+follows.
+
+Potentially, we may mess things up in several ways. First of all,
+we may execute the algorithm incorrectly and that will lead to
+really bad consequences, as train insertion is more fragile than
+regular Figma-style element sorting. But this case is on the "data
+corruption" side. There are subtler issues, e.g. interleaving.
+No matter whether we do it at the top level or in any train,
+suppose we concurrently do non-train insertion of many elements into
+the same spot. Then their relative order in the resulting sequence 
+is basically random. It will depend on the choice of IDs by those
+who inserted the elements. They may oven overwrite each other in
+case we skip the `src` part of the ID (that is allowed in RDX).
+
+Overall, our choice of train vs plain insertions and the choice of
+IDs for the new elements both depend on the semantics of the collection
+in question. These things have to be handled carefully at a higher
+level where user intention is more clear. For example, we may want
+for concurrent insertions to overwrite each other, e.g. in the case
+of typo correction "baguete"->"baguette" done concurrently by two
+users we do not want "baguettte" as a result (the case of CT/RGA).
+DISCONT provides some options here which have to be handled 
+carefully. 
+
+Finally, RDX does not prescribe granularity of the edits;
+it can work per-letter, per-word or per-line, there is no difference.
+So, all that nuance is left for higher-level code to sort out.
