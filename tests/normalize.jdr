@@ -1,0 +1,13 @@
+#!lisp
+
+test:eq (
+      "Normalize a set of integers"
+      {1 2 3 4 5 6 7 8}
+      rdx:normalize({8 5 7 2 6 1 4 3})
+      )
+
+test:eq (
+        "Normalize a map with integer keys"
+        {1:"one" 2:"two" 3:"three"}
+        rdx:normalize({3:"three" 1:"one" 2:"two"})
+    )

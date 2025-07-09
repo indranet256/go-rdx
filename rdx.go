@@ -3,7 +3,9 @@ package rdx
 import (
 	"bytes"
 	"errors"
+	"math"
 	"math/bits"
+	"unicode/utf8"
 )
 
 const (
@@ -410,4 +412,119 @@ func LBetween(a, b uint64) (ret uint64) {
 func AppendInteger(data []byte, val int64) []byte {
 	b := ZipInt64(val)
 	return WriteTLKV(data, Integer, nil, b)
+}
+
+var ErrBadFloatRecord = errors.New("bad Float record format")
+var ErrBadIntegerRecord = errors.New("bad Integer record format")
+var ErrBadReferenceRecord = errors.New("bad Reference record format")
+var ErrBadStringRecord = errors.New("bad String record format")
+var ErrBadTermRecord = errors.New("bad Term record format")
+
+func Normalize(rdx []byte) (norm []byte, err error) {
+	data := make([]byte, 0, len(rdx))
+	stack := Marks{}
+	return normalize(data, rdx, CompareTuple, &stack)
+}
+
+func normalize(data, rdx []byte, z Compare, stack *Marks) (norm []byte, err error) {
+	if len(rdx) == 0 {
+		return
+	}
+	norm = data
+	chunks := [][]byte{}
+	var i, j Iter
+	i.Rest = rdx
+	err = i.NextStep(&j)
+	oc := data
+	at := &j
+	next := &i
+	for err == nil {
+		norm, err = appendNorm(norm, at, stack)
+		err = at.NextStep(next)
+		if err == nil && z != nil && z(at, next) != Less {
+			chunks = append(chunks, norm[len(oc):])
+			oc = norm
+		}
+		at, next = next, at
+	}
+	if err == ErrEoF {
+		err = nil
+	}
+	if len(chunks) > 0 && err == nil {
+		chunks = append(chunks, norm[len(oc):])
+		sorted := make([]byte, 0, len(norm)-len(data))
+		sorted, err = HeapMerge(sorted, chunks, z)
+		norm = append(data, sorted...)
+	}
+	return
+}
+
+func appendNorm(to []byte, it *Iter, stack *Marks) (norm []byte, err error) {
+	val := it.Value
+	lit := it.Lit()
+	idbytes := ZipID(it.Id)
+	norm = to
+	switch lit {
+	case Float:
+		if len(val) > 8 {
+			return nil, ErrBadFloatRecord
+		}
+		f := UnzipFloat64(val)
+		if math.IsNaN(f) {
+			return nil, ErrBadFloatRecord
+		}
+		val = ZipFloat64(f)
+		norm = WriteTLKV(norm, lit, idbytes, val)
+	case Integer:
+		if len(val) > 8 {
+			return nil, ErrBadIntegerRecord
+		}
+		f := UnzipInt64(val)
+		val = ZipInt64(f)
+		norm = WriteTLKV(norm, lit, idbytes, val)
+	case Reference:
+		if len(val) > 16 { // todo bad sizes
+			return nil, ErrBadReferenceRecord
+		}
+		i := UnzipID(val)
+		val = ZipID(i)
+		norm = WriteTLKV(norm, lit, idbytes, val)
+	case String:
+		if !utf8.Valid(val) {
+			return nil, ErrBadStringRecord
+		}
+		norm = WriteTLKV(norm, lit, idbytes, val)
+	case Term:
+		for _, c := range val {
+			if RON64REV[c] == 0xff {
+				return nil, ErrBadTermRecord
+			}
+		}
+		norm = WriteTLKV(norm, lit, idbytes, val)
+	case Tuple:
+		norm = OpenTLV(norm, Tuple, stack)
+		norm = append(norm, byte(len(idbytes)))
+		norm = append(norm, idbytes...)
+		norm, err = normalize(norm, val, nil, stack)
+		norm, err = CloseTLV(norm, Tuple, stack)
+	case Linear:
+		norm = OpenTLV(norm, Linear, stack)
+		norm = append(norm, byte(len(idbytes)))
+		norm = append(norm, idbytes...)
+		norm, err = normalize(norm, val, CompareLinear, stack)
+		norm, err = CloseTLV(norm, Linear, stack)
+	case Euler:
+		norm = OpenTLV(norm, Euler, stack)
+		norm = append(norm, byte(len(idbytes)))
+		norm = append(norm, idbytes...)
+		norm, err = normalize(norm, val, CompareEuler, stack)
+		norm, err = CloseTLV(norm, Euler, stack)
+	case Multix:
+		norm = OpenTLV(norm, Multix, stack)
+		norm = append(norm, byte(len(idbytes)))
+		norm = append(norm, idbytes...)
+		norm, err = normalize(norm, val, CompareMultix, stack)
+		norm, err = CloseTLV(norm, Multix, stack)
+	}
+	return
 }
