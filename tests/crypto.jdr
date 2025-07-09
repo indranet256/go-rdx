@@ -1,0 +1,4 @@
+test:eq("Hash an empty tuple"
+	7ca0c90edcd9a803aa91d4279e1a77c272804880bbe9daae40e65eb690e9d968
+	crypto:hash(())
+	)

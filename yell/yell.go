@@ -21,16 +21,23 @@ var TopContext = Context{
 		"eval":      Command(CmdEval),
 		"rdx": &Context{
 			names: map[string]any{
-				"idint":     Command(CmdIDInts),
-				"fitid":     Command(CmdFitID),
-				"merge":     Command(CmdMerge),
-				"normalize": Command(CmdNormalize),
+				"idint":     Command(CmdRdxIDInts),
+				"fitid":     Command(CmdRdxFitID),
+				"fit":       Command(CmdRdxFitID),
+				"merge":     Command(CmdRdxMerge),
+				"y":         Command(CmdRdxMerge),
+				"normalize": Command(CmdRdxNormalize),
+				"norm":      Command(CmdRdxNormalize),
+				"normal":    Command(CmdRdxNormalize),
 				"flat":      Command(CmdRdxFlatten),
+				"flatten":   Command(CmdRdxFlatten),
 			},
 		},
 		"crypto": &Context{
 			names: map[string]any{
-				"sha256": Command(CmdHash),
+				"sha256": Command(CmdCryptoHash),
+				"sha":    Command(CmdCryptoHash),
+				"hash":   Command(CmdCryptoHash),
 			},
 		},
 		"brix": &Context{
@@ -42,7 +49,8 @@ var TopContext = Context{
 		},
 		"test": &Context{
 			names: map[string]any{
-				"eq": Command(CmdTestEq),
+				"eq":    Command(CmdTestEq),
+				"equal": Command(CmdTestEq),
 			},
 		},
 	},
@@ -68,7 +76,5 @@ func main() {
 	}
 	_ = out
 	// todo repl mode
-	//jdr, err := rdx.WriteAllJDR(nil, out, 0)
-	//fmt.Print(string(jdr))
 	return
 }

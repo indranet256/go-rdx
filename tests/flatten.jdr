@@ -4,6 +4,6 @@ test:eq("flatten FIRST values in a tuple"
 	)
 
 test:eq("flatten FIRST values in a set"
-	{1 2 4}
-	rdx:flat({ 1 2 3@3 4@4 (@deleted-3 nothing here)})
+	{1 2 4 [live]}
+	rdx:flat({ 1 2 3@3 4@4 (@deleted-3 nothing here) [@Alice-2 live]})
 	)

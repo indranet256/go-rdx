@@ -5,7 +5,7 @@ import (
 	"github.com/gritzko/rdx"
 )
 
-func CmdIDInts(ctx *Context, args []byte) (out []byte, err error) {
+func CmdRdxIDInts(ctx *Context, args []byte) (out []byte, err error) {
 	stack := rdx.Marks{}
 	for rdx.Peek(args) == rdx.Reference {
 		var a rdx.ID
@@ -22,7 +22,7 @@ func CmdIDInts(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 
-func CmdMerge(ctx *Context, args []byte) (out []byte, err error) {
+func CmdRdxMerge(ctx *Context, args []byte) (out []byte, err error) {
 	inputs := make([][]byte, 0, 10)
 	for len(args) > 0 {
 		_, _, _, rest, e := rdx.ReadRDX(args)
@@ -37,7 +37,7 @@ func CmdMerge(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 
-func CmdFitID(ctx *Context, args []byte) (out []byte, err error) {
+func CmdRdxFitID(ctx *Context, args []byte) (out []byte, err error) {
 	a := rdx.ID{0, 0}
 	b := rdx.ID{0, 0xffffffffffffffff}
 	n := int64(1)
@@ -58,7 +58,7 @@ func CmdFitID(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 
-func CmdNormalize(ctx *Context, args []byte) (out []byte, err error) {
+func CmdRdxNormalize(ctx *Context, args []byte) (out []byte, err error) {
 	return rdx.Normalize(args)
 }
 
