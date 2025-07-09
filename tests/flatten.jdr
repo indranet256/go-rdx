@@ -1,0 +1,9 @@
+test:eq("flatten FIRST values in a tuple"
+	(1 2 () 4)
+	rdx:flat(( 1 2 3@3 4@4 ))
+	)
+
+test:eq("flatten FIRST values in a set"
+	{1 2 4}
+	rdx:flat({ 1 2 3@3 4@4 (@deleted-3 nothing here)})
+	)

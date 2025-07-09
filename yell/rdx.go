@@ -61,3 +61,7 @@ func CmdFitID(ctx *Context, args []byte) (out []byte, err error) {
 func CmdNormalize(ctx *Context, args []byte) (out []byte, err error) {
 	return rdx.Normalize(args)
 }
+
+func CmdRdxFlatten(ctx *Context, args []byte) (out []byte, err error) {
+	return rdx.Flatten(nil, args)
+}

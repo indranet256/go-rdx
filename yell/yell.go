@@ -25,6 +25,7 @@ var TopContext = Context{
 				"fitid":     Command(CmdFitID),
 				"merge":     Command(CmdMerge),
 				"normalize": Command(CmdNormalize),
+				"flat":      Command(CmdRdxFlatten),
 			},
 		},
 		"crypto": &Context{

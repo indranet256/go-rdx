@@ -540,3 +540,37 @@ func appendNorm(to []byte, it *Iter, stack *Marks) (norm []byte, err error) {
 	}
 	return
 }
+
+func flaten(data, rdx []byte, stack *Marks) (flat []byte, err error) {
+	flat = data
+	for len(rdx) > 0 && err == nil {
+		var lit byte
+		var id ID
+		var val, rest []byte
+		lit, id, val, rest, err = ReadRDX(rdx)
+		if err != nil {
+			break
+		}
+		if (id.Seq & 1) != 0 {
+			if len(*stack) > 0 && (*stack)[len(*stack)-1].Lit == Tuple {
+				flat = append(flat, Tuple|CaseBit, 1, 0)
+			}
+		} else if IsFIRST(lit) {
+			flat = WriteTLKV(flat, lit, nil, val)
+		} else {
+			flat = OpenTLV(flat, lit, stack)
+			flat = append(flat, 0)
+			flat, err = flaten(flat, val, stack)
+			if err == nil {
+				flat, err = CloseTLV(flat, lit, stack)
+			}
+		}
+		rdx = rest
+	}
+	return
+}
+
+func Flatten(data, rdx []byte) (flat []byte, err error) {
+	stack := make(Marks, 0, 32)
+	return flaten(data, rdx, &stack)
+}
