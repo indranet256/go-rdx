@@ -360,6 +360,18 @@ func ReadTerm(rdx []byte) (val []byte, id ID, rest []byte, err error) {
 	return
 }
 
+func ReadString(rdx []byte) (val string, id ID, rest []byte, err error) {
+	var lit byte
+	var v []byte
+	lit, id, v, rest, err = ReadRDX(rdx)
+	if err == nil && lit != String {
+		err = ErrWrongRDXRecordType
+	} else {
+		val = string(v)
+	}
+	return
+}
+
 func ReadID(rdx []byte) (val, id ID, rest []byte, err error) {
 	var v []byte
 	var lit byte
@@ -511,7 +523,7 @@ func appendNorm(to []byte, it *Iter, stack *Marks) (norm []byte, err error) {
 		norm = OpenTLV(norm, Linear, stack)
 		norm = append(norm, byte(len(idbytes)))
 		norm = append(norm, idbytes...)
-		norm, err = normalize(norm, val, CompareLinear, stack)
+		norm, err = normalize(norm, val, nil, stack)
 		norm, err = CloseTLV(norm, Linear, stack)
 	case Euler:
 		norm = OpenTLV(norm, Euler, stack)

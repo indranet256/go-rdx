@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/gritzko/rdx"
+	"os"
 	"strconv"
 )
 
@@ -71,6 +73,60 @@ func CmdJoin(ctx *Context, arg []byte) (ret []byte, err error) {
 	out, err = flatten(ctx, arg, j)
 	if err == nil {
 		ret = rdx.WriteRDX(nil, rdx.String, rdx.ID{}, out)
+	}
+	return
+}
+
+func CmdLoad(ctx *Context, args []byte) (out []byte, err error) {
+	path := ""
+	if len(args) > 0 && rdx.Peek(args) == rdx.String {
+		path, _, args, err = rdx.ReadString(args)
+		return LoadJDR(path)
+	} else {
+		return nil, ErrBadArguments
+	}
+}
+
+func CmdEval(ctx *Context, args []byte) (out []byte, err error) {
+	path := ""
+	if len(args) == 0 || rdx.Peek(args) != rdx.String {
+		return nil, ErrBadArguments
+	}
+	path, _, args, err = rdx.ReadString(args)
+	var code []byte
+	if err == nil {
+		code, err = LoadJDR(path)
+	}
+	if err == nil {
+		out, err = ctx.Evaluate(nil, code)
+	}
+	return
+}
+
+func LoadJDR(path string) (cmds []byte, err error) {
+	var file *os.File
+	file, err = os.Open(path)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "IO error: %s\n", err.Error())
+		return
+	}
+	stat, _ := file.Stat()
+	todo := stat.Size()
+	code := make([]byte, todo)
+	rest := code
+	for len(rest) > 0 && err == nil {
+		var n int
+		n, err = file.Read(rest)
+		rest = rest[n:]
+	}
+	if err == nil && len(code) > 0 && code[0] == '#' {
+		i := bytes.IndexByte(code, '\n')
+		if i > 0 {
+			code = code[i:]
+		}
+	}
+	if err == nil {
+		cmds, err = rdx.ParseJDR(code)
 	}
 	return
 }
