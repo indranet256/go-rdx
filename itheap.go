@@ -14,18 +14,20 @@ func (i *Iter) Lit() byte {
 	return i.Last[0] & ^CaseBit
 }
 
-func (i *Iter) Next() (err error) {
+func (i Iter) NextStep(j *Iter) (err error) {
 	if len(i.Rest) == 0 {
-		i.Id = ID{}
-		i.Value = nil
-		i.Rest = nil
-		i.Last = nil
-		return ErrEoF
+		err = ErrEoF
+	} else {
+		rest := i.Rest
+		_, j.Id, j.Value, j.Rest, err = ReadRDX(rest)
+		j.Last = rest[:len(rest)-len(j.Rest)]
 	}
-	rest := i.Rest
-	_, i.Id, i.Value, i.Rest, err = ReadRDX(rest)
-	i.Last = rest[:len(rest)-len(i.Rest)]
-	return err
+	return
+}
+
+func (i *Iter) Next() (err error) {
+	err = i.NextStep(i)
+	return
 }
 
 type Heap []*Iter

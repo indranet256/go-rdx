@@ -57,3 +57,7 @@ func CmdFitID(ctx *Context, args []byte) (out []byte, err error) {
 	}
 	return
 }
+
+func CmdNormalize(ctx *Context, args []byte) (out []byte, err error) {
+	return rdx.Normalize(args)
+}

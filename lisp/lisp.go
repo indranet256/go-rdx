@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/gritzko/rdx"
@@ -19,9 +20,10 @@ var TopContext = Context{
 		"join":      Command(CmdJoin),
 		"rdx": &Context{
 			names: map[string]any{
-				"idint": Command(CmdIDInts),
-				"fitid": Command(CmdFitID),
-				"merge": Command(CmdMerge),
+				"idint":     Command(CmdIDInts),
+				"fitid":     Command(CmdFitID),
+				"merge":     Command(CmdMerge),
+				"normalize": Command(CmdNormalize),
 			},
 		},
 		"crypto": &Context{
@@ -34,6 +36,11 @@ var TopContext = Context{
 				"new": Command(CmdBrixNew),
 				"get": Command(CmdBrixGet),
 				"add": Command(CmdBrixAdd),
+			},
+		},
+		"test": &Context{
+			names: map[string]any{
+				"eq": Command(CmdTestEq),
 			},
 		},
 	},
@@ -57,6 +64,12 @@ func main() {
 			var n int
 			n, err = file.Read(rest)
 			rest = rest[n:]
+		}
+		if len(code) > 0 && code[0] == '#' {
+			i := bytes.IndexByte(code, '\n')
+			if i > 0 {
+				code = code[i:]
+			}
 		}
 	} else {
 		code = []byte(strings.Join(os.Args[1:], " "))

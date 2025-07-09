@@ -118,7 +118,7 @@ func UnzipUint64Pair(buf []byte) (big, lil uint64) {
 	case 16:
 		big = binary.LittleEndian.Uint64(buf[0:8])
 		lil = binary.LittleEndian.Uint64(buf[8:16])
-	default:
+	default: // what about 7 11 13 14 15 ?
 		// error!
 	}
 	return
