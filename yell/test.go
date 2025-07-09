@@ -28,7 +28,7 @@ func CmdTestEq(ctx *Context, arg []byte) (ret []byte, err error) {
 		text = append(text, "FAIL"...)
 		text = append(text, '\n')
 		text = AppendTermEsc(text, DARK_GREEN)
-		jdrc, _ := rdx.WriteAllJDR(nil, ev, 0)
+		jdrc, _ := rdx.WriteAllJDR(nil, correct, 0)
 		text = append(text, jdrc...)
 		text = append(text, '\n')
 		text = AppendTermEsc(text, LIGHT_RED)

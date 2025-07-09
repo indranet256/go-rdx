@@ -1,9 +1,7 @@
-#!lisp
-
 test:eq (
       "Normalize a set of integers"
-      {1 2 3 4 5 6 7 8}
-      rdx:normalize({8 5 7 2 6 1 4 3})
+      {1 2 3 4 5@1 6 7 8}
+      rdx:normalize({8 5@1 7 2 6 1 4 3})
       )
 
 test:eq (
@@ -11,3 +9,15 @@ test:eq (
         {1:"one" 2:"two" 3:"three"}
         rdx:normalize({3:"three" 1:"one" 2:"two"})
     )
+
+test:eq (
+        "Normalize a version vector"
+        <56@Bob-88 23@Alice-6>
+        rdx:normalize(<23@Alice-6 56@Bob-88>)
+        )
+
+test:eq (
+        "Normalize an array (good luck with that)"
+        [ 1 2 33 4 5 ]
+        rdx:normalize([ 1 2 33 4 5 ])
+        )
