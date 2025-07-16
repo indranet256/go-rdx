@@ -14,7 +14,11 @@ func (i *Iter) Lit() byte {
 	return i.Last[0] & ^CaseBit
 }
 
-func (i Iter) NextStep(j *Iter) (err error) {
+func (i *Iter) IsLive() bool {
+	return (i.Id.Seq & 1) != 0
+}
+
+func (i *Iter) NextStep(j *Iter) (err error) {
 	if len(i.Rest) == 0 {
 		err = ErrEoF
 	} else {
@@ -27,6 +31,14 @@ func (i Iter) NextStep(j *Iter) (err error) {
 
 func (i *Iter) Next() (err error) {
 	err = i.NextStep(i)
+	return
+}
+
+func (i *Iter) NextLive() (err error) {
+	err = i.Next()
+	for err == nil && !i.IsLive() {
+		err = i.Next()
+	}
 	return
 }
 
