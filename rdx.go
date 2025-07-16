@@ -426,6 +426,10 @@ func AppendInteger(data []byte, val int64) []byte {
 	return WriteTLKV(data, Integer, nil, b)
 }
 
+func AppendString(data []byte, val []byte) []byte {
+	return WriteTLKV(data, String, nil, val)
+}
+
 var ErrBadFloatRecord = errors.New("bad Float record format")
 var ErrBadIntegerRecord = errors.New("bad Integer record format")
 var ErrBadReferenceRecord = errors.New("bad Reference record format")

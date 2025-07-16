@@ -67,6 +67,7 @@ func main() {
 		code = []byte(strings.Join(os.Args[1:], " "))
 		cmds, err = rdx.ParseJDR(code)
 	}
+	InitTerm()
 
 	var out []byte
 	if err == nil {
