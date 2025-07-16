@@ -16,7 +16,7 @@ type Control func(ctx *Context, args []byte, rest *[]byte) (out []byte, err erro
 var ErrNotACall = errors.New("not a function call")
 var ErrSkip = errors.New("skip an element")
 var ErrRepeat = errors.New("repeat an element")
-var ErrUnexpectedNameType = errors.New("unexpected type of the name")
+var ErrUnexpectedNameType = errors.New("the name is associated to a value of a different type")
 
 func (ctx *Context) resolve(path []byte) any {
 	if len(path) == 0 || rdx.Peek(path) != rdx.Term {

@@ -16,6 +16,7 @@ var TopContext = Context{
 		"if":        Control(CmdIf),
 		"eq":        Command(CmdEq),
 		"echo":      Command(CmdEcho),
+		"set":       Command(CmdSet),
 		"join":      Command(CmdJoin),
 		"load":      Command(CmdLoad),
 		"eval":      Command(CmdEval),
