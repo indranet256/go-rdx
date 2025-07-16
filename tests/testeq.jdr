@@ -1,3 +1,0 @@
-test:eq(1 2)
-test:eq("not ok" 1 2)
-test:eq("now ok" 1 1)

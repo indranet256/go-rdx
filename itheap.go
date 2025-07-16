@@ -129,7 +129,7 @@ func (ih Heap) Down(i0 int, z Compare) bool {
 	i := i0
 	for {
 		j1 := 2*i + 1
-		if j1 >= n || j1 < Eq { // j1 < 0 after int overflow
+		if j1 >= n || j1 < 0 { // j1 < 0 after int overflow
 			break
 		}
 		j := j1 // left child

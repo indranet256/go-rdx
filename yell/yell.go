@@ -31,6 +31,7 @@ var TopContext = Context{
 				"normal":    Command(CmdRdxNormalize),
 				"flat":      Command(CmdRdxFlatten),
 				"flatten":   Command(CmdRdxFlatten),
+				"diff":      Command(CmdRdxDiff),
 			},
 		},
 		"crypto": &Context{
