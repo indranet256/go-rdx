@@ -2,9 +2,12 @@ package rdx
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"slices"
 )
+
+var ErrBadOp = errors.New("bad operation for the context")
 
 const (
 	Keep    = '='
@@ -36,6 +39,7 @@ func (a *DiffProgress) NeuPos() int {
 }
 
 type Diff struct {
+	Orig []byte
 	Old  []byte
 	Neu  []byte
 	log  []DiffProgress
@@ -275,11 +279,14 @@ func (d *Diff) EulerStep(at int) (err error) {
 		err = d.PushInsert(at, &old, &neu)
 	} else if z < Eq {
 		err = d.PushRemove(at, &old, &neu)
-	} else { // todo into
+	} else {
 		if bytes.Compare(old.Last, neu.Last) == 0 {
 			err = d.PushKeep(at, &old, &neu)
 		} else {
 			err = d.PushReplace(at, &old, &neu)
+			if err == nil && neu.Lit() == old.Lit() && IsPLEX(old.Lit()) {
+				err = d.PushInto(at, &old, &neu)
+			}
 		}
 	}
 	return
@@ -392,5 +399,136 @@ func (d *Diff) hili(data, old, neu []byte, p int, stack *Marks) (np int, out []b
 func (d *Diff) Hili() (out []byte, err error) {
 	var stack Marks
 	_, out, err = d.hili(nil, d.Old, d.Neu, 0, &stack)
+	return
+}
+
+var EmptyTuple = []byte{'p', 1, 0}
+
+func (d *Diff) diffP(data, old, neu []byte, p int, stack *Marks) (np int, out []byte, err error) {
+	out = data
+	o := Iter{Rest: old}
+	n := Iter{Rest: neu}
+	np = p
+	for err == nil && np < len(d.path) {
+		act := d.path[np]
+		switch act {
+		case Keep:
+			_ = o.Next()
+			_ = n.Next()
+			if len(out) == len(data) && len(*stack) > 1 && (*stack)[len(*stack)-2].Lit == Euler {
+				out = append(out, o.Last...)
+			} else {
+				out = append(out, EmptyTuple...)
+			}
+		case Insert:
+			err = n.Next()
+			if err != nil {
+				return
+			}
+			out = WriteRDX(out, n.Lit(), n.Id, n.Value)
+		case Remove:
+			_ = o.Next()
+			_ = n.Next()
+			id := ID{Seq: o.Id.Seq | 1}
+			out = WriteRDX(out, Tuple, id, nil)
+		case Replace:
+			_ = o.Next()
+			_ = n.Next()
+			id := ID{Seq: (o.Id.Seq | 1) + 1}
+			out = WriteRDX(out, n.Lit(), id, n.Value)
+		case Update:
+			_ = o.Next()
+			_ = n.Next()
+			out = OpenTLV(out, o.Lit(), stack)
+			id := ZipID(o.Id)
+			out = append(out, byte(len(id)))
+			out = append(out, id...)
+			np, out, err = d.diff(out, o.Lit(), o.Value, n.Value, np+1, stack) // todo bad signature
+			np -= 1
+			out, _ = CloseTLV(out, o.Lit(), stack)
+		case Over:
+			err = io.EOF
+		default:
+			panic("bad action")
+		}
+		np++
+	}
+	if err == io.EOF {
+		err = nil
+	}
+	return
+}
+
+func (d *Diff) diffE(data, old, neu []byte, p int, stack *Marks) (np int, out []byte, err error) {
+	out = data
+	o := Iter{Rest: old}
+	n := Iter{Rest: neu}
+	np = p
+	for err == nil && np < len(d.path) {
+		act := d.path[np]
+		switch act {
+		case Keep:
+			_ = o.Next()
+			_ = n.Next()
+		case Insert:
+			err = n.Next()
+			if err != nil {
+				return
+			}
+			out = append(out, n.Last...)
+		case Remove:
+			_ = o.Next()
+			id := o.Id
+			id.Seq |= 1
+			if o.Lit() == Tuple && len(o.Value) > 0 {
+				key := Iter{Rest: o.Value}
+				_ = key.Next()
+				out = WriteRDX(out, key.Lit(), id, key.Value)
+			} else { // todo plex shell
+				out = WriteRDX(out, o.Lit(), id, o.Value)
+			}
+		case Replace:
+			_ = o.Next()
+			_ = n.Next()
+			id := ID{Seq: (o.Id.Seq | 1) + 1}
+			out = WriteRDX(out, n.Lit(), id, n.Value)
+		case Update:
+			_ = o.Next()
+			_ = n.Next()
+			out = OpenTLV(out, o.Lit(), stack)
+			id := ZipID(o.Id)
+			out = append(out, byte(len(id)))
+			out = append(out, id...)
+			np, out, err = d.diff(out, o.Lit(), o.Value, n.Value, np+1, stack) // todo bad signature
+			np -= 1
+			out, _ = CloseTLV(out, o.Lit(), stack)
+		case Over:
+			err = io.EOF
+		default:
+			panic("bad action")
+		}
+		np++
+	}
+	if err == io.EOF {
+		err = nil
+	}
+	return
+}
+
+func (d *Diff) diff(data []byte, t byte, old, neu []byte, p int, stack *Marks) (np int, out []byte, err error) {
+	out = data
+	switch t {
+	case Tuple:
+		return d.diffP(data, old, neu, p, stack)
+	case Euler:
+		return d.diffE(data, old, neu, p, stack)
+	default:
+		return
+	}
+}
+
+func (d *Diff) Diff() (diff []byte, err error) {
+	stack := make(Marks, 0, MaxNesting)
+	_, diff, err = d.diffP(nil, d.Orig, d.Neu, 0, &stack)
 	return
 }

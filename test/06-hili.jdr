@@ -1,0 +1,43 @@
+test:eq(    "deletion diffhili"
+            "removed"@1
+            rdx:diffhili("removed")
+       )
+
+test:eq(    "no diffhili diff"
+            A
+            rdx:diffhili(A A) )
+
+test:eq(    "diffhili with an update"
+            (@4 1@1 2@2)
+            rdx:diffhili((1) (2))
+       )
+
+test:eq(    "tuple diffhili with update/append"
+            (@4 1 2 3@2)
+            rdx:diffhili((1 2) (1 2 3))
+       )
+
+test:eq(    "set diffhili"
+            {@4 1 2@2 3 4 5@1}
+            rdx:diffhili(
+                    {1 3 4 5}
+                    {1 2 3 4}
+                    )
+        )
+
+test:eq(    "array diffhili"
+            [@4 1 2@2 3 4 5@1]
+            rdx:diffhili(
+                    [1 3 4 5]
+                    [1 2 3 4]
+                    )
+        )
+
+test:eq(    "map diffhili"
+            {@4 1:"one" (@2 2 "two") 3:"three" (@1 4 "four") (@2 4 "FOUR") (@1 5 "five")}
+            rdx:diffhili(
+                    {1:"one" 3:"three" 4:"four" 5:"five"}
+                    {1:"one" 2:"two" 3:"three" 4:"FOUR"}
+                    )
+        )
+

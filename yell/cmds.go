@@ -131,6 +131,10 @@ func LoadJDR(path string) (cmds []byte, err error) {
 	return
 }
 
+func CmdExit(ctx *Context, args []byte) (out []byte, err error) {
+	return nil, ErrNormalExit
+}
+
 func CmdSet(ctx *Context, args []byte) (out []byte, err error) {
 	if len(args) == 0 || rdx.Peek(args) != rdx.Term {
 		return nil, ErrBadArguments

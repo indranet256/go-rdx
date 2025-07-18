@@ -9,6 +9,7 @@ import (
 )
 
 var ErrBadArguments = errors.New("bad arguments")
+var ErrNormalExit = errors.New("all OK")
 
 var TopContext = Context{
 	names: map[string]any{
@@ -20,6 +21,7 @@ var TopContext = Context{
 		"join":      Command(CmdJoin),
 		"load":      Command(CmdLoad),
 		"eval":      Command(CmdEval),
+		"exit":      Command(CmdExit),
 		"rdx": &Context{
 			names: map[string]any{
 				"idint":     Command(CmdRdxIDInts),
@@ -32,6 +34,7 @@ var TopContext = Context{
 				"normal":    Command(CmdRdxNormalize),
 				"flat":      Command(CmdRdxFlatten),
 				"flatten":   Command(CmdRdxFlatten),
+				"diffhili":  Command(CmdRdxDiffHili),
 				"diff":      Command(CmdRdxDiff),
 			},
 		},
@@ -73,7 +76,7 @@ func main() {
 	if err == nil {
 		out, err = TopContext.Evaluate(nil, cmds)
 	}
-	if err != nil {
+	if err != nil && err != ErrNormalExit {
 		fmt.Printf("bad command: %s\n", err.Error())
 		os.Exit(-1)
 	}

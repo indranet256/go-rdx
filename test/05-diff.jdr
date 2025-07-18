@@ -1,43 +1,58 @@
-test:eq(    "deletion diff"
-            "removed"@1
-            rdx:diff("removed")
-       )
-
-test:eq(    "no diff diff"
-            A
-            rdx:diff(A A) )
-
-test:eq(    "diff with an update"
-            (@4 1@1 2@2)
-            rdx:diff((1) (2))
-       )
-
-test:eq(    "tuple diff with update/append"
-            (@4 1 2 3@2)
-            rdx:diff((1 2) (1 2 3))
-       )
-
-test:eq(    "set diff"
-            {@4 1 2@2 3 4 5@1}
-            rdx:diff(
-                    {1 3 4 5}
-                    {1 2 3 4}
-                    )
+test:eq(    "Tuple diff"
+             ((),2@4,3@34,(@1))
+             rdx:diff(
+                 ( 1 22@2 3@33 4 )
+                 ( 1 2 3 )
+             )
         )
 
-test:eq(    "array diff"
-            [@4 1 2@2 3 4 5@1]
+test:eq(    "Set diff"
+            { 1@1 2@1 4 5 }
             rdx:diff(
-                    [1 3 4 5]
-                    [1 2 3 4]
-                    )
+                { 1 2 3 }
+                { 3 4 5 }
+            )
         )
 
-test:eq(    "map diff"
-            {@4 1:"one" (@2 2 "two") 3:"three" (@1 4 "four") (@2 4 "FOUR") (@1 5 "five")}
+test:eq(    "Set nested diff"
+            { 1@1 2@1 4 5 {a@2 b d@1} }
             rdx:diff(
-                    {1:"one" 3:"three" 4:"four" 5:"five"}
-                    {1:"one" 2:"two" 3:"three" 4:"FOUR"}
-                    )
+                { 1 2 3 { a:b c d } }
+                { 3 4 5 { a b c } }
+            )
+        )
+
+test:eq(    "Map diff"
+            { 1:"one" 3:"three" 4@1 5:"five"@2 }
+            rdx:diff(
+                { 2:"two" 4:"four" 5:5 }
+                { 1:"one" 2:"two" 3:"three" 5:"five" }
+            )
+        )
+
+exit()
+
+test:eq(    "Linear diff"
+            [1@101 2@201 22@280 5@500]
+            rdx:diff(
+                [1@100, 2@200, 3@300, 4@400]
+                [22, 3, 4, 5]
+            )
+        )
+
+test:eq(    "Linear diff with trains"
+            [2@200 train@100 here@120]
+            rdx:diff(
+                [1@100, 2@200, 222@220, 22@280, 3@300]
+                [1, 2, train, here, 222, 22, 3]
+            )
+        )
+
+test:eq(    "Linear diff with zeros"
+            [1 2 two@100 three@200 3 4@1 5]
+            rdx:diff(
+                [1 2 3 4 5]
+                [1, 2, two, three, 3, 5]
+            )
         )
 
