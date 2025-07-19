@@ -15,11 +15,14 @@ func (i *Iter) Lit() byte {
 }
 
 func (i *Iter) IsLive() bool {
-	return (i.Id.Seq & 1) != 0
+	return (i.Id.Seq & 1) == 0
 }
 
 func (i *Iter) NextStep(j *Iter) (err error) {
 	if len(i.Rest) == 0 {
+		i.Value = nil
+		i.Last = nil
+		i.Id = ID{}
 		err = ErrEoF
 	} else {
 		rest := i.Rest

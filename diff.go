@@ -459,6 +459,106 @@ func (d *Diff) diffP(data, old, neu []byte, p int, stack *Marks) (np int, out []
 	return
 }
 
+func fitSeq(a, b uint64) (ret uint64) {
+	if b == 0 {
+		ret = (a &^ 1) + (1 << 12)
+	} else if b >= a+(1<<12) {
+		ret = (a &^ 1) + (1 << 7)
+	} else if b >= a+(1<<9) {
+		ret = (a &^ 1) + (1 << 7)
+	} else {
+		ret = 1 << 12
+	}
+	return
+}
+
+func (d *Diff) diffL(data, old, neu []byte, p int, stack *Marks) (np int, out []byte, err error) {
+	out = data
+	oldit := Iter{Rest: old}
+	neuit := Iter{Rest: neu}
+	nextit := oldit
+	_ = nextit.Next()
+	heads := make([]Iter, 0, 32)
+	np = p
+	var oldseq uint64
+	lastold := -1
+	for err == nil && np < len(d.path) {
+		act := d.path[np]
+		if act != Insert {
+			oldit = nextit
+			_ = nextit.Next()
+			for !oldit.IsLive() {
+				oldit = nextit
+				_ = nextit.Next()
+			}
+			oldseq = oldit.Id.Seq
+			if nextit.Id.Compare(oldit.Id) < Eq {
+				for len(heads) > 0 && heads[len(heads)-1].Id.Compare(nextit.Id) < Eq {
+					heads = heads[:len(heads)-1]
+				}
+				heads = append(heads, nextit)
+			}
+		}
+		if act != Remove {
+			_ = neuit.Next()
+		}
+		if act != Keep && len(heads) > 0 {
+			for _, h := range heads {
+				out = append(out, h.Last...)
+				lastold = len(h.Rest)
+			}
+			heads = heads[:0]
+		}
+		switch act {
+		case Keep:
+			if oldit.Id.IsZero() {
+				out = append(out, oldit.Last...)
+				lastold = len(oldit.Rest)
+			}
+		case Insert:
+			newid := ID{Seq: fitSeq(oldseq, nextit.Id.Seq)}
+			if newid.Seq < oldseq {
+				if lastold < len(oldit.Rest) {
+					out = append(out, oldit.Last...)
+					lastold = len(oldit.Rest)
+				}
+			}
+			oldseq = newid.Seq
+			out = WriteRDX(out, neuit.Lit(), newid, neuit.Value)
+		case Remove:
+			id := oldit.Id
+			id.Seq |= 1
+			val := oldit.Value
+			if IsPLEX(oldit.Lit()) {
+				val = nil
+			}
+			out = WriteRDX(out, oldit.Lit(), id, val)
+			lastold = len(oldit.Rest)
+		case Replace:
+			id := ID{Seq: (oldit.Id.Seq | 1) + 1}
+			out = WriteRDX(out, neuit.Lit(), id, neuit.Value)
+		case Update:
+			out = OpenTLV(out, oldit.Lit(), stack)
+			id := ZipID(oldit.Id)
+			out = append(out, byte(len(id)))
+			out = append(out, id...)
+			np, out, err = d.diff(out, oldit.Lit(), oldit.Value, neuit.Value, np+1, stack) // todo bad signature
+			np -= 1
+			out, _ = CloseTLV(out, oldit.Lit(), stack)
+			lastold = len(oldit.Rest)
+		case Over:
+			err = io.EOF
+		default:
+			panic("bad action")
+		}
+		np++
+	}
+	if err == io.EOF {
+		err = nil
+	}
+	return
+}
+
 func (d *Diff) diffE(data, old, neu []byte, p int, stack *Marks) (np int, out []byte, err error) {
 	out = data
 	o := Iter{Rest: old}
@@ -522,6 +622,8 @@ func (d *Diff) diff(data []byte, t byte, old, neu []byte, p int, stack *Marks) (
 		return d.diffP(data, old, neu, p, stack)
 	case Euler:
 		return d.diffE(data, old, neu, p, stack)
+	case Linear:
+		return d.diffL(data, old, neu, p, stack)
 	default:
 		return
 	}
