@@ -15,9 +15,9 @@ test:eq(    "Set diff"
         )
 
 test:eq(    "Set nested diff"
-            { 1@1 2@1 4 5 {a@2 b d@1} }
+            { 1@1 2@1 4 5 {a@2 b d@1 {@1}} }
             rdx:diff(
-                { 1 2 3 { a:b c d } }
+                { 1 2 3 { a:b c d {inner stuff}} }
                 { 3 4 5 { a b c } }
             )
         )

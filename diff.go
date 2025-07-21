@@ -584,7 +584,9 @@ func (d *Diff) diffE(data, old, neu []byte, p int, stack *Marks) (np int, out []
 				key := Iter{Rest: o.Value}
 				_ = key.Next()
 				out = WriteRDX(out, key.Lit(), id, key.Value)
-			} else { // todo plex shell
+			} else if IsPLEX(o.Lit()) {
+				out = WriteRDX(out, o.Lit(), id, nil)
+			} else {
 				out = WriteRDX(out, o.Lit(), id, o.Value)
 			}
 		case Replace:
