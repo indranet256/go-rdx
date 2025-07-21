@@ -209,6 +209,7 @@ func JDRonOpenPLEX(tok []byte, state *JDRstate, plex byte) (err error) {
 	if err == nil {
 		state.rdx = OpenTLV(state.rdx, plex, &state.stack)
 	}
+	state.pre = 0
 	return
 }
 
@@ -270,6 +271,7 @@ func JDRonComma(tok []byte, state *JDRstate) (err error) {
 	} else {
 		state.mark = len(state.rdx)
 	}
+	state.pre = ','
 	return
 }
 func JDRonColon(tok []byte, state *JDRstate) (err error) {

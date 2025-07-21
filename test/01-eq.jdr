@@ -1,3 +1,4 @@
 test:eq("float" 123.0 1.23e2)
 test:eq("int" 12 12)
 test:eq("string" "same" "same")
+test:eq("empty tuples" (()1()()) (,1,,) )
