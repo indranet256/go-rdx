@@ -72,9 +72,15 @@ func (ctx *Context) Evaluate1(data, code *[]byte) (err error) {
 			if len(next) == 0 || rdx.Peek(next) != rdx.Tuple {
 				return ErrBadArguments
 			}
-			var cmdargs, res []byte
+			var cmdargs, eargs, res []byte
 			_, _, cmdargs, next, err = rdx.ReadTLKV(next)
-			res, err = a.(Command)(ctx, cmdargs)
+			if err == nil {
+				eargs, err = ctx.Evaluate(nil, cmdargs)
+			}
+			if err != nil {
+				return
+			}
+			res, err = a.(Command)(ctx, eargs)
 			if err != nil {
 				return
 			}

@@ -9,12 +9,8 @@ import (
 )
 
 func CmdEcho(ctx *Context, arg []byte) (out []byte, err error) {
-	var jdr, eval []byte
-	eval, err = ctx.Evaluate(nil, arg)
-	if err != nil {
-		return
-	}
-	jdr, err = rdx.WriteAllJDR(nil, eval, 0)
+	var jdr []byte
+	jdr, err = rdx.WriteAllJDR(nil, arg, 0)
 	if err != nil {
 		return
 	}

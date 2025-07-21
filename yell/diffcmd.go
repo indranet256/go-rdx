@@ -37,6 +37,7 @@ func CmdRdxDiff(ctx *Context, args []byte) (out []byte, err error) {
 		return
 	}
 	two = args[len(args)-len(rest) : len(args)-len(rest2)]
+
 	flat, _ := rdx.Flatten(nil, one)
 	diff := rdx.Diff{
 		Orig: one,
