@@ -58,12 +58,12 @@ func WriteRDX(data []byte, lit byte, id ID, value []byte) []byte {
 type Merger func(data []byte, bare Heap) ([]byte, error)
 
 func mergeValuesF(data []byte, bare [][]byte) ([]byte, error) {
-	var max float64
+	var mx float64
 	var win []byte
 	for i, b := range bare {
 		n := UnzipFloat64(b)
-		if i == 0 || n > max {
-			max = n
+		if i == 0 || n > mx {
+			mx = n
 			win = b
 		}
 	}
@@ -303,11 +303,11 @@ func CompareID(a *Iter, b *Iter) int {
 func CompareValue(a *Iter, b *Iter) int {
 	al := a.Lit()
 	bl := b.Lit()
-	for al == Tuple {
+	if al == Tuple {
 		a = UnwrapTuple(a)
 		al = a.Lit()
 	}
-	for bl == Tuple {
+	if bl == Tuple {
 		b = UnwrapTuple(b)
 		bl = b.Lit()
 	}
