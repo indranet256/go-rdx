@@ -155,13 +155,13 @@ func mergeSameSpotElements(data []byte, heap Heap) (ret []byte, err error) {
 	lit := eqs[0].Lit()
 	vals := make([][]byte, 0, MaxInputs)
 	stack := make(Marks, 0, 16)
-	id := heap[0].Id
+	id := heap[0].ID()
 	ret = OpenTLV(data, lit, &stack)
 	key := ZipID(id)
 	ret = append(ret, byte(len(key)))
 	ret = append(ret, key...) // TODO
 	for _, val := range eqs {
-		vals = append(vals, val.Value)
+		vals = append(vals, val.Value())
 	} // FIXME 1
 	switch lit {
 	case Float:
@@ -210,8 +210,8 @@ func CompareLWW(a *Iter, b *Iter) int {
 }
 
 func CompareFloat(a *Iter, b *Iter) int {
-	af := UnzipFloat64(a.Value)
-	bf := UnzipFloat64(b.Value)
+	af := UnzipFloat64(a.Value())
+	bf := UnzipFloat64(b.Value())
 	if af == bf {
 		return Eq
 	} else if af < bf {
@@ -222,8 +222,8 @@ func CompareFloat(a *Iter, b *Iter) int {
 }
 
 func CompareInteger(a *Iter, b *Iter) int {
-	af := UnzipInt64(a.Value)
-	bf := UnzipInt64(b.Value)
+	af := UnzipInt64(a.Value())
+	bf := UnzipInt64(b.Value())
 	if af == bf {
 		return Eq
 	} else if af < bf {
@@ -234,13 +234,13 @@ func CompareInteger(a *Iter, b *Iter) int {
 }
 
 func CompareReference(a *Iter, b *Iter) int {
-	aid := UnzipID(a.Value)
-	bid := UnzipID(b.Value)
+	aid := UnzipID(a.Value())
+	bid := UnzipID(b.Value())
 	return aid.Compare(bid)
 }
 
 func CompareString(a *Iter, b *Iter) int {
-	return bytes.Compare(a.Value, b.Value) * 2
+	return bytes.Compare(a.Value(), b.Value()) * 2
 }
 
 func CompareTerm(a *Iter, b *Iter) int {
@@ -248,7 +248,7 @@ func CompareTerm(a *Iter, b *Iter) int {
 }
 
 func UnwrapTuple(a *Iter) *Iter {
-	b := Iter{Rest: a.Value}
+	b := NewIter(a.Value())
 	b.Next()
 	return &b
 }
@@ -258,16 +258,16 @@ func CompareTuple(a *Iter, b *Iter) int {
 }
 
 func CompareLinear(a *Iter, b *Iter) int {
-	aa := Revert64(a.Id.Seq >> 6)
-	bb := Revert64(b.Id.Seq >> 6)
+	aa := Revert64(a.ID().Seq >> 6)
+	bb := Revert64(b.ID().Seq >> 6)
 	if aa < bb {
 		return Less
 	} else if aa > bb {
 		return Grtr
 	}
-	if a.Id.Src < b.Id.Src {
+	if a.ID().Src < b.ID().Src {
 		return Less
-	} else if a.Id.Src > b.Id.Src {
+	} else if a.ID().Src > b.ID().Src {
 		return Grtr
 	} else {
 		return Eq
@@ -297,7 +297,7 @@ func CompareType(a *Iter, b *Iter) int {
 }
 
 func CompareID(a *Iter, b *Iter) int {
-	return a.Id.Compare(b.Id)
+	return a.ID().Compare(b.ID())
 }
 
 func CompareValue(a *Iter, b *Iter) int {
@@ -343,9 +343,9 @@ func CompareEuler(a *Iter, b *Iter) int {
 }
 
 func CompareMultix(a *Iter, b *Iter) int {
-	if a.Id.Src < b.Id.Src {
+	if a.ID().Src < b.ID().Src {
 		return Less
-	} else if a.Id.Src < b.Id.Src {
+	} else if a.ID().Src < b.ID().Src {
 		return Grtr
 	}
 	return Eq
@@ -448,26 +448,24 @@ func normalize(data, rdx []byte, z Compare, stack *Marks) (norm []byte, err erro
 	}
 	norm = data
 	chunks := [][]byte{}
-	var i, j Iter
-	i.Rest = rdx
-	err = i.NextStep(&j)
-	oc := data
-	at := &j
-	next := &i
-	for err == nil {
+	at := NewIter(rdx)
+	at.Next()
+	next := at
+	oc := len(norm)
+	for at.HasData() && err == nil {
 		norm, err = appendNorm(norm, at, stack)
-		err = at.NextStep(next)
-		if err == nil && z != nil && z(at, next) != Less {
-			chunks = append(chunks, norm[len(oc):])
-			oc = norm
+		next.Next()
+		if err == nil && next.HasData() && z != nil && z(&at, &next) != Less {
+			chunks = append(chunks, norm[oc:])
+			oc = len(norm)
 		}
-		at, next = next, at
+		at = next
 	}
-	if err == ErrEoF {
-		err = nil
+	if at.HasFailed() {
+		err = next.Error()
 	}
 	if len(chunks) > 0 && err == nil {
-		chunks = append(chunks, norm[len(oc):])
+		chunks = append(chunks, norm[oc:])
 		sorted := make([]byte, 0, len(norm)-len(data))
 		sorted, err = HeapMerge(sorted, chunks, z)
 		norm = append(data, sorted...)
@@ -475,10 +473,10 @@ func normalize(data, rdx []byte, z Compare, stack *Marks) (norm []byte, err erro
 	return
 }
 
-func appendNorm(to []byte, it *Iter, stack *Marks) (norm []byte, err error) {
-	val := it.Value
+func appendNorm(to []byte, it Iter, stack *Marks) (norm []byte, err error) {
+	val := it.Value()
 	lit := it.Lit()
-	idbytes := ZipID(it.Id)
+	idbytes := ZipID(it.ID())
 	norm = to
 	switch lit {
 	case Float:

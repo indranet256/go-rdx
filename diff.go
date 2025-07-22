@@ -113,16 +113,16 @@ func (d *Diff) PushParent(at int) (err error) {
 
 func (d *Diff) PushInto(at int, old, neu *Iter) (err error) {
 	a := &d.log[at]
-	oldhead := len(old.Last) - len(old.Value)
-	neuhead := len(neu.Last) - len(neu.Value)
+	oldhead := len(old.Record()) - len(old.Value())
+	neuhead := len(neu.Record()) - len(neu.Value())
 	d.Push(DiffProgress{
 		prnt: at,
 		prev: at,
 		eq:   a.eq + 1,
 		in:   a.in + neuhead - 1,
 		rm:   a.rm + oldhead - 1,
-		told: a.OldPos() + len(old.Last),
-		tneu: a.NeuPos() + len(neu.Last),
+		told: a.OldPos() + len(old.Record()),
+		tneu: a.NeuPos() + len(neu.Record()),
 		plex: old.Lit(),
 		act:  Update,
 	})
@@ -131,7 +131,7 @@ func (d *Diff) PushInto(at int, old, neu *Iter) (err error) {
 
 func (d *Diff) PushKeep(at int, old, neu *Iter) (err error) {
 	a := &d.log[at]
-	l := len(old.Last)
+	l := len(old.Record())
 	d.Push(DiffProgress{
 		prnt: a.prnt,
 		prev: at,
@@ -148,8 +148,8 @@ func (d *Diff) PushKeep(at int, old, neu *Iter) (err error) {
 
 func (d *Diff) PushReplace(at int, old, neu *Iter) (err error) {
 	a := &d.log[at]
-	lold := len(old.Last)
-	lneu := len(neu.Last)
+	lold := len(old.Record())
+	lneu := len(neu.Record())
 	d.Push(DiffProgress{
 		prnt: a.prnt,
 		prev: at,
@@ -166,7 +166,7 @@ func (d *Diff) PushReplace(at int, old, neu *Iter) (err error) {
 
 func (d *Diff) PushInsert(at int, old, neu *Iter) (err error) {
 	a := &d.log[at]
-	lneu := len(neu.Last)
+	lneu := len(neu.Record())
 	d.Push(DiffProgress{
 		prnt: a.prnt,
 		prev: at,
@@ -183,7 +183,7 @@ func (d *Diff) PushInsert(at int, old, neu *Iter) (err error) {
 
 func (d *Diff) PushRemove(at int, old, neu *Iter) (err error) {
 	a := &d.log[at]
-	lold := len(old.Last)
+	lold := len(old.Record())
 	d.Push(DiffProgress{
 		prnt: a.prnt,
 		prev: at,
@@ -200,19 +200,13 @@ func (d *Diff) PushRemove(at int, old, neu *Iter) (err error) {
 
 func (d *Diff) iters(at int) (old, neu Iter, err error) {
 	p := &d.log[at]
-	old.Rest = d.Old[p.OldPos():p.told]
-	if len(old.Rest) > 0 {
-		err = old.Next()
-		if err != nil {
-			return
-		}
+	old = NewIter(d.Old[p.OldPos():p.told])
+	neu = NewIter(d.Neu[p.NeuPos():p.tneu])
+	if old.HasData() && !old.Next() && old.Error() != nil {
+		err = old.Error()
 	}
-	neu.Rest = d.Neu[p.NeuPos():p.tneu]
-	if len(neu.Rest) > 0 {
-		err = neu.Next()
-		if err != nil {
-			return
-		}
+	if neu.HasData() && !neu.Next() && neu.Error() != nil {
+		err = neu.Error()
 	}
 	return
 }
@@ -222,16 +216,16 @@ func (d *Diff) TupleStep(at int) (err error) {
 	if e != nil {
 		return e
 	}
-	if len(old.Last) == 0 && len(neu.Last) == 0 {
+	if len(old.Record()) == 0 && len(neu.Record()) == 0 {
 		return d.PushParent(at)
 	}
-	if len(old.Last) == 0 {
+	if len(old.Record()) == 0 {
 		return d.PushInsert(at, &old, &neu)
 	}
-	if len(neu.Last) == 0 {
+	if len(neu.Record()) == 0 {
 		return d.PushRemove(at, &old, &neu)
 	}
-	if bytes.Equal(old.Last, neu.Last) {
+	if bytes.Equal(old.Record(), neu.Record()) {
 		return d.PushKeep(at, &old, &neu)
 	}
 	err = d.PushReplace(at, &old, &neu)
@@ -246,16 +240,16 @@ func (d *Diff) LinearStep(at int) (err error) {
 	if e != nil {
 		return e
 	}
-	if len(old.Last) == 0 && len(neu.Last) == 0 {
+	if len(old.Record()) == 0 && len(neu.Record()) == 0 {
 		return d.PushParent(at)
 	}
-	if bytes.Equal(old.Last, neu.Last) {
+	if bytes.Equal(old.Record(), neu.Record()) {
 		return d.PushKeep(at, &old, &neu)
 	}
-	if len(old.Last) > 0 {
+	if len(old.Record()) > 0 {
 		err = d.PushRemove(at, &old, &neu)
 	}
-	if err == nil && len(neu.Last) > 0 {
+	if err == nil && len(neu.Record()) > 0 {
 		err = d.PushInsert(at, &old, &neu)
 	}
 	if err == nil && neu.Lit() == old.Lit() && IsPLEX(old.Lit()) {
@@ -269,9 +263,9 @@ func (d *Diff) EulerStep(at int) (err error) {
 	if e != nil {
 		return e
 	}
-	if len(old.Last) == 0 {
+	if len(old.Record()) == 0 {
 		return d.PushInsert(at, &old, &neu)
-	} else if len(neu.Last) == 0 {
+	} else if len(neu.Record()) == 0 {
 		return d.PushRemove(at, &old, &neu)
 	}
 	z := CompareEuler(&old, &neu)
@@ -280,7 +274,7 @@ func (d *Diff) EulerStep(at int) (err error) {
 	} else if z < Eq {
 		err = d.PushRemove(at, &old, &neu)
 	} else {
-		if bytes.Compare(old.Last, neu.Last) == 0 {
+		if bytes.Compare(old.Record(), neu.Record()) == 0 {
 			err = d.PushKeep(at, &old, &neu)
 		} else {
 			err = d.PushReplace(at, &old, &neu)
@@ -297,9 +291,9 @@ func (d *Diff) MultixStep(at int) (err error) {
 	if e != nil {
 		return e
 	}
-	if len(old.Last) == 0 {
+	if len(old.Record()) == 0 {
 		return d.PushInsert(at, &old, &neu)
-	} else if len(neu.Last) == 0 {
+	} else if len(neu.Record()) == 0 {
 		return d.PushRemove(at, &old, &neu)
 	}
 	z := CompareMultix(&old, &neu)
@@ -308,7 +302,7 @@ func (d *Diff) MultixStep(at int) (err error) {
 	} else if z < Eq {
 		err = d.PushRemove(at, &old, &neu)
 	} else { // todo into
-		if bytes.Compare(old.Last, neu.Last) == 0 {
+		if bytes.Compare(old.Record(), neu.Record()) == 0 {
 			err = d.PushKeep(at, &old, &neu)
 		} else {
 			err = d.PushReplace(at, &old, &neu)
@@ -353,34 +347,34 @@ var UpdateId = []byte{4}
 
 func (d *Diff) hili(data, old, neu []byte, p int, stack *Marks) (np int, out []byte, err error) {
 	out = data
-	o := Iter{Rest: old}
-	n := Iter{Rest: neu}
+	o := NewIter(old)
+	n := NewIter(neu)
 	np = p
 	for err == nil && np < len(d.path) {
 		act := d.path[np]
 		switch act {
 		case Keep:
 			_ = o.Next()
-			out = append(out, o.Last...)
+			out = append(out, o.Record()...)
 			_ = n.Next()
 		case Insert:
 			_ = n.Next()
-			out = WriteTLKV(out, n.Lit(), InsertId, n.Value)
+			out = WriteTLKV(out, n.Lit(), InsertId, n.Value())
 		case Remove:
 			_ = o.Next()
-			out = WriteTLKV(out, o.Lit(), RemoveId, o.Value)
+			out = WriteTLKV(out, o.Lit(), RemoveId, o.Value())
 		case Replace: // todo nicer replace hili
 			_ = o.Next()
-			out = WriteTLKV(out, o.Lit(), RemoveId, o.Value)
+			out = WriteTLKV(out, o.Lit(), RemoveId, o.Value())
 			_ = n.Next()
-			out = WriteTLKV(out, n.Lit(), InsertId, n.Value)
+			out = WriteTLKV(out, n.Lit(), InsertId, n.Value())
 		case Update:
 			_ = o.Next()
 			_ = n.Next()
 			out = OpenTLV(out, o.Lit(), stack)
 			out = append(out, byte(len(UpdateId)))
 			out = append(out, UpdateId...)
-			np, out, err = d.hili(out, o.Value, n.Value, np+1, stack)
+			np, out, err = d.hili(out, o.Value(), n.Value(), np+1, stack)
 			np -= 1
 			out, _ = CloseTLV(out, o.Lit(), stack)
 		case Over:
@@ -406,8 +400,8 @@ var EmptyTuple = []byte{'p', 1, 0}
 
 func (d *Diff) diffP(data, old, neu []byte, p int, stack *Marks) (np int, out []byte, err error) {
 	out = data
-	o := Iter{Rest: old}
-	n := Iter{Rest: neu}
+	o := NewIter(old)
+	n := NewIter(neu)
 	np = p
 	for err == nil && np < len(d.path) {
 		act := d.path[np]
@@ -416,34 +410,34 @@ func (d *Diff) diffP(data, old, neu []byte, p int, stack *Marks) (np int, out []
 			_ = o.Next()
 			_ = n.Next()
 			if len(out) == len(data) && len(*stack) > 1 && (*stack)[len(*stack)-2].Lit == Euler {
-				out = append(out, o.Last...)
+				out = append(out, o.Record()...)
 			} else {
 				out = append(out, EmptyTuple...)
 			}
 		case Insert:
-			err = n.Next()
-			if err != nil {
+			if !n.Next() {
+				err = n.Error()
 				return
 			}
-			out = WriteRDX(out, n.Lit(), n.Id, n.Value)
+			out = WriteRDX(out, n.Lit(), n.ID(), n.Value())
 		case Remove:
 			_ = o.Next()
 			_ = n.Next()
-			id := ID{Seq: o.Id.Seq | 1}
+			id := ID{Seq: o.ID().Seq | 1}
 			out = WriteRDX(out, Tuple, id, nil)
 		case Replace:
 			_ = o.Next()
 			_ = n.Next()
-			id := ID{Seq: (o.Id.Seq | 1) + 1}
-			out = WriteRDX(out, n.Lit(), id, n.Value)
+			id := ID{Seq: (o.ID().Seq | 1) + 1}
+			out = WriteRDX(out, n.Lit(), id, n.Value())
 		case Update:
 			_ = o.Next()
 			_ = n.Next()
 			out = OpenTLV(out, o.Lit(), stack)
-			id := ZipID(o.Id)
+			id := ZipID(o.ID())
 			out = append(out, byte(len(id)))
 			out = append(out, id...)
-			np, out, err = d.diff(out, o.Lit(), o.Value, n.Value, np+1, stack) // todo bad signature
+			np, out, err = d.diff(out, o.Lit(), o.Value(), n.Value(), np+1, stack) // todo bad signature
 			np -= 1
 			out, _ = CloseTLV(out, o.Lit(), stack)
 		case Over:
@@ -474,8 +468,8 @@ func fitSeq(a, b uint64) (ret uint64) {
 
 func (d *Diff) diffL(data, old, neu []byte, p int, stack *Marks) (np int, out []byte, err error) {
 	out = data
-	oldit := Iter{Rest: old}
-	neuit := Iter{Rest: neu}
+	oldit := NewIter(old)
+	neuit := NewIter(neu)
 	nextit := oldit
 	_ = nextit.Next()
 	heads := make([]Iter, 0, 32)
@@ -491,9 +485,9 @@ func (d *Diff) diffL(data, old, neu []byte, p int, stack *Marks) (np int, out []
 				oldit = nextit
 				_ = nextit.Next()
 			}
-			oldseq = oldit.Id.Seq
-			if nextit.Id.Compare(oldit.Id) < Eq {
-				for len(heads) > 0 && heads[len(heads)-1].Id.Compare(nextit.Id) < Eq {
+			oldseq = oldit.ID().Seq
+			if nextit.ID().Compare(oldit.ID()) < Eq {
+				for len(heads) > 0 && heads[len(heads)-1].ID().Compare(nextit.ID()) < Eq {
 					heads = heads[:len(heads)-1]
 				}
 				heads = append(heads, nextit)
@@ -504,48 +498,48 @@ func (d *Diff) diffL(data, old, neu []byte, p int, stack *Marks) (np int, out []
 		}
 		if act != Keep && len(heads) > 0 {
 			for _, h := range heads {
-				out = append(out, h.Last...)
-				lastold = len(h.Rest)
+				out = append(out, h.Record()...)
+				lastold = len(h.Rest())
 			}
 			heads = heads[:0]
 		}
 		switch act {
 		case Keep:
-			if oldit.Id.IsZero() {
-				out = append(out, oldit.Last...)
-				lastold = len(oldit.Rest)
+			if oldit.ID().IsZero() {
+				out = append(out, oldit.Record()...)
+				lastold = len(oldit.Rest())
 			}
 		case Insert:
-			newid := ID{Seq: fitSeq(oldseq, nextit.Id.Seq)}
+			newid := ID{Seq: fitSeq(oldseq, nextit.ID().Seq)}
 			if newid.Seq < oldseq {
-				if lastold < len(oldit.Rest) {
-					out = append(out, oldit.Last...)
-					lastold = len(oldit.Rest)
+				if lastold < len(oldit.Rest()) {
+					out = append(out, oldit.Record()...)
+					lastold = len(oldit.Rest())
 				}
 			}
 			oldseq = newid.Seq
-			out = WriteRDX(out, neuit.Lit(), newid, neuit.Value)
+			out = WriteRDX(out, neuit.Lit(), newid, neuit.Value())
 		case Remove:
-			id := oldit.Id
+			id := oldit.ID()
 			id.Seq |= 1
-			val := oldit.Value
+			val := oldit.Value()
 			if IsPLEX(oldit.Lit()) {
 				val = nil
 			}
 			out = WriteRDX(out, oldit.Lit(), id, val)
-			lastold = len(oldit.Rest)
+			lastold = len(oldit.Rest())
 		case Replace:
-			id := ID{Seq: (oldit.Id.Seq | 1) + 1}
-			out = WriteRDX(out, neuit.Lit(), id, neuit.Value)
+			id := ID{Seq: (oldit.ID().Seq | 1) + 1}
+			out = WriteRDX(out, neuit.Lit(), id, neuit.Value())
 		case Update:
 			out = OpenTLV(out, oldit.Lit(), stack)
-			id := ZipID(oldit.Id)
+			id := ZipID(oldit.ID())
 			out = append(out, byte(len(id)))
 			out = append(out, id...)
-			np, out, err = d.diff(out, oldit.Lit(), oldit.Value, neuit.Value, np+1, stack) // todo bad signature
+			np, out, err = d.diff(out, oldit.Lit(), oldit.Value(), neuit.Value(), np+1, stack) // todo bad signature
 			np -= 1
 			out, _ = CloseTLV(out, oldit.Lit(), stack)
-			lastold = len(oldit.Rest)
+			lastold = len(oldit.Rest())
 		case Over:
 			err = io.EOF
 		default:
@@ -561,8 +555,8 @@ func (d *Diff) diffL(data, old, neu []byte, p int, stack *Marks) (np int, out []
 
 func (d *Diff) diffE(data, old, neu []byte, p int, stack *Marks) (np int, out []byte, err error) {
 	out = data
-	o := Iter{Rest: old}
-	n := Iter{Rest: neu}
+	o := NewIter(old)
+	n := NewIter(neu)
 	np = p
 	for err == nil && np < len(d.path) {
 		act := d.path[np]
@@ -571,37 +565,37 @@ func (d *Diff) diffE(data, old, neu []byte, p int, stack *Marks) (np int, out []
 			_ = o.Next()
 			_ = n.Next()
 		case Insert:
-			err = n.Next()
-			if err != nil {
+			if !n.Next() {
+				err = n.Error()
 				return
 			}
-			out = append(out, n.Last...)
+			out = append(out, n.Record()...)
 		case Remove:
 			_ = o.Next()
-			id := o.Id
+			id := o.ID()
 			id.Seq |= 1
-			if o.Lit() == Tuple && len(o.Value) > 0 {
-				key := Iter{Rest: o.Value}
+			if o.Lit() == Tuple && len(o.Value()) > 0 {
+				key := NewIter(o.Value())
 				_ = key.Next()
-				out = WriteRDX(out, key.Lit(), id, key.Value)
+				out = WriteRDX(out, key.Lit(), id, key.Value())
 			} else if IsPLEX(o.Lit()) {
 				out = WriteRDX(out, o.Lit(), id, nil)
 			} else {
-				out = WriteRDX(out, o.Lit(), id, o.Value)
+				out = WriteRDX(out, o.Lit(), id, o.Value())
 			}
 		case Replace:
 			_ = o.Next()
 			_ = n.Next()
-			id := ID{Seq: (o.Id.Seq | 1) + 1}
-			out = WriteRDX(out, n.Lit(), id, n.Value)
+			id := ID{Seq: (o.ID().Seq | 1) + 1}
+			out = WriteRDX(out, n.Lit(), id, n.Value())
 		case Update:
 			_ = o.Next()
 			_ = n.Next()
 			out = OpenTLV(out, o.Lit(), stack)
-			id := ZipID(o.Id)
+			id := ZipID(o.ID())
 			out = append(out, byte(len(id)))
 			out = append(out, id...)
-			np, out, err = d.diff(out, o.Lit(), o.Value, n.Value, np+1, stack) // todo bad signature
+			np, out, err = d.diff(out, o.Lit(), o.Value(), n.Value(), np+1, stack) // todo bad signature
 			np -= 1
 			out, _ = CloseTLV(out, o.Lit(), stack)
 		case Over:

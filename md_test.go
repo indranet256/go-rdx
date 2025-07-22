@@ -9,19 +9,18 @@ import (
 )
 
 func testValueOrder(rdx []byte) error {
-	i := Iter{Rest: rdx}
+	i := NewIter(rdx)
 	n := 0
-	for len(i.Rest) > 0 {
+	for i.HasData() {
 		prev := i
 		n++
-		err := i.Next()
-		if err != nil {
-			return err
+		if !i.Next() {
+			return i.Error()
 		}
 		z := CompareEuler(&prev, &i)
 		if z > 0 {
-			pj, _, _ := WriteJDR(nil, prev.Last, 0)
-			tj, _, _ := WriteJDR(nil, i.Last, 0)
+			pj, _, _ := WriteJDR(nil, prev.Record(), 0)
+			tj, _, _ := WriteJDR(nil, i.Record(), 0)
 			fmt.Printf(Red+"Bad order %d and %d"+Reset+"\n\t%s\n\t%s", n, n+1, pj, tj)
 			return errors.New("bad order")
 		}
@@ -54,23 +53,22 @@ func mergeTest(correct []byte, inputs [][]byte) (err error) {
 }
 
 func testMerge(rdx []byte) (err error) {
-	i := Iter{Rest: rdx}
+	i := NewIter(rdx)
 	inputs := make([][]byte, 0, 32)
-	for len(i.Rest) > 0 && err == nil {
-		err = i.Next()
-		if err != nil {
-			break
+	for i.HasData() && err == nil {
+		if !i.Next() {
+			return i.Error()
 		}
-		if i.Lit() == Term && bytes.Equal(i.Value, Tilde) {
-			err = i.Next()
-			if err != nil {
+		if i.Lit() == Term && bytes.Equal(i.Value(), Tilde) {
+			if !i.Next() {
+				err = i.Error()
 				break
 			}
-			err = mergeTest(i.Last, inputs)
+			err = mergeTest(i.Record(), inputs)
 			inputs = inputs[:0]
 		} else {
 			j := i
-			inputs = append(inputs, j.Last)
+			inputs = append(inputs, j.Record())
 		}
 	}
 	return err

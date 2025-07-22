@@ -627,7 +627,8 @@ func (bit *BrixIterator) nextPage() (err error) {
 			bit.heap[k] = nil
 		} else {
 			bit.pages[ndx], err = page.Host.loadPage(page.PageNo + 1) // FIXME NextPage()
-			bit.heap = append(bit.heap, &Iter{Rest: bit.pages[ndx].Page})
+			it := NewIter(bit.pages[ndx].Page)
+			bit.heap = append(bit.heap, &it)
 			bit.heap.LastUp(CompareID)
 		}
 	}
@@ -646,7 +647,7 @@ func (brix Brix) Iterator() (bit *BrixIterator, err error) {
 		if err != nil {
 			return nil, err
 		}
-		it.iters[n].Rest = it.pages[n].Page
+		it.iters[n] = NewIter(it.pages[n].Page)
 		it.heap = append(it.heap, &it.iters[n])
 		it.heap.LastUp(CompareID)
 	}

@@ -1,46 +1,114 @@
 package rdx
 
+import "encoding/binary"
+
 type Iter struct {
-	Id    ID
-	Value []byte
-	Rest  []byte
-	Last  []byte
+	data   []byte
+	vallen int
+	hdrlen uint8
+	idlen  uint8
+	lit    byte
+	errndx byte
+}
+
+var iterr = []error{nil, ErrIncomplete, ErrBadRecord}
+
+func NewIter(data []byte) Iter {
+	return Iter{data: data}
+}
+
+func (it *Iter) IsEmpty() bool {
+	return len(it.data) == 0
+}
+
+func (it *Iter) HasData() bool {
+	return len(it.data) != 0
+}
+
+func (it *Iter) Rest() []byte {
+	return it.data[int(it.hdrlen+it.idlen)+it.vallen:]
+}
+
+func (it *Iter) Error() error {
+	return iterr[it.errndx]
+}
+
+func (it *Iter) HasFailed() bool {
+	return it.errndx != 0
+}
+
+func (it *Iter) Next() bool {
+	if len(it.data) == 0 || it.errndx != 0 {
+		return false
+	}
+	it.data = it.data[int(it.hdrlen+it.idlen)+it.vallen:]
+	if len(it.data) == 0 {
+		*it = Iter{}
+		return false
+	}
+	it.lit = it.data[0]
+	if (it.lit & CaseBit) != 0 {
+		it.lit -= CaseBit
+		it.hdrlen = 3
+		if len(it.data) < int(it.hdrlen) {
+			it.errndx = 1
+			return false
+		}
+		it.vallen = int(it.data[1])
+	} else {
+		it.hdrlen = 6
+		if len(it.data) < int(it.hdrlen) {
+			it.errndx = 1
+			return false
+		}
+		de := binary.LittleEndian.Uint32(it.data[1:5])
+		if de >= (1 << 30) {
+			it.errndx = 2
+			return false
+		}
+		it.vallen = int(de)
+	}
+	if len(it.data) < int(it.hdrlen)+it.vallen-1 {
+		it.errndx = 1
+		return false
+	}
+	it.idlen = it.data[it.hdrlen-1]
+	if int(it.idlen) > it.vallen {
+		it.errndx = 2
+		return false
+	}
+	it.vallen -= int(it.idlen) + 1
+	return true
 }
 
 func (i *Iter) Lit() byte {
-	if len(i.Last) == 0 {
+	if len(i.data) == 0 {
 		return 0
 	}
-	return i.Last[0] & ^CaseBit
+	return i.data[0] & ^CaseBit
 }
 
-func (i *Iter) IsLive() bool {
-	return (i.Id.Seq & 1) == 0
+func (it *Iter) ID() ID {
+	return UnzipID(it.data[it.hdrlen : it.hdrlen+it.idlen])
 }
 
-func (i *Iter) NextStep(j *Iter) (err error) {
-	if len(i.Rest) == 0 {
-		i.Value = nil
-		i.Last = nil
-		i.Id = ID{}
-		err = ErrEoF
-	} else {
-		rest := i.Rest
-		_, j.Id, j.Value, j.Rest, err = ReadRDX(rest)
-		j.Last = rest[:len(rest)-len(j.Rest)]
-	}
-	return
+func (it *Iter) Value() []byte {
+	b := int(it.hdrlen + it.idlen)
+	return it.data[b : b+it.vallen]
 }
 
-func (i *Iter) Next() (err error) {
-	err = i.NextStep(i)
-	return
+func (it *Iter) Record() []byte {
+	return it.data[:int(it.hdrlen+it.idlen)+it.vallen]
 }
 
-func (i *Iter) NextLive() (err error) {
-	err = i.Next()
-	for err == nil && !i.IsLive() {
-		err = i.Next()
+func (it *Iter) IsLive() bool {
+	return it.idlen == 0 || (it.data[it.hdrlen]&1) == 0
+}
+
+func (i *Iter) NextLive() (ok bool) {
+	ok = i.Next()
+	for ok && !i.IsLive() {
+		ok = i.Next()
 	}
 	return
 }
@@ -53,12 +121,12 @@ func Heapize(rdx [][]byte, z Compare) (heap Heap, err error) {
 		if len(r) == 0 {
 			continue
 		}
-		i := Iter{Rest: r}
-		err = i.Next()
-		if err != nil {
-			break
+		i := NewIter(r)
+		if i.Next() {
+			heap = append(heap, &i)
+		} else if i.Error() != nil {
+			return nil, i.Error()
 		}
-		heap = append(heap, &i)
 		heap.LastUp(z)
 	}
 	return
@@ -74,12 +142,12 @@ func Iterize(rdx [][]byte) (heap Heap, err error) {
 		if len(r) == 0 {
 			continue
 		}
-		i := Iter{Rest: r}
-		err = i.Next()
-		if err != nil {
-			break
+		i := NewIter(r)
+		if i.Next() {
+			heap = append(heap, &i)
+		} else if i.Error() != nil {
+			return nil, i.Error()
 		}
-		heap = append(heap, &i)
 	}
 	return
 }
@@ -123,17 +191,16 @@ func (ih Heap) Remove(i int) Heap {
 
 func (ih Heap) NextK(k int, z Compare) (nh Heap, err error) {
 	for i := k - 1; i >= 0; i-- {
-		if len(ih[i].Rest) == 0 {
+		if ih[i].Next() {
+			ih.Down(i, z)
+		} else if ih[i].HasFailed() {
+			err = ih[i].Error()
+			break
+		} else {
 			ih = ih.Remove(i)
 			if i < len(ih) {
 				ih.Down(i, z)
 			}
-		} else {
-			err = ih[i].Next()
-			if err != nil {
-				break
-			}
-			ih.Down(i, z)
 		}
 	}
 	return ih, err
@@ -163,10 +230,9 @@ func (ih Heap) Down(i0 int, z Compare) bool {
 func (heap *Heap) MergeNext(data []byte, Z Compare) ([]byte, error) {
 	var err error = nil
 	h := *heap
-
 	eqlen := heap.EqUp(Z)
 	if eqlen == 1 {
-		data = append(data, h[0].Last...)
+		data = append(data, h[0].Record()...)
 	} else {
 		eqs := h[:eqlen]
 		data, err = mergeSameSpotElements(data, eqs)
