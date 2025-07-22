@@ -137,7 +137,7 @@ func mergeElementsX(data []byte, bare [][]byte) ([]byte, error) {
 func mergeSameSpotElements(data []byte, heap Heap) (ret []byte, err error) {
 	eq := 1
 	for i := 1; i < len(heap); i++ {
-		z := CompareLWW(heap[0], heap[i])
+		z := CompareLWW(&heap[0], &heap[i])
 		if z < Eq {
 			heap[0], heap[i] = heap[i], heap[0]
 			eq = 1

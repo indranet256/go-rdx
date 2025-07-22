@@ -600,7 +600,6 @@ func (it *BrikIterator) Close() error {
 
 type BrixIterator struct { // BIG FIXME same ID different type
 	pages []*BrikIterator
-	iters []Iter
 	heap  Heap
 }
 
@@ -616,30 +615,35 @@ func (bit *BrixIterator) Close() error {
 }
 
 func (bit *BrixIterator) nextPage() (err error) {
-	for k := len(bit.heap); k < cap(bit.heap) && bit.heap[k] != nil && err != nil; k++ {
-		it := bit.heap[k]
-		ndx := 0
-		for ndx < len(bit.iters) && &bit.iters[ndx] != it {
-			ndx++
+	empty := bit.heap[len(bit.heap):len(bit.pages)]
+	for _, e := range empty {
+		if e.errndx > 0 {
+			return iterr[e.errndx]
 		}
+		ndx := -e.errndx
 		page := bit.pages[ndx]
 		if len(page.Host.Index) > page.PageNo {
-			bit.heap[k] = nil
-		} else {
 			bit.pages[ndx], err = page.Host.loadPage(page.PageNo + 1) // FIXME NextPage()
-			it := NewIter(bit.pages[ndx].Page)
-			bit.heap = append(bit.heap, &it)
+			i := NewIter(bit.pages[ndx].Page)
+			i.errndx = -ndx
+			bit.heap = append(bit.heap, i)
 			bit.heap.LastUp(CompareID)
+		} else {
+			// todo remove
 		}
 	}
 	return
 }
 
+var ErrTooManyBrix = errors.New("too many bricks")
+
 func (brix Brix) Iterator() (bit *BrixIterator, err error) {
+	if len(brix) > 0xff {
+		return nil, ErrTooManyBrix
+	}
 	it := BrixIterator{
 		pages: make([]*BrikIterator, len(brix)),
-		iters: make([]Iter, len(brix)),
-		heap:  make([]*Iter, len(brix)),
+		heap:  make(Heap, len(brix)),
 	}
 
 	for n, b := range brix {
@@ -647,8 +651,9 @@ func (brix Brix) Iterator() (bit *BrixIterator, err error) {
 		if err != nil {
 			return nil, err
 		}
-		it.iters[n] = NewIter(it.pages[n].Page)
-		it.heap = append(it.heap, &it.iters[n])
+		i := NewIter(it.pages[n].Page)
+		i.errndx = int8(-n)
+		it.heap = append(it.heap, i)
 		it.heap.LastUp(CompareID)
 	}
 

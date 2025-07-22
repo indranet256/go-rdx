@@ -8,7 +8,7 @@ type Iter struct {
 	hdrlen uint8
 	idlen  uint8
 	lit    byte
-	errndx byte
+	errndx int8
 }
 
 var iterr = []error{nil, ErrIncomplete, ErrBadRecord}
@@ -34,16 +34,16 @@ func (it *Iter) Error() error {
 }
 
 func (it *Iter) HasFailed() bool {
-	return it.errndx != 0
+	return it.errndx > 0
 }
 
 func (it *Iter) Next() bool {
-	if len(it.data) == 0 || it.errndx != 0 {
+	if len(it.data) == 0 || it.errndx > 0 {
 		return false
 	}
 	it.data = it.data[int(it.hdrlen+it.idlen)+it.vallen:]
 	if len(it.data) == 0 {
-		*it = Iter{}
+		*it = Iter{errndx: it.errndx}
 		return false
 	}
 	it.lit = it.data[0]
@@ -113,7 +113,7 @@ func (i *Iter) NextLive() (ok bool) {
 	return
 }
 
-type Heap []*Iter
+type Heap []Iter
 
 func Heapize(rdx [][]byte, z Compare) (heap Heap, err error) {
 	heap = make(Heap, 0, len(rdx))
@@ -123,7 +123,7 @@ func Heapize(rdx [][]byte, z Compare) (heap Heap, err error) {
 		}
 		i := NewIter(r)
 		if i.Next() {
-			heap = append(heap, &i)
+			heap = append(heap, i)
 		} else if i.Error() != nil {
 			return nil, i.Error()
 		}
@@ -144,7 +144,7 @@ func Iterize(rdx [][]byte) (heap Heap, err error) {
 		}
 		i := NewIter(r)
 		if i.Next() {
-			heap = append(heap, &i)
+			heap = append(heap, i)
 		} else if i.Error() != nil {
 			return nil, i.Error()
 		}
@@ -155,7 +155,7 @@ func Iterize(rdx [][]byte) (heap Heap, err error) {
 func (ih Heap) Up(a int, z Compare) {
 	for {
 		b := (a - 1) / 2 // parent
-		if b == a || z(ih[a], ih[b]) >= Eq {
+		if b == a || z(&ih[a], &ih[b]) >= Eq {
 			break
 		}
 		ih[b], ih[a] = ih[a], ih[b]
@@ -172,7 +172,7 @@ func (ih Heap) EqUp(z Compare) (eqs int) {
 	eqs = 1
 	for len(q) > 0 && q[0] < len(ih) {
 		n := q[0]
-		if Eq == z(ih[0], ih[n]) {
+		if Eq == z(&ih[0], &ih[n]) {
 			j1 := 2*n + 1
 			q = append(q, j1, j1+1)
 			ih[eqs], ih[n] = ih[n], ih[eqs]
@@ -215,10 +215,10 @@ func (ih Heap) Down(i0 int, z Compare) bool {
 			break
 		}
 		j := j1 // left child
-		if j2 := j1 + 1; j2 < n && z(ih[j2], ih[j1]) < Eq {
+		if j2 := j1 + 1; j2 < n && z(&ih[j2], &ih[j1]) < Eq {
 			j = j2 // = 2*i + 2  // right child
 		}
-		if z(ih[j], ih[i]) >= Eq {
+		if z(&ih[j], &ih[i]) >= Eq {
 			break
 		}
 		ih[i], ih[j] = ih[j], ih[i]
@@ -238,7 +238,7 @@ func (heap *Heap) MergeNext(data []byte, Z Compare) ([]byte, error) {
 		data, err = mergeSameSpotElements(data, eqs)
 	}
 	if err == nil {
-		h, err = h.NextK(eqlen, Z)
+		h, err = h.NextK(eqlen, Z) // FIXME signature
 	}
 	*heap = h
 	return data, err
