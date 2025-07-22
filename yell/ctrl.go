@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"github.com/gritzko/rdx"
 )
 
@@ -42,6 +43,45 @@ func CmdIf(ctx *Context, args []byte, rest *[]byte) (ret []byte, err error) {
 		return nil, nil
 	} else {
 		err = ctx.Evaluate1(&ret, rest)
+	}
+	return
+}
+
+var ErrNoLoopVariable = errors.New("no loop variable specified")
+
+// for(i (1 2 3 4 5)) [ echo i ]
+func CmdFor(ctx *Context, args []byte, rest *[]byte) (ret []byte, err error) {
+	if rdx.Peek(args) != rdx.Term {
+		return nil, ErrNoLoopVariable
+	}
+	var name []byte
+	_, _, name, args, err = rdx.ReadRDX(args)
+	if len(args) == 0 {
+		return nil, nil
+	}
+	oldValue, hadOldValue := ctx.names[string(name)]
+
+	var rem, code []byte
+	_, _, _, rem, err = rdx.ReadRDX(*rest)
+	code = (*rest)[:len(*rest)-len(rem)]
+	*rest = rem
+
+	var list []byte
+	_, _, list, args, err = rdx.ReadRDX(args)
+	for len(list) > 0 && err == nil {
+		var re []byte
+		_, _, _, re, err = rdx.ReadRDX(list)
+		if err != nil {
+			break
+		}
+		one := list[:len(list)-len(re)] // TODO iter
+		ctx.names[string(name)] = one
+		ret, err = ctx.Evaluate(ret, code)
+		list = re
+	}
+
+	if hadOldValue {
+		ctx.names[string(name)] = oldValue
 	}
 	return
 }

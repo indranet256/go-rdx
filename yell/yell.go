@@ -16,6 +16,7 @@ var TopContext = Context{
 		"__version": rdx.WriteRDX(nil, rdx.String, rdx.ID{}, []byte("RDXLisp v0.0.1")),
 		"if":        Control(CmdIf),
 		"eq":        Command(CmdEq),
+		"for":       Control(CmdFor),
 		"echo":      Command(CmdEcho),
 		"set":       Command(CmdSet),
 		"join":      Command(CmdJoin),

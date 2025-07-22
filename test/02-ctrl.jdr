@@ -1,0 +1,15 @@
+test:eq("Evaluate a list (bare)"
+        (1 2 3 4 5)
+        ( for(i (1 2 3 4 5)) i )
+        )
+
+test:eq("Evaluate a list (arrays)"
+        ([1] [2] [3] [4] [5])
+        ( for(i (1 2 3 4 5)) [i] )
+        )
+
+test:eq("Evaluate a list"
+        (1 2 3 4 5)
+        ( for(i (1 2 3 4 5)) (i) )
+        )
+
