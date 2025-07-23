@@ -78,6 +78,15 @@ var TopContext = Context{
 				"equal": Command(CmdTestEq),
 			},
 		},
+		"os": &Context{
+			names: map[string]any{
+				"ls":     Command(CmdOsLsDir),
+				"lsdir":  Command(CmdOsLsDir),
+				"chdir":  Command(CmdOsChDir),
+				"mkdir":  Command(CmdOsMkDir),
+				"unlink": Command(CmdOsUnlink),
+			},
+		},
 	},
 }
 

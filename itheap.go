@@ -1,6 +1,9 @@
 package rdx
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"fmt"
+)
 
 type Iter struct {
 	data   []byte
@@ -111,6 +114,33 @@ func (i *Iter) NextLive() (ok bool) {
 		ok = i.Next()
 	}
 	return
+}
+
+func (it *Iter) String() string {
+	switch it.Lit() {
+	case 0:
+		return ""
+	case Float:
+		return fmt.Sprintf("%e", UnzipFloat64(it.Value()))
+	case Integer:
+		return fmt.Sprintf("%d", UnzipInt64(it.Value()))
+	case Reference:
+		return string(UnzipID(it.Value()).String())
+	case String:
+		return string(it.Value())
+	case Term:
+		return string(it.Value())
+	case Tuple:
+		return "()"
+	case Linear:
+		return "[]"
+	case Euler:
+		return "{}"
+	case Multix:
+		return "<>"
+	default:
+		return ""
+	}
 }
 
 type Heap []Iter
