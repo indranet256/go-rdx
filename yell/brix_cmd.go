@@ -101,6 +101,22 @@ func CmdBrixInfo(ctx *Context, args []byte) (out []byte, err error) {
 }
 
 func CmdBrixFind(ctx *Context, args []byte) (out []byte, err error) {
+	var lit byte
+	var val []byte
+	lit, _, val, args, err = rdx.ReadRDX(args)
+	var sha rdx.Sha256
+	switch lit {
+	case rdx.Integer:
+		str := fmt.Sprintf("%d", rdx.UnzipInt64(val))
+		sha, err = rdx.FindByHashlet(str)
+	case rdx.Term:
+		fallthrough
+	case rdx.String:
+		sha, err = rdx.FindByHashlet(string(val))
+	}
+	if err == nil {
+		out = rdx.AppendTerm(out, []byte(sha.String()))
+	}
 	return
 }
 
