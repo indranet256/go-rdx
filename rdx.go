@@ -430,6 +430,10 @@ func AppendString(data []byte, val []byte) []byte {
 	return WriteTLKV(data, String, nil, val)
 }
 
+func AppendTerm(data []byte, val []byte) []byte {
+	return WriteTLKV(data, Term, nil, val)
+}
+
 var ErrBadFloatRecord = errors.New("bad Float record format")
 var ErrBadIntegerRecord = errors.New("bad Integer record format")
 var ErrBadReferenceRecord = errors.New("bad Reference record format")

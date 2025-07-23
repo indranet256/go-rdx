@@ -142,7 +142,7 @@ type Brik struct {
 	// 1. orig brick hash
 	// *. merged hashes
 	Meta []Sha256
-	// there are two types of blocks, my friend
+	// there are two types of blocks, my friend,
 	// the ones that fit in 4K
 	// and the ones that only have one record
 	Index []IndexEntry

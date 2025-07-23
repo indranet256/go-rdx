@@ -48,9 +48,28 @@ var TopContext = Context{
 		},
 		"brix": &Context{
 			names: map[string]any{
-				"new": Command(CmdBrixNew),
+				"new":   Command(CmdBrixNew),
+				"open":  Command(CmdBrixOpen),
+				"info":  Command(CmdBrixInfo),
+				"find":  Command(CmdBrixFind),
+				"close": Command(CmdBrixClose),
+
+				"pack": Command(CmdBrixPack),
+
+				"prev": Command(CmdBrixBase),
+				"base": Command(CmdBrixBase),
+				"kind": Command(CmdBrixKind),
+
 				"get": Command(CmdBrixGet),
 				"add": Command(CmdBrixAdd),
+				"has": Command(CmdBrixHas),
+				"del": Command(CmdBrixDel),
+
+				"scan": Command(CmdBrixSeek),
+
+				"seek": Command(CmdBrixSeek),
+				"next": Command(CmdBrixNext),
+				"over": Command(CmdBrixOver),
 			},
 		},
 		"test": &Context{

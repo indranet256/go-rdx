@@ -48,6 +48,43 @@ func (ctx *Context) resolve(path []byte) any {
 	}
 }
 
+var ErrOverwriteForbidden = errors.New("overwrite of built-in values is forbidden")
+
+func (ctx *Context) set(path []byte, v any) (err error) {
+	if len(path) == 0 || rdx.Peek(path) != rdx.Term {
+		return ErrBadArguments
+	}
+	var val []byte
+	_, _, val, path, err = rdx.ReadTLKV(path)
+	if err != nil {
+		return
+	}
+	f, ok := ctx.names[string(val)]
+	if !ok && len(path) == 0 {
+		ctx.names[string(val)] = v
+		return
+	}
+	switch f.(type) {
+	case *Context:
+		if len(path) == 0 {
+			return ErrOverwriteForbidden
+		} else {
+			err = f.(*Context).set(path, v)
+		}
+	case Command:
+		return ErrOverwriteForbidden
+	case Control:
+		return ErrOverwriteForbidden
+	default:
+		if len(path) == 0 {
+			ctx.names[string(val)] = v
+		} else {
+			err = ErrUnexpectedNameType
+		}
+	}
+	return
+}
+
 func (ctx *Context) Evaluate1(data, code *[]byte) (err error) {
 	out := *data
 	var lit byte
@@ -97,7 +134,7 @@ func (ctx *Context) Evaluate1(data, code *[]byte) (err error) {
 			}
 			out = append(out, res...)
 		default:
-			return ErrUnexpectedNameType
+			out = append(out, whole...)
 		}
 	} else if rdx.IsFIRST(lit) {
 		out = append(out, whole...)
