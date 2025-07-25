@@ -28,6 +28,7 @@ const (
 	CompressLZ4
 )
 
+const BrixFileExt = ".brik"
 const BrixPageLen = 1 << 12
 
 type IndexEntry struct {
@@ -218,8 +219,6 @@ func (brik *Brik) OpenByPath(path string) (err error) {
 	return
 }
 
-const BrixFileExt = ".brix"
-
 func (brik *Brik) OpenByHash(hash Sha256) error {
 	name := make([]byte, 0, 32+16)
 	name = append(name, hash.String()...)
@@ -349,9 +348,6 @@ func (brik *Brik) Create(meta []Sha256) (err error) {
 }
 
 func (brik *Brik) flushBlock() (err error) {
-	if brik.At.pagendx != -1 {
-		return ErrReadOnly
-	}
 	idx := &brik.Index[len(brik.Index)-1]
 	block := brik.block
 	var factlen int
@@ -402,6 +398,9 @@ func (brik *Brik) Write(rec []byte) (n int, err error) {
 	var id ID
 	var rest []byte
 	_, id, _, rest, err = ReadRDX(rec)
+	if err != nil {
+		return
+	}
 	/*if brik.At.Id.Compare(id) != Less {
 		return 0, ErrBadOrder
 	}*/
@@ -455,7 +454,7 @@ func (brik *Brik) Seal() (err error) {
 	}
 
 	brik.Hash7574 = brik.Merkle.Sum()
-	newpath := brik.Hash7574.String() + ".brik"
+	newpath := brik.Hash7574.String() + BrixFileExt
 	err = os.Rename(tmppath, newpath)
 	brik.File, err = os.OpenFile(newpath, os.O_RDWR, 0)
 	if err != nil {
@@ -550,7 +549,7 @@ func (brix Brix) OpenByHash(hash Sha256) (more Brix, err error) {
 		more, err = brix.OpenByHash(b.Meta[0])
 	}
 	if err == nil {
-		more = append(brix, b)
+		more = append(more, b)
 	} else {
 		_ = b.Close()
 	}
@@ -701,6 +700,10 @@ func (xit *BrixReader) Seek(id ID) int {
 
 func (xit *BrixReader) Record() []byte {
 	return xit.win.Record()
+}
+
+func (xit *BrixReader) Parsed() (lit byte, id ID, value []byte) {
+	return xit.win.Parsed()
 }
 
 func (xit *BrixReader) ID() ID {

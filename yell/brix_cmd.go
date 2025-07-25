@@ -120,10 +120,12 @@ func CmdBrixFind(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 
+var ErrBrixNameNotFound = errors.New("no such BRIX store")
+
 func CmdBrixClose(ctx *Context, args []byte) (out []byte, err error) {
 	brix := ctx.resolve(args)
 	if brix == nil {
-		return nil, ErrNameNotFound
+		return nil, ErrBrixNameNotFound
 	}
 	switch brix.(type) {
 	case rdx.Brix:

@@ -18,8 +18,7 @@ type Reader interface {
 	Read() bool
 
 	Record() []byte
-	ID() ID
-	Value() []byte
+	Parsed() (lit byte, id ID, value []byte)
 
 	Error() error
 }
@@ -126,6 +125,16 @@ func (it *Iter) Seek(id ID) (ok bool) {
 		ok = it.Read()
 	}
 	return
+}
+
+func (it *Iter) Parsed() (lit byte, id ID, value []byte) {
+	if len(it.data) == 0 {
+		return
+	}
+	b := int(it.hdrlen + it.idlen)
+	return it.data[0] & ^CaseBit,
+		UnzipID(it.data[it.hdrlen:b]),
+		it.data[b : b+it.vallen]
 }
 
 func (i *Iter) Lit() byte {
