@@ -122,15 +122,6 @@ func (hdr *BrikHeader) UnmarshalBinary(from []byte) error {
 	return nil
 }
 
-type BrikIterator struct {
-	Host *Brik
-	// -1 for writes
-	PageNo   int
-	Off, Len int
-	Id       ID
-	Page     []byte
-}
-
 type Brik struct {
 	// The underlying file
 	File   *os.File
@@ -150,12 +141,11 @@ type Brik struct {
 	Hash7574 Sha256
 	Merkle   *Sha256Merkle7574
 	// The default iterator
-	At *BrikIterator
+	At    *BrikReader
+	block []byte
 }
 
-type Brix []*Brik
-
-func (brix *Brik) Open(reader ReaderAt) (err error) {
+func (brik *Brik) Open(reader ReaderAt) (err error) {
 	var head [8 * 4]byte
 	n := 0
 	n, err = reader.ReadAt(head[:], 0)
@@ -166,45 +156,45 @@ func (brix *Brik) Open(reader ReaderAt) (err error) {
 		return ErrBadFile
 	}
 
-	brix.Reader = reader
-	err = brix.Header.UnmarshalBinary(head[:])
+	brik.Reader = reader
+	err = brik.Header.UnmarshalBinary(head[:])
 	if err != nil {
 		return
 	}
 
-	if brix.Header.MetaLen > 0 {
-		err = brix.loadHashes()
+	if brik.Header.MetaLen > 0 {
+		err = brik.loadHashes()
 	}
 	if err == nil {
-		err = brix.loadIndex()
+		err = brik.loadIndex()
 	}
 	return
 }
 
-func (brix *Brik) loadHashes() (err error) {
-	meta := make([]byte, brix.Header.MetaLen)
-	brix.Meta = make([]Sha256, 0, brix.Header.MetaLen/Sha256Bytes)
+func (brik *Brik) loadHashes() (err error) {
+	meta := make([]byte, brik.Header.MetaLen)
+	brik.Meta = make([]Sha256, 0, brik.Header.MetaLen/Sha256Bytes)
 	n := 0
-	n, err = brix.Reader.ReadAt(meta, BrixHeaderLen)
+	n, err = brik.Reader.ReadAt(meta, BrixHeaderLen)
 	if err != nil {
 		return err
 	}
-	if n != int(brix.Header.MetaLen) {
+	if n != int(brik.Header.MetaLen) {
 		return ErrBadFile
 	}
 	for m := meta[:]; len(m) > 0; m = m[32:] { // TODO better
-		brix.Meta = append(brix.Meta, Sha256(m[:32]))
+		brik.Meta = append(brik.Meta, Sha256(m[:32]))
 	}
 	return
 }
 
-func (brix *Brik) loadIndex() (err error) {
-	off := int64(BrixHeaderLen + brix.Header.MetaLen + brix.Header.DataLen)
-	todo := brix.Header.IndexLen
-	brix.Index = make([]IndexEntry, 0, brix.Header.IndexLen/BrixIndexEntryLen)
+func (brik *Brik) loadIndex() (err error) {
+	off := int64(BrixHeaderLen + brik.Header.MetaLen + brik.Header.DataLen)
+	todo := brik.Header.IndexLen
+	brik.Index = make([]IndexEntry, 0, brik.Header.IndexLen/BrixIndexEntryLen)
 	for todo > 0 {
 		var e [BrixIndexEntryLen]byte
-		_, err = brix.Reader.ReadAt(e[:], off)
+		_, err = brik.Reader.ReadAt(e[:], off)
 		if err != nil {
 			break
 		}
@@ -215,27 +205,27 @@ func (brix *Brik) loadIndex() (err error) {
 		if err != nil {
 			break
 		}
-		brix.Index = append(brix.Index, entry)
+		brik.Index = append(brik.Index, entry)
 	}
 	return
 }
 
-func (brix *Brik) OpenByPath(path string) (err error) {
-	brix.File, err = os.Open(path)
+func (brik *Brik) OpenByPath(path string) (err error) {
+	brik.File, err = os.Open(path)
 	if err == nil {
-		err = brix.Open(brix.File)
+		err = brik.Open(brik.File)
 	}
 	return
 }
 
 const BrixFileExt = ".brix"
 
-func (brix *Brik) OpenByHash(hash Sha256) error {
+func (brik *Brik) OpenByHash(hash Sha256) error {
 	name := make([]byte, 0, 32+16)
 	name = append(name, hash.String()...)
 	name = append(name, BrixFileExt...)
-	brix.Hash7574 = hash
-	return brix.OpenByPath(string(name))
+	brik.Hash7574 = hash
+	return brik.OpenByPath(string(name))
 }
 
 func FindByHashlet(hashlet string) (sha Sha256, err error) {
@@ -260,148 +250,110 @@ func FindByHashlet(hashlet string) (sha Sha256, err error) {
 
 }
 
-func (brix *Brik) findPage(id ID) int {
-	return sort.Search(len(brix.Index), func(ndx int) bool {
-		return brix.Index[ndx].From.Compare(id) >= Eq
+func (brik *Brik) findPage(id ID) int {
+	return sort.Search(len(brik.Index), func(ndx int) bool {
+		return brik.Index[ndx].From.Compare(id) >= Eq
 	})
 }
 
-func (brix *Brik) loadPage(i int) (iter *BrikIterator, err error) {
-	iter = &BrikIterator{}
-	return iter, brix.loadPage2(iter, i)
-}
-
-func (brix *Brik) loadPage2(iter *BrikIterator, i int) (err error) {
-	from := brix.Index[i].Position()
-	till := brix.Header.DataLen
-	if i+1 < len(brix.Index) {
-		till = brix.Index[i+1].Position()
+func (brik *Brik) loadPage(i int) (page []byte, err error) {
+	from := brik.Index[i].Position()
+	till := brik.Header.DataLen
+	if i+1 < len(brik.Index) {
+		till = brik.Index[i+1].Position()
 	}
-	start := BrixHeaderLen + brix.Header.MetaLen
+	start := BrixHeaderLen + brik.Header.MetaLen
 	pad := make([]byte, till-from)
-	_, e := brix.Reader.ReadAt(pad, int64(start+from))
-	if e != nil {
-		return e
-	}
-	iter.PageNo = i
-	iter.Host = brix
-	iter.Id = brix.Index[i].From
-	iter.Len, iter.Off = 0, 0
-	switch brix.Index[i].Compression() {
-	case CompressNot:
-		iter.Page = pad
-	case CompressLZ4:
-		iter.Page = make([]byte, 0, brix.Index[i].UncompressedLength())
-		l := 0
-		l, err = lz4.UncompressBlock(pad, iter.Page)
-		iter.Page = iter.Page[0:l]
-	default:
-		err = ErrorBlockNotSupported
-		iter = nil
-	}
-	return
-}
-
-func (it *BrikIterator) NextPage() (err error) {
-	if it.PageNo+1 >= len(it.Host.Index) {
-		return io.EOF
-	}
-	return it.Host.loadPage2(it, it.PageNo+1)
-}
-
-func (it *BrikIterator) Next() (record []byte, err error) {
-	p := it.Page[it.Off+it.Len:]
-	if len(p) == 0 {
-		err = it.NextPage()
-		if err != nil {
-			return
-		}
-	}
-	var rest []byte
-	_, it.Id, _, rest, err = ReadRDX(p)
-	if err == nil {
-		it.Off += it.Len
-		it.Len = len(p) - len(rest)
-		record = it.Page[it.Off : it.Off+it.Len]
-	}
-	return
-}
-
-func (it *BrikIterator) ScanTo(id ID) (record []byte, err error) {
-	z := it.Id.Compare(id)
-	if z == Grtr {
-		it.Id = it.Host.Index[it.PageNo].From
-		it.Off = 0
-		it.Len = 0
-	} else if z == Eq {
-		p := it.Page[it.Off:]
-		var rest []byte
-		_, it.Id, _, rest, err = ReadRDX(p)
-		it.Len = len(p) - len(rest)
-		record = p[it.Off : it.Off+it.Len]
-	} else {
-		for z == Less && err == nil {
-			record, err = it.Next()
-			z = it.Id.Compare(id)
-		}
-	}
-	return
-}
-
-func (brix *Brik) ReadRecord(id ID) (record []byte, err error) {
-	i := brix.findPage(id)
-	if i == len(brix.Index) || !brix.Index[i].MayHaveID(id) {
-		return nil, ErrRecordNotFound
-	}
-	if brix.At == nil || i != brix.At.PageNo || brix.At.Host == nil {
-		brix.At, err = brix.loadPage(i)
-		if err != nil {
-			return
-		}
-	}
-	return brix.At.ScanTo(id)
-}
-
-func (brix *Brik) Close() (err error) {
-	if brix.File != nil {
-		err = brix.File.Close()
-	} else if brix.Reader != nil {
-		err = brix.Reader.Close()
-	}
-	brix.Reader = nil
-	brix.File = nil
-	return
-}
-
-func (brix *Brik) Create(meta []Sha256) (err error) {
-	brix.File, err = os.CreateTemp(".", ".tmp.*.brix")
+	_, err = brik.Reader.ReadAt(pad, int64(start+from))
 	if err != nil {
 		return
 	}
-	brix.Reader = brix.File
-	brix.Meta = append(brix.Meta, meta...)
-	brix.Index = append(brix.Index, IndexEntry{})
-	brix.Header.MetaLen = uint64(len(meta) * Sha256Bytes)
-	h, _ := brix.Header.MarshalBinary()
-	_, err = brix.File.Write(h)
-	for i := 0; i < len(meta) && err == nil; i++ {
-		_, err = brix.File.Write(meta[i][:])
+	switch brik.Index[i].Compression() {
+	case CompressNot:
+		page = pad
+	case CompressLZ4:
+		page = make([]byte, 0, brik.Index[i].UncompressedLength())
+		l := 0
+		l, err = lz4.UncompressBlock(pad, page)
+		page = page[0:l]
+	default:
+		err = ErrorBlockNotSupported
 	}
-	brix.At = &BrikIterator{
-		Host:   brix,
-		PageNo: -1,
-		Page:   make([]byte, 0, BrixPageLen),
-	}
-	brix.Merkle = &Sha256Merkle7574{}
 	return
 }
 
-func (brix *Brik) flushBlock() (err error) {
-	if brix.At.PageNo != -1 {
+func (brik *Brik) LoadPage(ndx int) (err error) {
+	brik.block, err = brik.loadPage(ndx)
+	if err != nil {
+		return
+	}
+	brik.At = &BrikReader{
+		iter:    NewIter(brik.block),
+		pagendx: ndx,
+		host:    brik,
+	}
+	return
+}
+
+func (brik *Brik) ReadRecord(id ID) (record []byte, err error) {
+	i := brik.findPage(id)
+	if i == len(brik.Index) || !brik.Index[i].MayHaveID(id) {
+		return nil, ErrRecordNotFound
+	}
+	if brik.At == nil || i != brik.At.pagendx || brik.At.host == nil {
+		err = brik.LoadPage(i)
+		if err != nil {
+			return
+		}
+	} else if brik.At.ID().Compare(id) == Grtr {
+		brik.At = &BrikReader{
+			iter:    NewIter(brik.block),
+			pagendx: i,
+			host:    brik,
+		}
+	}
+	if !brik.At.Seek(id) {
+		return nil, ErrRecordNotFound
+	}
+	return brik.At.Record(), nil
+}
+
+func (brik *Brik) Close() (err error) {
+	if brik.File != nil {
+		err = brik.File.Close()
+	} else if brik.Reader != nil {
+		err = brik.Reader.Close()
+	}
+	brik.Reader = nil
+	brik.File = nil
+	return
+}
+
+func (brik *Brik) Create(meta []Sha256) (err error) {
+	brik.File, err = os.CreateTemp(".", ".tmp.*.brik")
+	if err != nil {
+		return
+	}
+	brik.Reader = brik.File
+	brik.Meta = append(brik.Meta, meta...)
+	brik.Index = append(brik.Index, IndexEntry{})
+	brik.Header.MetaLen = uint64(len(meta) * Sha256Bytes)
+	h, _ := brik.Header.MarshalBinary()
+	_, err = brik.File.Write(h)
+	for i := 0; i < len(meta) && err == nil; i++ {
+		_, err = brik.File.Write(meta[i][:])
+	}
+	brik.block = make([]byte, 0, BrixPageLen)
+	brik.Merkle = &Sha256Merkle7574{}
+	return
+}
+
+func (brik *Brik) flushBlock() (err error) {
+	if brik.At.pagendx != -1 {
 		return ErrReadOnly
 	}
-	block := brix.At.Page
-	idx := &brix.Index[len(brix.Index)-1]
+	idx := &brik.Index[len(brik.Index)-1]
+	block := brik.block
 	var factlen int
 	var ZPad = make([]byte, len(block)+8)
 	factlen, err = lz4.CompressBlock(block, ZPad, nil)
@@ -413,53 +365,53 @@ func (brix *Brik) flushBlock() (err error) {
 		block = ZPad[:factlen]
 	}
 	idx.pos |= uint64(bits.LeadingZeros(uint(len(block)))) << 48
-	factlen, err = brix.File.Write(block)
+	factlen, err = brik.File.Write(block)
 	if err != nil {
 		return
 	}
-	brix.Header.DataLen += uint64(len(block))
-	brix.Index = append(brix.Index, IndexEntry{
-		pos: brix.Header.DataLen,
+	brik.Header.DataLen += uint64(len(block))
+	brik.Index = append(brik.Index, IndexEntry{
+		pos: brik.Header.DataLen,
 	})
-	idx = &brix.Index[len(brix.Index)-1]
+	idx = &brik.Index[len(brik.Index)-1]
 	hash := Sha256Of(block)
-	_ = brix.Merkle.Append(hash)
-	brix.At.Page = brix.At.Page[:0]
+	_ = brik.Merkle.Append(hash)
+	brik.block = brik.block[:0]
 	return
 }
 
-func (brix *Brik) WriteAll(rec []byte) (n int, err error) {
+func (brik *Brik) WriteAll(rec []byte) (n int, err error) {
 	for len(rec) > 0 && err == nil {
 		p := 0
-		p, err = brix.Write(rec)
+		p, err = brik.Write(rec)
 		rec = rec[p:]
 		n += p
 	}
 	return
 }
 
-func (brix *Brik) Unlink() error {
-	if brix.File == nil {
+func (brik *Brik) Unlink() error {
+	if brik.File == nil {
 		return ErrNotOpen
 	}
-	return os.Remove(brix.File.Name())
+	return os.Remove(brik.File.Name())
 }
 
-func (brix *Brik) Write(rec []byte) (n int, err error) {
-	idx := &brix.Index[len(brix.Index)-1]
+func (brik *Brik) Write(rec []byte) (n int, err error) {
+	idx := &brik.Index[len(brik.Index)-1]
 	var id ID
 	var rest []byte
 	_, id, _, rest, err = ReadRDX(rec)
-	if brix.At.Id.Compare(id) != Less {
+	/*if brik.At.Id.Compare(id) != Less {
 		return 0, ErrBadOrder
-	}
+	}*/
 	n = len(rec) - len(rest)
-	if len(brix.At.Page)+n > BrixPageLen {
-		err = brix.flushBlock()
+	if len(brik.block)+n > BrixPageLen {
+		err = brik.flushBlock()
 		if err != nil {
 			return
 		}
-		idx = &brix.Index[len(brix.Index)-1]
+		idx = &brik.Index[len(brik.Index)-1]
 	}
 	if idx.From.IsZero() {
 		if id.IsZero() {
@@ -468,62 +420,122 @@ func (brix *Brik) Write(rec []byte) (n int, err error) {
 		idx.From = id
 	}
 	idx.Bloom |= uint64(1) << (id.Xor() & 63)
-	brix.At.Page = append(brix.At.Page, rec[:n]...)
-	brix.At.Id = id
+	brik.block = append(brik.block, rec[:n]...)
+	//brik.At.Id = id
 	// TODO don't copy larger records (1M?)
 	return
 }
 
-func (brix *Brik) IsWritable() bool {
-	return brix.File != nil && brix.At.PageNo == -1
+func (brik *Brik) IsWritable() bool {
+	return brik.File != nil && brik.At.pagendx == -1
 }
 
-func (brix *Brik) Seal() (err error) {
-	if len(brix.At.Page) != 0 {
-		err = brix.flushBlock()
+func (brik *Brik) Seal() (err error) {
+	if len(brik.block) != 0 {
+		err = brik.flushBlock()
 		if err != nil {
 			return
 		}
 	}
-	brix.Index = brix.Index[:len(brix.Index)-1]
-	idx := make([]byte, 0, len(brix.Index)*32)
-	for _, i := range brix.Index {
+	brik.Index = brik.Index[:len(brik.Index)-1]
+	idx := make([]byte, 0, len(brik.Index)*32)
+	for _, i := range brik.Index {
 		idx, _ = i.AppendBinary(idx)
 	}
 	var idxlen int
-	idxlen, err = brix.File.Write(idx)
+	idxlen, err = brik.File.Write(idx)
 	if err != nil {
 		return
 	}
-	brix.Header.IndexLen = uint64(idxlen)
-	tmppath := brix.File.Name()
-	err = brix.File.Close()
+	brik.Header.IndexLen = uint64(idxlen)
+	tmppath := brik.File.Name()
+	err = brik.File.Close()
 	if err != nil {
 		return
 	}
 
-	brix.Hash7574 = brix.Merkle.Sum()
-	newpath := brix.Hash7574.String() + ".brix"
+	brik.Hash7574 = brik.Merkle.Sum()
+	newpath := brik.Hash7574.String() + ".brik"
 	err = os.Rename(tmppath, newpath)
-	brix.File, err = os.OpenFile(newpath, os.O_RDWR, 0)
+	brik.File, err = os.OpenFile(newpath, os.O_RDWR, 0)
 	if err != nil {
 		return
 	}
 	header := make([]byte, 0, 32)
-	header, _ = brix.Header.AppendBinary(header)
-	_, err = brix.File.Write(header)
+	header, _ = brik.Header.AppendBinary(header)
+	_, err = brik.File.Write(header)
 	if err != nil {
 		return
 	}
-	err = brix.File.Close()
-	brix.File = nil
+	err = brik.File.Close()
+	brik.File = nil
 
 	if err == nil {
-		err = brix.OpenByHash(brix.Hash7574)
+		err = brik.OpenByHash(brik.Hash7574)
 	}
 
 	return
 }
+
+// BrikReader iterates over one sorted record file (a brik).
+type BrikReader struct {
+	host *Brik
+	// -1 for writes
+	pagendx int
+	iter    Iter
+}
+
+func (bit *BrikReader) Read() bool {
+	if len(bit.iter.Rest()) != 0 {
+		return bit.iter.Read()
+	} else if bit.pagendx+1 >= len(bit.host.Index) {
+		bit.iter = Iter{errndx: 4}
+		return false
+	} else {
+		bit.pagendx++
+		page, err := bit.host.loadPage(bit.pagendx)
+		if err != nil {
+			bit.iter = Iter{errndx: 3}
+			return false
+		}
+		bit.iter = NewIter(page)
+		return bit.Read()
+	}
+}
+
+func (bit *BrikReader) Record() []byte {
+	return bit.iter.Record()
+}
+func (bit *BrikReader) ID() ID {
+	return bit.iter.ID()
+}
+func (bit *BrikReader) Value() []byte {
+	return bit.iter.Value()
+}
+func (bit *BrikReader) Error() error {
+	return bit.iter.Error()
+}
+
+func (bit *BrikReader) Seek(id ID) bool {
+	bit.pagendx = bit.host.findPage(id)
+	if bit.pagendx >= len(bit.host.Index) {
+		return false
+	}
+	page, err := bit.host.loadPage(bit.pagendx)
+	if err != nil {
+		bit.iter = Iter{errndx: 3}
+		return false
+	}
+	bit.iter = NewIter(page)
+	return bit.iter.Seek(id)
+}
+
+func (bit *BrikReader) Close() error {
+	*bit = BrikReader{}
+	return nil
+}
+
+type Brix []*Brik
 
 func (brix Brix) OpenByHash(hash Sha256) (more Brix, err error) {
 	for _, b := range brix {
@@ -590,46 +602,61 @@ func (brix Brix) Get(pad []byte, id ID) (rec []byte, err error) {
 	return
 }
 
-func (it *BrikIterator) Close() error {
-	it.Id = ID{}
-	it.Host = nil
-	it.Page = nil
-	it.PageNo, it.Len, it.Off = 0, 0, 0
-	return nil
+func (brix Brix) Iterator() (xit BrixReader, err error) {
+	if len(brix) > MaxBrixLen {
+		err = ErrTooManyBrix
+		return
+	}
+	xit.host = brix
+	xit.pages = make([]int, len(brix))
+	xit.heap = make(Heap, 0, len(brix))
+	for n, b := range brix {
+		var page []byte
+		page, err = b.loadPage(0)
+		if err != nil {
+			return
+		}
+		xit.heap = append(xit.heap, Iter{data: page, errndx: int8(-n)})
+		xit.heap.LastUp(CompareID)
+	}
+	return
 }
 
-type BrixIterator struct { // BIG FIXME same ID different type
-	pages []*BrikIterator
+type BrixReader struct { // BIG FIXME same ID different type
+	host  Brix
+	pages []int
 	heap  Heap
+	win   Iter
+	data  []byte
 }
 
-func (bit *BrixIterator) IsEmpty() bool {
-	return len(bit.heap) == 0
+func (xit *BrixReader) IsEmpty() bool {
+	return len(xit.heap) == 0
 }
 
-func (bit *BrixIterator) Close() error {
-	for _, i := range bit.pages {
+func (xit *BrixReader) Close() error {
+	for _, i := range xit.heap {
 		_ = i.Close()
 	}
 	return nil
 }
 
-func (bit *BrixIterator) nextPage() (err error) {
-	empty := bit.heap[len(bit.heap):len(bit.pages)]
+func (xit *BrixReader) nextPage(empty []Iter) (err error) {
 	for _, e := range empty {
 		if e.errndx > 0 {
 			return iterr[e.errndx]
 		}
 		ndx := -e.errndx
-		page := bit.pages[ndx]
-		if len(page.Host.Index) > page.PageNo {
-			bit.pages[ndx], err = page.Host.loadPage(page.PageNo + 1) // FIXME NextPage()
-			i := NewIter(bit.pages[ndx].Page)
-			i.errndx = -ndx
-			bit.heap = append(bit.heap, i)
-			bit.heap.LastUp(CompareID)
-		} else {
-			// todo remove
+		brik := xit.host[ndx]
+		if len(brik.Index) > xit.pages[ndx]+1 {
+			var page []byte
+			page, err = brik.loadPage(xit.pages[ndx] + 1)
+			if err != nil {
+				return
+			}
+			it := Iter{data: page, errndx: -ndx}
+			xit.heap = append(xit.heap, it)
+			xit.heap.LastUp(CompareID)
 		}
 	}
 	return
@@ -637,36 +664,55 @@ func (bit *BrixIterator) nextPage() (err error) {
 
 var ErrTooManyBrix = errors.New("too many bricks")
 
-func (brix Brix) Iterator() (bit *BrixIterator, err error) {
-	if len(brix) > 0xff {
-		return nil, ErrTooManyBrix
-	}
-	it := BrixIterator{
-		pages: make([]*BrikIterator, len(brix)),
-		heap:  make(Heap, len(brix)),
-	}
+const MaxBrixLen = 0xff
 
-	for n, b := range brix {
-		it.pages[n], err = b.loadPage(0)
-		if err != nil {
-			return nil, err
-		}
-		i := NewIter(it.pages[n].Page)
-		i.errndx = int8(-n)
-		it.heap = append(it.heap, i)
-		it.heap.LastUp(CompareID)
+func (xit *BrixReader) Read() bool {
+	ol := len(xit.heap)
+	if ol == 0 {
+		return false
 	}
-
-	return &it, nil
+	var err error
+	eqlen := xit.heap.EqUp(CompareID)
+	if eqlen == 1 {
+		xit.win = xit.heap[0]
+	} else {
+		eqs := xit.heap[:eqlen]
+		xit.data = xit.data[:0]
+		xit.data, err = mergeSameSpotElements(xit.data, eqs)
+		xit.win = Iter{data: xit.data}
+	}
+	if err == nil {
+		err = xit.heap.NextK(eqlen, CompareID) // FIXME signature
+	}
+	if err == nil && len(xit.heap) != ol {
+		err = xit.nextPage(xit.heap[len(xit.heap):ol])
+	}
+	if err != nil {
+		xit.win.errndx = 3
+		return false
+	} else {
+		return xit.win.Read()
+	}
 }
 
-func (bit *BrixIterator) Next(data []byte) (rec []byte, err error) {
-	ol := len(bit.heap)
-	rec, err = bit.heap.MergeNext(data, CompareID)
-	if err == nil && len(bit.heap) != ol {
-		err = bit.nextPage()
-	}
-	return
+func (xit *BrixReader) Seek(id ID) int {
+	return Less //???
+}
+
+func (xit *BrixReader) Record() []byte {
+	return xit.win.Record()
+}
+
+func (xit *BrixReader) ID() ID {
+	return xit.win.ID()
+}
+
+func (xit *BrixReader) Value() []byte {
+	return xit.win.Value()
+}
+
+func (xit *BrixReader) Error() error {
+	return xit.win.Error()
 }
 
 func (brix Brix) join() (joined *Brik, err error) {
@@ -676,14 +722,13 @@ func (brix Brix) join() (joined *Brik, err error) {
 	}
 	joined = &Brik{}
 	err = joined.Create(deps)
-	res := make([]byte, 0, BrixPageLen)
-	var it *BrixIterator
+	if err != nil {
+		return
+	}
+	var it BrixReader
 	it, err = brix.Iterator()
-
-	for !it.IsEmpty() && err == nil {
-		res, err = it.Next(res)
-		_, err = joined.Write(res)
-		res = res[:0]
+	for err == nil && it.Read() {
+		_, err = joined.Write(it.Record())
 	}
 
 	if err == nil {

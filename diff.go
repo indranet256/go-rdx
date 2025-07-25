@@ -202,10 +202,10 @@ func (d *Diff) iters(at int) (old, neu Iter, err error) {
 	p := &d.log[at]
 	old = NewIter(d.Old[p.OldPos():p.told])
 	neu = NewIter(d.Neu[p.NeuPos():p.tneu])
-	if old.HasData() && !old.Next() && old.Error() != nil {
+	if old.HasData() && !old.Read() && old.Error() != nil {
 		err = old.Error()
 	}
-	if neu.HasData() && !neu.Next() && neu.Error() != nil {
+	if neu.HasData() && !neu.Read() && neu.Error() != nil {
 		err = neu.Error()
 	}
 	return
@@ -354,23 +354,23 @@ func (d *Diff) hili(data, old, neu []byte, p int, stack *Marks) (np int, out []b
 		act := d.path[np]
 		switch act {
 		case Keep:
-			_ = o.Next()
+			_ = o.Read()
 			out = append(out, o.Record()...)
-			_ = n.Next()
+			_ = n.Read()
 		case Insert:
-			_ = n.Next()
+			_ = n.Read()
 			out = WriteTLKV(out, n.Lit(), InsertId, n.Value())
 		case Remove:
-			_ = o.Next()
+			_ = o.Read()
 			out = WriteTLKV(out, o.Lit(), RemoveId, o.Value())
 		case Replace: // todo nicer replace hili
-			_ = o.Next()
+			_ = o.Read()
 			out = WriteTLKV(out, o.Lit(), RemoveId, o.Value())
-			_ = n.Next()
+			_ = n.Read()
 			out = WriteTLKV(out, n.Lit(), InsertId, n.Value())
 		case Update:
-			_ = o.Next()
-			_ = n.Next()
+			_ = o.Read()
+			_ = n.Read()
 			out = OpenTLV(out, o.Lit(), stack)
 			out = append(out, byte(len(UpdateId)))
 			out = append(out, UpdateId...)
@@ -407,32 +407,32 @@ func (d *Diff) diffP(data, old, neu []byte, p int, stack *Marks) (np int, out []
 		act := d.path[np]
 		switch act {
 		case Keep:
-			_ = o.Next()
-			_ = n.Next()
+			_ = o.Read()
+			_ = n.Read()
 			if len(out) == len(data) && len(*stack) > 1 && (*stack)[len(*stack)-2].Lit == Euler {
 				out = append(out, o.Record()...)
 			} else {
 				out = append(out, EmptyTuple...)
 			}
 		case Insert:
-			if !n.Next() {
+			if !n.Read() {
 				err = n.Error()
 				return
 			}
 			out = WriteRDX(out, n.Lit(), n.ID(), n.Value())
 		case Remove:
-			_ = o.Next()
-			_ = n.Next()
+			_ = o.Read()
+			_ = n.Read()
 			id := ID{Seq: o.ID().Seq | 1}
 			out = WriteRDX(out, Tuple, id, nil)
 		case Replace:
-			_ = o.Next()
-			_ = n.Next()
+			_ = o.Read()
+			_ = n.Read()
 			id := ID{Seq: (o.ID().Seq | 1) + 1}
 			out = WriteRDX(out, n.Lit(), id, n.Value())
 		case Update:
-			_ = o.Next()
-			_ = n.Next()
+			_ = o.Read()
+			_ = n.Read()
 			out = OpenTLV(out, o.Lit(), stack)
 			id := ZipID(o.ID())
 			out = append(out, byte(len(id)))
@@ -471,7 +471,7 @@ func (d *Diff) diffL(data, old, neu []byte, p int, stack *Marks) (np int, out []
 	oldit := NewIter(old)
 	neuit := NewIter(neu)
 	nextit := oldit
-	_ = nextit.Next()
+	_ = nextit.Read()
 	heads := make([]Iter, 0, 32)
 	np = p
 	var oldseq uint64
@@ -480,10 +480,10 @@ func (d *Diff) diffL(data, old, neu []byte, p int, stack *Marks) (np int, out []
 		act := d.path[np]
 		if act != Insert {
 			oldit = nextit
-			_ = nextit.Next()
+			_ = nextit.Read()
 			for !oldit.IsLive() {
 				oldit = nextit
-				_ = nextit.Next()
+				_ = nextit.Read()
 			}
 			oldseq = oldit.ID().Seq
 			if nextit.ID().Compare(oldit.ID()) < Eq {
@@ -494,7 +494,7 @@ func (d *Diff) diffL(data, old, neu []byte, p int, stack *Marks) (np int, out []
 			}
 		}
 		if act != Remove {
-			_ = neuit.Next()
+			_ = neuit.Read()
 		}
 		if act != Keep && len(heads) > 0 {
 			for _, h := range heads {
@@ -562,21 +562,21 @@ func (d *Diff) diffE(data, old, neu []byte, p int, stack *Marks) (np int, out []
 		act := d.path[np]
 		switch act {
 		case Keep:
-			_ = o.Next()
-			_ = n.Next()
+			_ = o.Read()
+			_ = n.Read()
 		case Insert:
-			if !n.Next() {
+			if !n.Read() {
 				err = n.Error()
 				return
 			}
 			out = append(out, n.Record()...)
 		case Remove:
-			_ = o.Next()
+			_ = o.Read()
 			id := o.ID()
 			id.Seq |= 1
 			if o.Lit() == Tuple && len(o.Value()) > 0 {
 				key := NewIter(o.Value())
-				_ = key.Next()
+				_ = key.Read()
 				out = WriteRDX(out, key.Lit(), id, key.Value())
 			} else if IsPLEX(o.Lit()) {
 				out = WriteRDX(out, o.Lit(), id, nil)
@@ -584,13 +584,13 @@ func (d *Diff) diffE(data, old, neu []byte, p int, stack *Marks) (np int, out []
 				out = WriteRDX(out, o.Lit(), id, o.Value())
 			}
 		case Replace:
-			_ = o.Next()
-			_ = n.Next()
+			_ = o.Read()
+			_ = n.Read()
 			id := ID{Seq: (o.ID().Seq | 1) + 1}
 			out = WriteRDX(out, n.Lit(), id, n.Value())
 		case Update:
-			_ = o.Next()
-			_ = n.Next()
+			_ = o.Read()
+			_ = n.Read()
 			out = OpenTLV(out, o.Lit(), stack)
 			id := ZipID(o.ID())
 			out = append(out, byte(len(id)))

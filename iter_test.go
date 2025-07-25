@@ -16,7 +16,7 @@ func TestIter(t *testing.T) {
 	rdx = AppendString(rdx, str)
 
 	it := NewIter(rdx)
-	assert.True(t, it.Next())
+	assert.True(t, it.Read())
 	assert.Nil(t, it.Error())
 	assert.Equal(t, byte(Integer), it.Lit())
 	assert.Equal(t, val, it.Value())
@@ -25,14 +25,14 @@ func TestIter(t *testing.T) {
 	assert.Equal(t, byte('i'), it.Record()[0])
 	assert.False(t, it.IsLive())
 
-	assert.True(t, it.Next())
+	assert.True(t, it.Read())
 	assert.Nil(t, it.Error())
 	assert.Equal(t, byte(Integer), it.Lit())
 	assert.Equal(t, ID{}, it.ID())
 	assert.Equal(t, ZipInt64(123), it.Value())
 	assert.True(t, it.IsLive())
 
-	assert.True(t, it.Next())
+	assert.True(t, it.Read())
 	assert.Nil(t, it.Error())
 	assert.Equal(t, byte(String), it.Lit())
 	assert.Equal(t, ID{}, it.ID())
@@ -40,7 +40,7 @@ func TestIter(t *testing.T) {
 	assert.True(t, it.IsLive())
 	assert.Equal(t, str, it.Value())
 
-	assert.False(t, it.Next())
+	assert.False(t, it.Read())
 	assert.True(t, it.IsEmpty())
 	assert.Equal(t, nil, it.Error())
 }

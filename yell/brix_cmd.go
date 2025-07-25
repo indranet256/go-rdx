@@ -203,6 +203,26 @@ func CmdBrixHas(ctx *Context, args []byte) (out []byte, err error) {
 
 // evaluate for every record in a range
 func CmdBrixScan(ctx *Context, args []byte) (out []byte, err error) {
+	brix := ctx.resolve(args)
+	if brix == nil {
+		return nil, ErrNameNotFound
+	}
+	var it rdx.BrixReader
+	switch brix.(type) {
+	case rdx.Brix:
+		b := brix.(rdx.Brix)
+		it, err = b.Iterator()
+	default:
+		return nil, ErrUnexpectedNameType
+	}
+	var jdr []byte
+	for it.Read() {
+		if err == nil {
+			jdr, err = rdx.WriteAllJDR(jdr, it.Record(), 0)
+			fmt.Println(string(jdr))
+		}
+		jdr = jdr[:0]
+	}
 	return
 }
 

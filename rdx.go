@@ -249,7 +249,7 @@ func CompareTerm(a *Iter, b *Iter) int {
 
 func UnwrapTuple(a *Iter) *Iter {
 	b := NewIter(a.Value())
-	b.Next()
+	b.Read()
 	return &b
 }
 
@@ -453,12 +453,12 @@ func normalize(data, rdx []byte, z Compare, stack *Marks) (norm []byte, err erro
 	norm = data
 	chunks := [][]byte{}
 	at := NewIter(rdx)
-	at.Next()
+	at.Read()
 	next := at
 	oc := len(norm)
 	for at.HasData() && err == nil {
 		norm, err = appendNorm(norm, at, stack)
-		next.Next()
+		next.Read()
 		if err == nil && next.HasData() && z != nil && z(&at, &next) != Less {
 			chunks = append(chunks, norm[oc:])
 			oc = len(norm)

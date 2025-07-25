@@ -10,7 +10,7 @@ func CmdOsUnlink(ctx *Context, args []byte) (out []byte, err error) {
 		return nil, ErrBadArguments
 	}
 	it := rdx.NewIter(args)
-	for it.Next() && err == nil {
+	for it.Read() && err == nil {
 		err = os.Remove(it.String())
 	}
 	return
@@ -21,7 +21,7 @@ func CmdOsMkDir(ctx *Context, args []byte) (out []byte, err error) {
 		return nil, ErrBadArguments
 	}
 	it := rdx.NewIter(args)
-	for it.Next() && err == nil {
+	for it.Read() && err == nil {
 		str := it.String()
 		err = os.Mkdir(str, 0777)
 		if err == nil {
@@ -36,7 +36,7 @@ func CmdOsChDir(ctx *Context, args []byte) (out []byte, err error) {
 		return nil, ErrBadArguments
 	}
 	it := rdx.NewIter(args)
-	for it.Next() && err == nil {
+	for it.Read() && err == nil {
 		err = os.Chdir(it.String())
 	}
 	return
@@ -48,7 +48,7 @@ func CmdOsLsDir(ctx *Context, args []byte) (out []byte, err error) {
 	}
 	var marks rdx.Marks
 	it := rdx.NewIter(args)
-	for err == nil && it.Next() {
+	for err == nil && it.Read() {
 		var de []os.DirEntry
 		de, err = os.ReadDir(it.String())
 		if err != nil {

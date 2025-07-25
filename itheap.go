@@ -2,8 +2,33 @@ package rdx
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"io"
 )
+
+type Seeker interface {
+	// moves to the first equal-or-greater record
+	Seek(id ID) int // todo int?
+	Error() error
+}
+
+type Reader interface {
+	// moves to the next record
+	Read() bool
+
+	Record() []byte
+	ID() ID
+	Value() []byte
+
+	Error() error
+}
+
+type ReadSeekCloser interface {
+	Reader
+	Seeker
+	io.Closer
+}
 
 type Iter struct {
 	data   []byte
@@ -14,7 +39,15 @@ type Iter struct {
 	errndx int8
 }
 
-var iterr = []error{nil, ErrIncomplete, ErrBadRecord}
+var ErrIOFail = errors.New("IO failed")
+
+var iterr = []error{
+	nil,
+	ErrIncomplete,
+	ErrBadRecord,
+	ErrIOFail,
+	ErrEoF,
+}
 
 func NewIter(data []byte) Iter {
 	return Iter{data: data}
@@ -40,7 +73,7 @@ func (it *Iter) HasFailed() bool {
 	return it.errndx > 0
 }
 
-func (it *Iter) Next() bool {
+func (it *Iter) Read() bool {
 	if len(it.data) == 0 || it.errndx > 0 {
 		return false
 	}
@@ -84,6 +117,17 @@ func (it *Iter) Next() bool {
 	return true
 }
 
+func (it *Iter) Seek(id ID) (ok bool) {
+	if !it.HasData() {
+		return
+	}
+	ok = true
+	for it.ID().Compare(id) == Less && ok {
+		ok = it.Read()
+	}
+	return
+}
+
 func (i *Iter) Lit() byte {
 	if len(i.data) == 0 {
 		return 0
@@ -109,9 +153,9 @@ func (it *Iter) IsLive() bool {
 }
 
 func (i *Iter) NextLive() (ok bool) {
-	ok = i.Next()
+	ok = i.Read()
 	for ok && !i.IsLive() {
-		ok = i.Next()
+		ok = i.Read()
 	}
 	return
 }
@@ -143,6 +187,11 @@ func (it *Iter) String() string {
 	}
 }
 
+func (it *Iter) Close() error {
+	*it = Iter{}
+	return nil
+}
+
 type Heap []Iter
 
 func Heapize(rdx [][]byte, z Compare) (heap Heap, err error) {
@@ -152,7 +201,7 @@ func Heapize(rdx [][]byte, z Compare) (heap Heap, err error) {
 			continue
 		}
 		i := NewIter(r)
-		if i.Next() {
+		if i.Read() {
 			heap = append(heap, i)
 		} else if i.Error() != nil {
 			return nil, i.Error()
@@ -173,7 +222,7 @@ func Iterize(rdx [][]byte) (heap Heap, err error) {
 			continue
 		}
 		i := NewIter(r)
-		if i.Next() {
+		if i.Read() {
 			heap = append(heap, i)
 		} else if i.Error() != nil {
 			return nil, i.Error()
@@ -213,27 +262,28 @@ func (ih Heap) EqUp(z Compare) (eqs int) {
 	return
 }
 
-func (ih Heap) Remove(i int) Heap {
+func (heap *Heap) Remove(i int, z Compare) {
+	ih := *heap
 	l := len(ih) - 1
 	ih[l], ih[i] = ih[i], ih[l]
-	return ih[:l]
+	*heap = ih[:l]
+	if i < len(*heap) {
+		(*heap).Down(i, z)
+	}
 }
 
-func (ih Heap) NextK(k int, z Compare) (nh Heap, err error) {
+func (heap *Heap) NextK(k int, z Compare) (err error) {
 	for i := k - 1; i >= 0; i-- {
-		if ih[i].Next() {
-			ih.Down(i, z)
-		} else if ih[i].HasFailed() {
-			err = ih[i].Error()
+		if (*heap)[i].Read() {
+			(*heap).Down(i, z)
+		} else if (*heap)[i].HasFailed() {
+			err = (*heap)[i].Error()
 			break
 		} else {
-			ih = ih.Remove(i)
-			if i < len(ih) {
-				ih.Down(i, z)
-			}
+			heap.Remove(i, z)
 		}
 	}
-	return ih, err
+	return err
 }
 
 func (ih Heap) Down(i0 int, z Compare) bool {
@@ -259,18 +309,16 @@ func (ih Heap) Down(i0 int, z Compare) bool {
 
 func (heap *Heap) MergeNext(data []byte, Z Compare) ([]byte, error) {
 	var err error = nil
-	h := *heap
 	eqlen := heap.EqUp(Z)
 	if eqlen == 1 {
-		data = append(data, h[0].Record()...)
+		data = append(data, (*heap)[0].Record()...)
 	} else {
-		eqs := h[:eqlen]
+		eqs := (*heap)[:eqlen]
 		data, err = mergeSameSpotElements(data, eqs)
 	}
 	if err == nil {
-		h, err = h.NextK(eqlen, Z) // FIXME signature
+		err = heap.NextK(eqlen, Z) // FIXME signature
 	}
-	*heap = h
 	return data, err
 }
 

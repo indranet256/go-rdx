@@ -14,7 +14,7 @@ func testValueOrder(rdx []byte) error {
 	for i.HasData() {
 		prev := i
 		n++
-		if !i.Next() {
+		if !i.Read() {
 			return i.Error()
 		}
 		z := CompareEuler(&prev, &i)
@@ -56,11 +56,11 @@ func testMerge(rdx []byte) (err error) {
 	i := NewIter(rdx)
 	inputs := make([][]byte, 0, 32)
 	for i.HasData() && err == nil {
-		if !i.Next() {
+		if !i.Read() {
 			return i.Error()
 		}
 		if i.Lit() == Term && bytes.Equal(i.Value(), Tilde) {
-			if !i.Next() {
+			if !i.Read() {
 				err = i.Error()
 				break
 			}
@@ -75,8 +75,8 @@ func testMerge(rdx []byte) (err error) {
 }
 
 func TestOneSpecialCase(t *testing.T) {
-	inputs := [][]byte{[]byte("(@1 two:2)"),
-		[]byte("(@2 four:4)")}
+	inputs := [][]byte{[]byte("(@1 {@Alice-1 \"one\":1})"),
+		[]byte("(@1 {@Alice-1 \"two\":2})")}
 	rdxins := [][]byte{}
 	for _, in := range inputs {
 		rdx, err := ParseJDR(in)
@@ -90,7 +90,7 @@ func TestOneSpecialCase(t *testing.T) {
 		t.Fatal(err)
 	}
 	jdr, _, err := WriteJDR(nil, out, 0)
-	assert.Equal(t, "(@2 four:4)", string(jdr))
+	assert.Equal(t, "(@1 {@Alice-1 \"one\":1,\"two\":2})", string(jdr))
 }
 
 func TestFirstMerge(t *testing.T) {
