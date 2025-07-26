@@ -40,6 +40,14 @@ type Iter struct {
 
 var ErrIOFail = errors.New("IO failed")
 
+const (
+	ErrOKNdx = iota
+	ErrIncompleteNdx
+	ErrBadRecordNdx
+	ErrEoFNdx
+	ErrIOFailNdx
+)
+
 var iterr = []error{
 	nil,
 	ErrIncomplete,

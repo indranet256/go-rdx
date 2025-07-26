@@ -545,7 +545,7 @@ func (brix Brix) OpenByHash(hash Sha256) (more Brix, err error) {
 	more = brix
 	b := &Brik{}
 	err = b.OpenByHash(hash)
-	if len(b.Meta) > 0 {
+	if len(b.Meta) > 0 && !b.Meta[0].IsEmpty() {
 		more, err = brix.OpenByHash(b.Meta[0])
 	}
 	if err == nil {
@@ -607,17 +607,6 @@ func (brix Brix) Iterator() (xit BrixReader, err error) {
 		return
 	}
 	xit.host = brix
-	xit.pages = make([]int, len(brix))
-	xit.heap = make(Heap, 0, len(brix))
-	for n, b := range brix {
-		var page []byte
-		page, err = b.loadPage(0)
-		if err != nil {
-			return
-		}
-		xit.heap = append(xit.heap, Iter{data: page, errndx: int8(-n)})
-		xit.heap.LastUp(CompareRevID)
-	}
 	return
 }
 
@@ -627,6 +616,7 @@ type BrixReader struct { // BIG FIXME same ID different type
 	heap  Heap
 	win   Iter
 	data  []byte
+	eqlen int
 }
 
 func (xit *BrixReader) IsEmpty() bool {
@@ -665,31 +655,69 @@ var ErrTooManyBrix = errors.New("too many bricks")
 
 const MaxBrixLen = 0xff
 
+func (xit *BrixReader) init() (err error) {
+	brix := xit.host
+	xit.pages = make([]int, len(brix))
+	xit.heap = make(Heap, 0, len(brix))
+	for n, b := range brix {
+		var page []byte
+		page, err = b.loadPage(0)
+		if err != nil {
+			return
+		}
+		it := Iter{data: page, errndx: int8(-n)}
+		if it.Read() {
+			xit.heap = append(xit.heap, it)
+			xit.heap.LastUp(CompareRevID)
+		}
+	}
+	return
+}
+
 func (xit *BrixReader) Read() bool {
+	var err error
 	ol := len(xit.heap)
 	if ol == 0 {
-		return false
-	}
-	var err error
-	eqlen := xit.heap.EqUp(CompareRevID)
-	if eqlen == 1 {
-		xit.win = xit.heap[0]
+		if xit.heap != nil {
+			return false
+		}
+		err = xit.init()
+		if err != nil {
+			xit.win.errndx = ErrIOFailNdx
+			return false
+		}
+		ol = len(xit.heap)
+		if ol == 0 {
+			xit.win.errndx = ErrEoFNdx
+			return false
+		}
 	} else {
-		eqs := xit.heap[:eqlen]
+		err = xit.heap.NextK(xit.eqlen, CompareRevID)
+		if err == nil && len(xit.heap) != ol {
+			err = xit.nextPage(xit.heap[len(xit.heap):ol])
+		}
+		if err != nil {
+			xit.win.errndx = ErrIOFailNdx
+			return false
+		}
+		if len(xit.heap) == 0 {
+			xit.win.errndx = ErrEoFNdx
+			return false
+		}
+	}
+	xit.eqlen = xit.heap.EqUp(CompareRevID)
+	if xit.eqlen == 1 {
+		xit.win = xit.heap[0]
+		return true
+	} else {
+		eqs := xit.heap[:xit.eqlen]
 		xit.data = xit.data[:0]
 		xit.data, err = mergeSameSpotElements(xit.data, eqs)
+		if err != nil {
+			xit.win.errndx = ErrBadRecordNdx
+			return false
+		}
 		xit.win = Iter{data: xit.data}
-	}
-	if err == nil {
-		err = xit.heap.NextK(eqlen, CompareRevID) // FIXME signature
-	}
-	if err == nil && len(xit.heap) != ol {
-		err = xit.nextPage(xit.heap[len(xit.heap):ol])
-	}
-	if err != nil {
-		xit.win.errndx = 3
-		return false
-	} else {
 		return xit.win.Read()
 	}
 }
