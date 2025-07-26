@@ -55,7 +55,7 @@ var TopContext = Context{
 				"find":  Command(CmdBrixFind),
 				"close": Command(CmdBrixClose),
 
-				"pack": Command(CmdBrixPack),
+				"merge": Command(CmdBrixMerge),
 
 				"prev": Command(CmdBrixBase),
 				"base": Command(CmdBrixBase),
@@ -81,11 +81,14 @@ var TopContext = Context{
 		},
 		"os": &Context{
 			names: map[string]any{
-				"ls":     Command(CmdOsLsDir),
-				"lsdir":  Command(CmdOsLsDir),
-				"chdir":  Command(CmdOsChDir),
-				"mkdir":  Command(CmdOsMkDir),
-				"unlink": Command(CmdOsUnlink),
+				"ls":       Command(CmdOsLsDir),
+				"lsdir":    Command(CmdOsLsDir),
+				"chdir":    Command(CmdOsChDir),
+				"mkdir":    Command(CmdOsMkDir),
+				"mktmpdir": Command(CmdOsMkTmpDir),
+				"mktmp":    Command(CmdOsMkTmpDir),
+				"pwd":      Command(CmdOsPwd),
+				"unlink":   Command(CmdOsUnlink),
 			},
 		},
 	},

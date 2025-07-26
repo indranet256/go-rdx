@@ -718,6 +718,13 @@ func (xit *BrixReader) Error() error {
 	return xit.win.Error()
 }
 
+func (brix Brix) Hash7574() Sha256 {
+	if len(brix) == 0 {
+		return Sha256{}
+	}
+	return brix[len(brix)-1].Hash7574
+}
+
 func (brix Brix) join() (joined *Brik, err error) {
 	deps := make([]Sha256, 0, len(brix))
 	for _, b := range brix {
@@ -746,14 +753,31 @@ func (brix Brix) join() (joined *Brik, err error) {
 	return
 }
 
-func (brix Brix) Merge1() (merged Brix, err error) {
-	return
-}
-
-func (brix Brix) Merge8() (merged Brix, err error) {
-	return
-}
-
-func (brix Brix) Merge() (merged Brix, err error) {
+func (brix Brix) Merge(base int) (sha Sha256, err error) {
+	w := Brik{}
+	meta := make([]Sha256, 0, len(brix))
+	if base == 0 {
+		meta = append(meta, Sha256{})
+	} else {
+		meta = append(meta, brix[base-1].Hash7574)
+	}
+	if base+1 >= len(brix) {
+		return Sha256{}, ErrOutOfRange
+	}
+	merged := brix[base:]
+	for _, m := range merged {
+		meta = append(meta, m.Hash7574)
+	}
+	err = w.Create(meta)
+	var it BrixReader
+	it, err = merged.Iterator()
+	for err == nil && it.Read() {
+		_, err = w.WriteAll(it.Record())
+	}
+	if err == nil {
+		err = w.Seal()
+		sha = w.Hash7574
+	}
+	_ = w.Close()
 	return
 }

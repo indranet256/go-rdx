@@ -1,0 +1,20 @@
+set(TMP os:mktmp())
+os:cd(TMP)
+set(A {@Alice-123 "one":1 "two":2})
+brix:open(B brix:new(A))
+test:eq("BRIK creation"
+        3f978afd4592d7306fc8e095db7b5ecb6d34d66880b2535a2c483e358ea4f8b4
+        brix:id(B) 
+        )
+test:eq("BRIK add"
+        7725fdb47b9b723f0806cbae0591767950389cc96d244b676209ae5ffe0bbf9f
+        brix:add(B {@Alice-123 "three":3})
+        )
+brix:open(C 7725fd)
+
+test:eq("BRIK get"
+        A brix:get(B, Alice-123)
+        )
+brix:close(C)
+brix:close(B)
+os:unlink(TMP)

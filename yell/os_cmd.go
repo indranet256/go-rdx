@@ -16,6 +16,24 @@ func CmdOsUnlink(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 
+func CmdOsMkTmpDir(ctx *Context, args []byte) (out []byte, err error) {
+	var path string
+	path, err = os.MkdirTemp("", "test")
+	if err == nil {
+		out = rdx.AppendString(out, []byte(path))
+	}
+	return
+}
+
+func CmdOsPwd(ctx *Context, args []byte) (out []byte, err error) {
+	var path string
+	path, err = os.Getwd()
+	if err == nil {
+		out = rdx.AppendString(out, []byte(path))
+	}
+	return
+}
+
 func CmdOsMkDir(ctx *Context, args []byte) (out []byte, err error) {
 	if len(args) == 0 {
 		return nil, ErrBadArguments

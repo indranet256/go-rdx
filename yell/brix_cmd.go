@@ -186,25 +186,13 @@ func CmdBrixGet(ctx *Context, args []byte) (out []byte, err error) {
 
 // brix:add (3c0dce, {@alice-345 5:"five"})
 func CmdBrixAdd(ctx *Context, args []byte) (out []byte, err error) {
-	w := rdx.Brik{}
-	var hashlet []byte
-	hashlet, _, args, err = rdx.ReadTerm(args)
-	if err != nil {
-		return nil, err
-	}
-	deps := make([]rdx.Sha256, 0, 1)
-	var hash rdx.Sha256
-	if len(hashlet) == rdx.Sha256Bytes*2 {
-		hash, err = rdx.ParseSha256(hashlet)
-	} else if len(hashlet) < rdx.Sha256Bytes*2 {
-		hash, err = rdx.FindByHashlet(string(hashlet))
-	} else {
-		return nil, ErrBadArguments
-	}
+	var brix rdx.Brix
+	brix, args, err = brixVar(ctx, args)
 	if err != nil {
 		return
 	}
-	deps = append(deps, hash)
+	w := rdx.Brik{}
+	deps := []rdx.Sha256{brix.Hash7574()}
 	err = w.Create(deps)
 	_, err = w.WriteAll(args)
 	if err != nil {
@@ -273,6 +261,20 @@ func CmdBrixKind(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 
-func CmdBrixPack(ctx *Context, args []byte) (out []byte, err error) {
+func CmdBrixMerge(ctx *Context, args []byte) (out []byte, err error) {
+	var brix rdx.Brix
+	brix, args, err = brixVar(ctx, args)
+	if err != nil {
+		return
+	}
+	base := int64(0)
+	if len(args) > 0 && rdx.Peek(args) == rdx.Integer {
+		base, _, args, err = rdx.ReadInteger(args)
+	}
+	var sha rdx.Sha256
+	sha, err = brix.Merge(int(base))
+	if err == nil {
+		out = rdx.AppendTerm(out, []byte(sha.String()))
+	}
 	return
 }
