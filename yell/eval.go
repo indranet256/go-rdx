@@ -157,6 +157,8 @@ func (ctx *Context) Evaluate1(data, code *[]byte) (err error) {
 				return
 			}
 			out = append(out, res...)
+		case rdx.Reader:
+			out = append(out, whole...)
 		default:
 			out = append(out, whole...)
 		}

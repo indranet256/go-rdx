@@ -219,6 +219,10 @@ func (brik *Brik) OpenByPath(path string) (err error) {
 	return
 }
 
+func (brik *Brik) PageLen() int {
+	return len(brik.Index)
+}
+
 func (brik *Brik) OpenByHash(hash Sha256) error {
 	name := make([]byte, 0, 32+16)
 	name = append(name, hash.String()...)
@@ -311,7 +315,7 @@ func (brik *Brik) ReadRecord(id ID) (record []byte, err error) {
 			host:    brik,
 		}
 	}
-	if !brik.At.Seek(id) {
+	if brik.At.Seek(id) == Less {
 		return nil, ErrRecordNotFound
 	}
 	return brik.At.Record(), nil
@@ -515,15 +519,15 @@ func (bit *BrikReader) Error() error {
 	return bit.iter.Error()
 }
 
-func (bit *BrikReader) Seek(id ID) bool {
+func (bit *BrikReader) Seek(id ID) int {
 	bit.pagendx = bit.host.findPage(id)
 	if bit.pagendx >= len(bit.host.Index) {
-		return false
+		return Less
 	}
 	page, err := bit.host.loadPage(bit.pagendx)
 	if err != nil {
 		bit.iter = Iter{errndx: 3}
-		return false
+		return Less
 	}
 	bit.iter = NewIter(page)
 	return bit.iter.Seek(id)
@@ -705,6 +709,11 @@ func (xit *BrixReader) Read() bool {
 			return false
 		}
 	}
+	return xit.pickWinner()
+}
+
+func (xit *BrixReader) pickWinner() bool {
+	var err error
 	xit.eqlen = xit.heap.EqUp(CompareRevID)
 	if xit.eqlen == 1 {
 		xit.win = xit.heap[0]
@@ -723,7 +732,36 @@ func (xit *BrixReader) Read() bool {
 }
 
 func (xit *BrixReader) Seek(id ID) int {
-	return Less //???
+	if len(xit.host) == 0 {
+		return Less
+	}
+	xit.heap = xit.heap[:0]
+	var err error
+	once := false
+	for n, b := range xit.host {
+		ndx := b.findPage(id)
+		xit.pages[n] = ndx
+		if ndx >= b.PageLen() {
+			continue
+		}
+		var page []byte
+		page, err = b.loadPage(ndx)
+		if err != nil {
+			xit.win.errndx = ErrIOFailNdx
+			return Less
+		}
+		it := Iter{data: page, errndx: int8(-n)}
+		once = once || (it.Seek(id) == Eq) // FIXME invalidated?!!
+		xit.heap = append(xit.heap, it)
+		xit.heap.LastUp(CompareRevID)
+	}
+	if len(xit.heap) == 0 {
+		return Less
+	} else if xit.pickWinner() && once {
+		return Eq
+	} else {
+		return Grtr
+	}
 }
 
 func (xit *BrixReader) Record() []byte {

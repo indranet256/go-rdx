@@ -355,8 +355,6 @@ func appendEscaped(jdr, val []byte) []byte {
 			jdr = append(jdr, '\\', 'f')
 		case '\\':
 			jdr = append(jdr, '\\', '\\')
-		case '/':
-			jdr = append(jdr, '\\', '/')
 		case '"':
 			jdr = append(jdr, '\\', '"')
 		case 0:

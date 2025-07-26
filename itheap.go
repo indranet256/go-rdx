@@ -124,15 +124,15 @@ func (it *Iter) Read() bool {
 	return true
 }
 
-func (it *Iter) Seek(id ID) (ok bool) {
+func (it *Iter) Seek(id ID) int {
 	if !it.HasData() {
-		return
+		return Less
 	}
-	ok = true
-	for it.ID().Compare(id) == Less && ok {
-		ok = it.Read()
+	z := it.ID().Compare(id) // FIXME b, e !!!
+	for z < Eq && it.Read() {
+		z = it.ID().Compare(id)
 	}
-	return
+	return z
 }
 
 func (it *Iter) Parsed() (lit byte, id ID, value []byte) {

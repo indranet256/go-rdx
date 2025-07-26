@@ -246,7 +246,7 @@ func CmdBrixScan(ctx *Context, args []byte, rest *[]byte) (out []byte, err error
 func CmdBrixSeek(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
-func CmdBrixNext(ctx *Context, args []byte) (out []byte, err error) {
+func CmdBrixRead(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 func CmdBrixOver(ctx *Context, args []byte) (out []byte, err error) {

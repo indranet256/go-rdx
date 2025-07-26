@@ -47,6 +47,52 @@ func CmdIf(ctx *Context, args []byte, rest *[]byte) (ret []byte, err error) {
 	return
 }
 
+func readerVar(ctx *Context, args []byte) (r rdx.Reader, rest []byte, err error) {
+	it := rdx.NewIter(args)
+	if !it.Read() {
+		err = ErrBadName
+		return
+	}
+	b := ctx.resolve(it.Record())
+	if b == nil {
+		err = ErrNameNotFound
+	} else {
+		switch b.(type) {
+		case rdx.Reader:
+			r = b.(rdx.Reader)
+			rest = it.Rest()
+		default:
+			err = ErrUnexpectedNameType
+		}
+	}
+	return
+}
+
+func CmdScan(ctx *Context, args []byte) (ret []byte, err error) {
+	it := rdx.NewIter(args)
+	if !it.Read() {
+		return nil, ErrBadArguments
+	}
+	if it.Lit() != rdx.Tuple && it.Lit() != rdx.Term {
+		return nil, ErrNameNotFound
+	}
+	err = ctx.set(it.Record(), &it)
+	return
+}
+
+func CmdRead(ctx *Context, args []byte) (ret []byte, err error) {
+	var it rdx.Reader
+	it, args, err = readerVar(ctx, args)
+	if err != nil {
+		return
+	}
+	if !it.Read() {
+		return nil, nil
+	} else {
+		return it.Record(), nil
+	}
+}
+
 var ErrNoLoopVariable = errors.New("no loop variable specified")
 
 // for(i (1 2 3 4 5)) [ echo i ]

@@ -22,6 +22,8 @@ var TopContext = Context{
 		"join":      Command(CmdJoin),
 		"load":      Command(CmdLoad),
 		"eval":      Command(CmdEval),
+		"scan":      Command(CmdScan),
+		"read":      Command(CmdRead),
 		"exit":      Command(CmdExit),
 		"rdx": &Context{
 			names: map[string]any{
@@ -67,9 +69,9 @@ var TopContext = Context{
 				"del": Command(CmdBrixDel),
 
 				"scan": Control(CmdBrixScan),
-
 				"seek": Command(CmdBrixSeek),
-				"next": Command(CmdBrixNext),
+
+				"read": Command(CmdBrixRead),
 				"over": Command(CmdBrixOver),
 			},
 		},
