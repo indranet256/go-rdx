@@ -5,27 +5,27 @@ import (
 	"os"
 )
 
-func CmdOsUnlink(ctx *Context, args []byte) (out []byte, err error) {
-	if len(args) == 0 {
-		return nil, ErrBadArguments
-	}
-	it := rdx.NewIter(args)
-	for it.Read() && err == nil {
-		err = os.Remove(it.String())
+func CmdOsUnlink(ctx *Context, args rdx.Iter) (out []byte, err error) {
+	for args.Read() && err == nil {
+		err = os.Remove(args.String())
 	}
 	return
 }
 
-func CmdOsMkTmpDir(ctx *Context, args []byte) (out []byte, err error) {
+func CmdOsMkTmpDir(ctx *Context, args rdx.Iter) (out []byte, err error) {
 	var path string
-	path, err = os.MkdirTemp("", "test")
+	pattern := "test"
+	if args.Read() && args.Lit() == rdx.String {
+		pattern = string(args.Value())
+	}
+	path, err = os.MkdirTemp("", pattern)
 	if err == nil {
 		out = rdx.AppendString(out, []byte(path))
 	}
 	return
 }
 
-func CmdOsPwd(ctx *Context, args []byte) (out []byte, err error) {
+func CmdOsPwd(ctx *Context, args rdx.Iter) (out []byte, err error) {
 	var path string
 	path, err = os.Getwd()
 	if err == nil {
@@ -34,41 +34,28 @@ func CmdOsPwd(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 
-func CmdOsMkDir(ctx *Context, args []byte) (out []byte, err error) {
-	if len(args) == 0 {
-		return nil, ErrBadArguments
-	}
-	it := rdx.NewIter(args)
-	for it.Read() && err == nil {
-		str := it.String()
-		err = os.Mkdir(str, 0777)
-		if err == nil {
-			err = os.Chdir(str)
-		}
+func CmdOsMkDir(ctx *Context, args rdx.Iter) (out []byte, err error) {
+	for args.Read() && err == nil {
+		err = os.Mkdir(string(args.String()), 0777)
 	}
 	return
 }
 
-func CmdOsChDir(ctx *Context, args []byte) (out []byte, err error) {
-	if len(args) == 0 {
-		return nil, ErrBadArguments
-	}
-	it := rdx.NewIter(args)
-	for it.Read() && err == nil {
-		err = os.Chdir(it.String())
+func CmdOsChDir(ctx *Context, args rdx.Iter) (out []byte, err error) {
+	for args.Read() && err == nil {
+		err = os.Chdir(args.String())
 	}
 	return
 }
 
-func CmdOsLsDir(ctx *Context, args []byte) (out []byte, err error) {
-	if len(args) == 0 {
-		args = []byte{'s', 2, 0, '.'}
+func CmdOsLsDir(ctx *Context, args rdx.Iter) (out []byte, err error) {
+	if len(args.Rest()) == 0 {
+		args = rdx.NewIter([]byte{'s', 2, 0, '.'})
 	}
 	var marks rdx.Marks
-	it := rdx.NewIter(args)
-	for err == nil && it.Read() {
+	for err == nil && args.Read() {
 		var de []os.DirEntry
-		de, err = os.ReadDir(it.String())
+		de, err = os.ReadDir(args.String())
 		if err != nil {
 			break
 		}

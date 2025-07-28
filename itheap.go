@@ -152,6 +152,10 @@ func (i *Iter) Lit() byte {
 	return i.data[0] & ^CaseBit
 }
 
+func (i *Iter) Peek() byte {
+	return Peek(i.Rest())
+}
+
 func (it *Iter) ID() ID {
 	return UnzipID(it.data[it.hdrlen : it.hdrlen+it.idlen])
 }

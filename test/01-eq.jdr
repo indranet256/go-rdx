@@ -2,5 +2,12 @@ test:eq("float" 123.0 1.23e2)
 test:eq("int" 12 12)
 test:eq("string" "same" "same")
 test:eq("empty tuples" (()1()()) (,1,,) )
-set(A "Aaa")
+
+set("A" "Aaa")
 test:eq("set()" ("Aaa" "Aaa") (A A))
+
+test:eq("semicolon1" (1 2 3), 1 2 3;)
+test:eq("semicolon2" (1 2 3), 1:2:3;)
+test:eq("semicolon3" (1 2 3), 1:2:3)
+test:eq("semicolon4" (@A-1 (1 2 3)), (@A-1 1 2 3;))
+test:eq("semicolon5" (@A-1 (1 (2 3))), (@A-1 1 (2 3);))

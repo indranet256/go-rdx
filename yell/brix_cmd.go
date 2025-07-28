@@ -7,10 +7,10 @@ import (
 )
 
 // brix:new({@author-seq field:"value"})
-func CmdBrixNew(ctx *Context, args []byte) (out []byte, err error) {
+func CmdBrixNew(ctx *Context, args rdx.Iter) (out []byte, err error) {
 	w := rdx.Brik{}
 	err = w.Create([]rdx.Sha256{})
-	_, err = w.WriteAll(args)
+	_, err = w.WriteAll(args.Rest()) // FIXME normalize
 	if err != nil {
 		_ = w.Unlink()
 		return
@@ -55,26 +55,21 @@ func openBrixBySpec(brix rdx.Brix, spec []byte) (more rdx.Brix, err error) {
 	return
 }
 
+var BrixUnderscore = rdx.AppendTerm(rdx.AppendTerm(nil, []byte("brix")), []byte("_"))
+
 // brix:open(var f7b055)
 // brix:open(var f7b055)
 // brix:open(var "f7b055")
 // brix:open(var 524564)
-func CmdBrixOpen(ctx *Context, args []byte) (out []byte, err error) {
-	if len(args) == 0 || rdx.Peek(args) != rdx.Term {
-		return nil, ErrNoVariableName
-	}
-	var name, rest []byte
-	_, _, name, rest, err = rdx.ReadRDX(args)
-	if err != nil {
-		return
-	}
-	if len(rest) == 0 {
-		rest = args
+func CmdBrixOpen(ctx *Context, args rdx.Iter) (out []byte, err error) {
+	path := readPath(&args)
+	if path == nil {
+		path = BrixUnderscore
 	}
 	var brix rdx.Brix
-	brix, err = openBrixBySpec(nil, rest)
+	brix, err = openBrixBySpec(nil, args.Rest())
 	if err == nil {
-		ctx.names[string(name)] = brix
+		err = ctx.set(path, brix)
 	}
 	return
 }
@@ -103,16 +98,31 @@ func brixVar(ctx *Context, args []byte) (brix rdx.Brix, rest []byte, err error) 
 	return
 }
 
-func CmdBrixId(ctx *Context, args []byte) (out []byte, err error) {
-	var brix rdx.Brix
-	brix, args, err = brixVar(ctx, args)
-	if err == nil {
-		var hash rdx.Sha256
-		if len(brix) != 0 {
-			hash = brix[len(brix)-1].Hash7574
-		}
-		out = rdx.AppendTerm(out, []byte(hash.String()))
+func readBrix(ctx *Context, args *rdx.Iter) rdx.Brix {
+	path := readPath(args)
+	if path == nil {
+		path = BrixUnderscore
 	}
+	var brix rdx.Brix
+	b := ctx.resolve(path)
+	var ok bool
+	brix, ok = b.(rdx.Brix)
+	if !ok {
+		return nil
+	}
+	return brix
+}
+
+func CmdBrixId(ctx *Context, args rdx.Iter) (out []byte, err error) {
+	brix := readBrix(ctx, &args)
+	if brix == nil {
+		return nil, ErrBrixNameNotFound
+	}
+	var hash rdx.Sha256
+	if len(brix) != 0 {
+		hash = brix[len(brix)-1].Hash7574
+	}
+	out = rdx.AppendTerm(out, []byte(hash.String()))
 	return
 }
 
@@ -168,33 +178,30 @@ func CmdBrixClose(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 
-func CmdBrixGet(ctx *Context, args []byte) (out []byte, err error) {
-	var brix rdx.Brix
-	brix, args, err = brixVar(ctx, args)
-	if err != nil {
-		return
+func CmdBrixGet(ctx *Context, args rdx.Iter) (out []byte, err error) {
+	brix := readBrix(ctx, &args)
+	if brix == nil {
+		return nil, ErrBrixNameNotFound
 	}
-	it := rdx.NewIter(args)
-	if !it.Read() || it.Lit() != rdx.Reference {
+	if !args.Read() || args.Lit() != rdx.Reference {
 		err = ErrBadArguments
 		return
 	}
-	id := rdx.UnzipID(it.Value())
+	id := rdx.UnzipID(args.Value())
 	out, err = brix.Get(nil, id)
 	return
 }
 
 // brix:add (3c0dce, {@alice-345 5:"five"})
-func CmdBrixAdd(ctx *Context, args []byte) (out []byte, err error) {
-	var brix rdx.Brix
-	brix, args, err = brixVar(ctx, args)
-	if err != nil {
-		return
+func CmdBrixAdd(ctx *Context, args rdx.Iter) (out []byte, err error) {
+	brix := readBrix(ctx, &args)
+	if brix == nil {
+		return nil, ErrBrixNameNotFound
 	}
 	w := rdx.Brik{}
 	deps := []rdx.Sha256{brix.Hash7574()}
 	err = w.Create(deps)
-	_, err = w.WriteAll(args)
+	_, err = w.WriteAll(args.Rest())
 	if err != nil {
 		_ = w.Unlink()
 		return
@@ -217,29 +224,21 @@ func CmdBrixHas(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 
-// evaluate for every record in a range
-func CmdBrixScan(ctx *Context, args []byte, rest *[]byte) (out []byte, err error) {
-	var brix rdx.Brix
-	brix, args, err = brixVar(ctx, args)
+func CmdBrixList(ctx *Context, rest rdx.Iter) (out []byte, err error) {
+	path := readPath(&rest)
+	if path == nil {
+		path = BrixUnderscore
+	}
+	brix := readBrix(ctx, &rest)
+	if brix == nil {
+		return nil, ErrBrixNameNotFound
+	}
+	var it rdx.BrixReader
+	it, err = brix.Iterator()
 	if err != nil {
 		return
 	}
-	under := rdx.AppendTerm(nil, []byte("_"))
-
-	var lit byte
-	var body []byte
-	lit, _, body, *rest, _ = rdx.ReadTLKV(*rest)
-	if !rdx.IsPLEX(lit) {
-		return nil, ErrBadArguments
-	}
-
-	var it rdx.BrixReader
-	it, err = brix.Iterator()
-	for err == nil && it.Read() {
-		_ = ctx.set(under, it.Record())
-		out, err = ctx.Evaluate(out, body)
-	}
-
+	_ = ctx.set(path, &it)
 	return
 }
 
@@ -261,15 +260,14 @@ func CmdBrixKind(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 
-func CmdBrixMerge(ctx *Context, args []byte) (out []byte, err error) {
-	var brix rdx.Brix
-	brix, args, err = brixVar(ctx, args)
-	if err != nil {
-		return
+func CmdBrixMerge(ctx *Context, args rdx.Iter) (out []byte, err error) {
+	brix := readBrix(ctx, &args)
+	if brix == nil {
+		return nil, ErrBrixNameNotFound
 	}
 	base := int64(0)
-	if len(args) > 0 && rdx.Peek(args) == rdx.Integer {
-		base, _, args, err = rdx.ReadInteger(args)
+	if args.Peek() == rdx.Integer && args.Read() {
+		base = rdx.UnzipInt64(args.Value())
 	}
 	var sha rdx.Sha256
 	sha, err = brix.Merge(int(base))

@@ -8,9 +8,9 @@ import (
 	"strconv"
 )
 
-func CmdEcho(ctx *Context, arg []byte) (out []byte, err error) {
+func CmdEcho(ctx *Context, args rdx.Iter) (out []byte, err error) {
 	var jdr []byte
-	jdr, err = rdx.WriteAllJDR(nil, arg, 0)
+	jdr, err = rdx.WriteAllJDR(nil, args.Rest(), 0)
 	if err != nil {
 		return
 	}
@@ -131,7 +131,11 @@ func CmdExit(ctx *Context, args []byte) (out []byte, err error) {
 	return nil, ErrNormalExit
 }
 
-func CmdSet(ctx *Context, path []byte, args []byte) (out []byte, err error) {
-	err = ctx.set(path, args)
+func CmdSet(ctx *Context, args rdx.Iter) (out []byte, err error) {
+	path := readPath(&args)
+	if path == nil {
+		return nil, ErrBadArguments
+	}
+	err = ctx.set(path, args.Rest())
 	return
 }

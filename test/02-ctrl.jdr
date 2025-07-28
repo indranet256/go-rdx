@@ -1,15 +1,48 @@
+set(five (1 2 3 4 5))
+
+test:eq("Reader syntax 1",
+        five,
+        map("i" list(five)) i;
+        )
+
 test:eq("Evaluate a list (bare)"
-        (1 2 3 4 5)
-        ( for(i (1 2 3 4 5)) i )
+	five
+        ( map(list(1 2 3 4 5)) _ )
         )
 
 test:eq("Evaluate a list (arrays)"
         ([1] [2] [3] [4] [5])
-        ( for(i (1 2 3 4 5)) [i] )
+        ( map(list("i" 1 2 3 4 5)) [i] )
         )
 
 test:eq("Evaluate a list"
-        (1 2 3 4 5)
-        ( for(i (1 2 3 4 5)) (i) )
+	    five
+        ( map(list("i" 1 2 3 4 5)) (i) )
+        )
+
+
+test:eq("Reader syntax 0",
+        five,
+        map(list(five)) _;
+        )
+
+test:eq("Reader syntax 2",
+        five,
+        map(list(five)) _;
+        )
+
+test:eq("Reader syntax 3",
+        five,
+        map(list(j five)) j;
+        )
+
+test:eq("Reader syntax 4",
+        five,
+        map("k" list(j five)) k;
+        )
+
+test:eq("Reader syntax 5",
+        five,
+        map(list(j five)) _;
         )
 

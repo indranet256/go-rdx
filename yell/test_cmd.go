@@ -9,21 +9,32 @@ import (
 
 var ErrBadTestEqArgs = errors.New("test.eq(comment, eval, correct)")
 
-func CmdTestEq(ctx *Context, arg []byte) (ret []byte, err error) {
-	var comment, correct, val, ev []byte
-	if rdx.Peek(arg) == rdx.String {
-		_, _, comment, arg, err = rdx.ReadTLKV(arg)
+func CmdTestEq(ctx *Context, code *rdx.Iter) (ret []byte, err error) {
+	var comment, correct, expr, fact []byte
+	if !code.Read() || code.Lit() != rdx.Tuple {
+		return nil, ErrBadTestEqArgs
+	}
+	arg := rdx.NewIter(code.Value())
+	if !arg.Read() {
+		return nil, ErrBadTestEqArgs
+	}
+	if arg.Lit() == rdx.String {
+		comment = arg.Value()
+		if !arg.Read() {
+			return
+		}
 	} else {
 		comment = []byte("unnamed test")
 	}
-	_, _, _, ev, err = rdx.ReadTLKV(arg)
-	correct = arg[:len(arg)-len(ev)]
-	val, err = ctx.Evaluate(nil, ev)
+	correct, err = ctx.Eval1(&arg)
+	expr = arg.Rest()
+	fact, err = ctx.Eval(&arg)
+
 	text := make([]byte, 0, 256)
 	text = AppendTermEsc(text, DARK_BLUE)
 	text = append(text, comment...)
 	text = append(text, '\t')
-	if bytes.Compare(val, correct) != 0 {
+	if bytes.Compare(fact, correct) != 0 {
 		text = AppendTermEsc(text, DARK_RED)
 		text = append(text, "FAIL"...)
 		text = append(text, '\n')
@@ -36,13 +47,13 @@ func CmdTestEq(ctx *Context, arg []byte) (ret []byte, err error) {
 		text = AppendTermEsc(text, LIGHT_GRAY)
 		text = append(text, "have\t"...)
 		text = AppendTermEsc(text, LIGHT_RED)
-		jdrv, _ := rdx.WriteAllJDR(nil, val, 0)
+		jdrv, _ := rdx.WriteAllJDR(nil, fact, 0)
 		text = append(text, jdrv...)
 		text = append(text, '\n')
 		text = AppendTermEsc(text, LIGHT_GRAY)
 		text = append(text, "eval\t"...)
 		text = AppendTermEsc(text, 0)
-		jdrev, _ := rdx.WriteAllJDR(nil, ev, 0)
+		jdrev, _ := rdx.WriteAllJDR(nil, expr, 0)
 		text = append(text, jdrev...)
 	} else {
 		text = AppendTermEsc(text, LIGHT_GREEN)

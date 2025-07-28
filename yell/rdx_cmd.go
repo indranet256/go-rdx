@@ -22,16 +22,10 @@ func CmdRdxIDInts(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 
-func CmdRdxMerge(ctx *Context, args []byte) (out []byte, err error) {
+func CmdRdxMerge(ctx *Context, args rdx.Iter) (out []byte, err error) {
 	inputs := make([][]byte, 0, 10)
-	for len(args) > 0 {
-		_, _, _, rest, e := rdx.ReadRDX(args)
-		if e != nil {
-			err = e
-			return
-		}
-		inputs = append(inputs, args[:len(args)-len(rest)])
-		args = rest
+	for args.Read() {
+		inputs = append(inputs, args.Record())
 	}
 	out, err = rdx.Merge(nil, inputs)
 	return
@@ -58,10 +52,10 @@ func CmdRdxFitID(ctx *Context, args []byte) (out []byte, err error) {
 	return
 }
 
-func CmdRdxNormalize(ctx *Context, args []byte) (out []byte, err error) {
-	return rdx.Normalize(args)
+func CmdRdxNormalize(ctx *Context, args rdx.Iter) (out []byte, err error) {
+	return rdx.Normalize(args.Rest())
 }
 
-func CmdRdxFlatten(ctx *Context, args []byte) (out []byte, err error) {
-	return rdx.Flatten(nil, args)
+func CmdRdxFlatten(ctx *Context, args rdx.Iter) (out []byte, err error) {
+	return rdx.Flatten(nil, args.Rest())
 }

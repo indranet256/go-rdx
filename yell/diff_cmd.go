@@ -25,19 +25,15 @@ func CmdRdxDiffHili(ctx *Context, args []byte) (out []byte, err error) {
 	return diff.Hili()
 }
 
-func CmdRdxDiff(ctx *Context, args []byte) (out []byte, err error) {
-	var one, two, rest, rest2 []byte
-	_, _, _, rest, err = rdx.ReadRDX(args)
-	if err != nil {
-		return
+func CmdRdxDiff(ctx *Context, args rdx.Iter) (out []byte, err error) {
+	if !args.Read() {
+		return nil, ErrBadArguments
 	}
-	one = args[:len(args)-len(rest)]
-	_, _, _, rest2, err = rdx.ReadRDX(rest)
-	if err != nil {
-		return
+	one := args.Record()
+	if !args.Read() {
+		return nil, ErrBadArguments
 	}
-	two = args[len(args)-len(rest) : len(args)-len(rest2)]
-
+	two := args.Record()
 	flat, _ := rdx.Flatten(nil, one)
 	diff := rdx.Diff{
 		Orig: one,

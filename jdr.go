@@ -180,10 +180,9 @@ func JDRonSemicolon(tok []byte, state *JDRstate) (err error) {
 		p := 0
 		if len(state.stack) > 0 {
 			last := &state.stack[len(state.stack)-1]
-			p = last.Pos + 2
-			if (last.Lit & CaseBit) == 0 {
-				p += 3
-			}
+			tmpit := NewIter(state.rdx[last.Pos:])
+			tmpit.Read()
+			p = last.Pos + int(tmpit.hdrlen+tmpit.idlen)
 			if state.stack.Top().Mark > p {
 				p = state.stack.Top().Mark
 			}

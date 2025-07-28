@@ -16,59 +16,62 @@ var TopContext = Context{
 		"__version": rdx.WriteRDX(nil, rdx.String, rdx.ID{}, []byte("RDXLisp v0.0.1")),
 		"if":        Control(CmdIf),
 		"eq":        Command(CmdEq),
-		"for":       Control(CmdFor),
-		"echo":      Command(CmdEcho),
-		"set":       Call(CmdSet),
+		"for":       Operator(CmdFor),
+		"map":       Operator(CmdFor),
+		"echo":      Function(CmdEcho),
+		"set":       Function(CmdSet),
 		"join":      Command(CmdJoin),
 		"load":      Command(CmdLoad),
 		"eval":      Command(CmdEval),
-		"scan":      Command(CmdScan),
-		"read":      Command(CmdRead),
-		"exit":      Command(CmdExit),
+		"list":      Function(CmdList),
+		"seq":       Function(CmdSeq),
+		"read":      Operator(CmdRead),
+		//		"over":      Control2(CmdOver),
+		"exit": Command(CmdExit),
 		"rdx": &Context{
 			names: map[string]any{
 				"idint":     Command(CmdRdxIDInts),
 				"fitid":     Command(CmdRdxFitID),
 				"fit":       Command(CmdRdxFitID),
-				"merge":     Command(CmdRdxMerge),
-				"y":         Command(CmdRdxMerge),
-				"normalize": Command(CmdRdxNormalize),
-				"norm":      Command(CmdRdxNormalize),
-				"normal":    Command(CmdRdxNormalize),
-				"flat":      Command(CmdRdxFlatten),
-				"flatten":   Command(CmdRdxFlatten),
+				"merge":     Function(CmdRdxMerge),
+				"y":         Function(CmdRdxMerge),
+				"normalize": Function(CmdRdxNormalize),
+				"norm":      Function(CmdRdxNormalize),
+				"normal":    Function(CmdRdxNormalize),
+				"flat":      Function(CmdRdxFlatten),
+				"flatten":   Function(CmdRdxFlatten),
 				"diffhili":  Command(CmdRdxDiffHili),
-				"diff":      Command(CmdRdxDiff),
+				"diff":      Function(CmdRdxDiff),
 			},
 		},
 		"crypto": &Context{
 			names: map[string]any{
-				"sha256": Command(CmdCryptoHash),
-				"sha":    Command(CmdCryptoHash),
-				"hash":   Command(CmdCryptoHash),
+				"sha256": Function(CmdCryptoHash),
+				"sha":    Function(CmdCryptoHash),
+				"hash":   Function(CmdCryptoHash),
 			},
 		},
 		"brix": &Context{
 			names: map[string]any{
-				"new":   Command(CmdBrixNew),
-				"open":  Command(CmdBrixOpen),
+				"new":   Function(CmdBrixNew),
+				"open":  Function(CmdBrixOpen),
 				"info":  Command(CmdBrixInfo),
-				"id":    Command(CmdBrixId),
+				"id":    Function(CmdBrixId),
 				"find":  Command(CmdBrixFind),
 				"close": Command(CmdBrixClose),
 
-				"merge": Command(CmdBrixMerge),
+				"merge": Function(CmdBrixMerge),
 
 				"prev": Command(CmdBrixBase),
 				"base": Command(CmdBrixBase),
 				"kind": Command(CmdBrixKind),
 
-				"get": Command(CmdBrixGet),
-				"add": Command(CmdBrixAdd),
+				"get": Function(CmdBrixGet),
+				"add": Function(CmdBrixAdd),
 				"has": Command(CmdBrixHas),
 				"del": Command(CmdBrixDel),
 
-				"scan": Control(CmdBrixScan),
+				"list": Function(CmdBrixList),
 				"seek": Command(CmdBrixSeek),
 
 				"read": Command(CmdBrixRead),
@@ -77,20 +80,20 @@ var TopContext = Context{
 		},
 		"test": &Context{
 			names: map[string]any{
-				"eq":    Command(CmdTestEq),
-				"equal": Command(CmdTestEq),
+				"eq":    Operator(CmdTestEq),
+				"equal": Operator(CmdTestEq),
 			},
 		},
 		"os": &Context{
 			names: map[string]any{
-				"ls":       Command(CmdOsLsDir),
-				"lsdir":    Command(CmdOsLsDir),
-				"chdir":    Command(CmdOsChDir),
-				"mkdir":    Command(CmdOsMkDir),
-				"mktmpdir": Command(CmdOsMkTmpDir),
-				"mktmp":    Command(CmdOsMkTmpDir),
-				"pwd":      Command(CmdOsPwd),
-				"unlink":   Command(CmdOsUnlink),
+				"ls":       Function(CmdOsLsDir),
+				"lsdir":    Function(CmdOsLsDir),
+				"chdir":    Function(CmdOsChDir),
+				"mkdir":    Function(CmdOsMkDir),
+				"mktmpdir": Function(CmdOsMkTmpDir),
+				"mktmp":    Function(CmdOsMkTmpDir),
+				"pwd":      Function(CmdOsPwd),
+				"unlink":   Function(CmdOsUnlink),
 			},
 		},
 	},
@@ -108,14 +111,17 @@ func main() {
 	InitTerm()
 
 	var out []byte
+	it := rdx.NewIter(cmds)
 	if err == nil {
-		out, err = TopContext.Evaluate(nil, cmds)
+		out, err = TopContext.Eval(&it)
 	}
 	if err != nil && err != ErrNormalExit {
-		fmt.Printf("bad command: %s\n", err.Error())
+		fmt.Printf("%sbad command:%s %s\n", TermEsc(LIGHT_RED), TermEsc(0), err.Error())
 		os.Exit(-1)
 	}
 	_ = out
 	// todo repl mode
+	//jdr, _ := rdx.WriteAllJDR(nil, out, 0)
+	//fmt.Println(string(jdr))
 	return
 }

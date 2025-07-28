@@ -5,12 +5,10 @@ test:eq("BRIK creation"
         brix:id(B) 
         )
 test:eq("BRIK get"
-        A brix:get(B, Alice-123)
-        )
-set(D)
-brix:scan(B) [
-    set(D  D _)
-]
+        A
+        brix:get(B, Alice-123) )
+brix:list("L" B)
+set(D map "L" _)
 test:eq("BRIX scan"
         A
         D)

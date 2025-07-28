@@ -6,18 +6,49 @@ import (
 )
 
 type Context struct {
-	names map[string]any
-	stack rdx.Marks
+	names   map[string]any
+	unnamed any
+	stack   rdx.Marks
 }
+
+type Function func(ctx *Context, args rdx.Iter) (out []byte, err error)
+type Operator func(ctx *Context, args *rdx.Iter) (out []byte, err error)
 
 type Command func(ctx *Context, args []byte) (out []byte, err error)
 type Control func(ctx *Context, args []byte, rest *[]byte) (out []byte, err error)
+type Control2 func(ctx *Context, args rdx.Iter, rest *rdx.Iter) (out []byte, err error)
 type Call func(ctx *Context, path, args []byte) (out []byte, err error)
 
 var ErrNotACall = errors.New("not a function call")
 var ErrSkip = errors.New("skip an element")
 var ErrRepeat = errors.New("repeat an element")
 var ErrUnexpectedNameType = errors.New("the name is associated to a value of a different type")
+
+func (ctx *Context) Get(code *rdx.Iter) any {
+	c := ctx
+	var a any
+	path := *code
+	if path.Lit() == rdx.Term {
+		a = c.names[string(path.Value())]
+	} else if path.Lit() == rdx.Tuple {
+		nested := rdx.NewIter(path.Value())
+		for nested.Read(); len(nested.Rest()) > 0; nested.Read() {
+			if nested.Lit() != rdx.Term {
+				return nil
+			}
+			a = c.names[string(nested.Value())]
+			switch a.(type) {
+			case *Context:
+				c = a.(*Context)
+			default:
+				return nil
+			}
+		}
+		a = c.names[string(nested.Value())]
+	}
+	*code = path
+	return a
+}
 
 func (ctx *Context) resolve(path []byte) any {
 	if len(path) == 0 || rdx.Peek(path) != rdx.Term {
@@ -157,8 +188,17 @@ func (ctx *Context) Evaluate1(data, code *[]byte) (err error) {
 				return
 			}
 			out = append(out, res...)
+		case Control2:
+			var res []byte
+			it := rdx.NewIter(next)
+			//res, err = a.(Control2)(ctx, &it)
+			if err != nil {
+				return
+			}
+			next = it.Rest()
+			out = append(out, res...)
 		case rdx.Reader:
-			out = append(out, whole...)
+			out = append(out, a.(rdx.Reader).Record()...)
 		default:
 			out = append(out, whole...)
 		}
@@ -183,6 +223,91 @@ func (ctx *Context) Evaluate(data, code []byte) (out []byte, err error) {
 	out = data
 	for len(code) > 0 && err == nil {
 		err = ctx.Evaluate1(&out, &code)
+	}
+	return
+}
+
+func (ctx *Context) Eval1(code *rdx.Iter) (out []byte, err error) {
+	var a any
+	switch code.Lit() {
+	case rdx.Float:
+		fallthrough
+	case rdx.Integer:
+		fallthrough
+	case rdx.Reference:
+		fallthrough
+	case rdx.String:
+		out = append(out, code.Record()...)
+		return
+	case rdx.Term:
+		a = ctx.Get(code)
+		if a == nil {
+			out = append(out, code.Record()...)
+			return
+		}
+	case rdx.Tuple:
+		a = ctx.Get(code)
+		if a != nil {
+			break
+		}
+		fallthrough
+	case rdx.Euler:
+		fallthrough
+	case rdx.Multix:
+		fallthrough
+	case rdx.Linear:
+		out = rdx.OpenTLV(out, code.Lit(), &ctx.stack)
+		id := rdx.ZipID(code.ID())
+		out = append(out, byte(len(id)))
+		out = append(out, id...)
+		it := rdx.NewIter(code.Value())
+		var ev []byte
+		ev, err = ctx.Eval(&it)
+		out = append(out, ev...)
+		out, _ = rdx.CloseTLV(out, code.Lit(), &ctx.stack)
+		return
+	}
+	switch a.(type) {
+	case []byte:
+		out = append(out, a.([]byte)...)
+	case rdx.Reader:
+		out = append(out, a.(rdx.Reader).Record()...)
+	case Function:
+		var eval, expr []byte
+		if code.Peek() == rdx.Tuple {
+			_ = code.Read()
+			expr = code.Value()
+			args := rdx.NewIter(code.Value())
+			eval, err = ctx.Eval(&args)
+		} else if code.Read() {
+			expr = code.Record()
+			eval, err = ctx.Eval1(code)
+		}
+		if err == nil {
+			args := rdx.NewIter(eval)
+			var res []byte
+			res, err = a.(Function)(ctx, args)
+			if err != nil {
+				jdr, _ := rdx.WriteAllJDR(nil, expr, 0)
+				err = errors.New(err.Error() + " in " + string(jdr))
+			}
+			out = append(out, res...)
+		}
+	case Operator:
+		var res []byte
+		res, err = a.(Operator)(ctx, code)
+		out = append(out, res...)
+	default:
+		out = append(out, code.Record()...)
+	}
+	return
+}
+
+func (ctx *Context) Eval(code *rdx.Iter) (out []byte, err error) {
+	for err == nil && code.Read() {
+		var one []byte
+		one, err = ctx.Eval1(code)
+		out = append(out, one...)
 	}
 	return
 }
