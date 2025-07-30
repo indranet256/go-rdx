@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/gritzko/rdx"
 	"os"
@@ -54,6 +55,16 @@ func flatten(ctx *Context, arg, j []byte) (out []byte, err error) {
 		}
 		arg = rest
 	}
+	return
+}
+
+var Errturn = errors.New("everything's gonna be allright")
+
+func CmdReturn(ctx *Context, arg rdx.Iter) (ret []byte, err error) {
+	return arg.Rest(), Errturn
+}
+
+func CmdVoid(ctx *Context, arg rdx.Iter) (ret []byte, err error) {
 	return
 }
 

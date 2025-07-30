@@ -307,6 +307,10 @@ func (ctx *Context) Eval(code *rdx.Iter) (out []byte, err error) {
 	for err == nil && code.Read() {
 		var one []byte
 		one, err = ctx.Eval1(code)
+		if err == Errturn {
+			out = one
+			break
+		}
 		out = append(out, one...)
 	}
 	return
