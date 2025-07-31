@@ -74,6 +74,11 @@ func ParseID(txt []byte) (id ID, rest []byte) {
 	return
 }
 
+func ParseIDString(txt string) (id ID) {
+	id, _ = ParseID([]byte(txt))
+	return
+}
+
 func (a ID) Compare(b ID) int {
 	if a.Seq < b.Seq {
 		return Less

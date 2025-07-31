@@ -124,6 +124,13 @@ func (it *Iter) Read() bool {
 	return true
 }
 
+func Peek(rdx []byte) byte {
+	if len(rdx) == 0 {
+		return 0
+	}
+	return rdx[0] & ^CaseBit
+}
+
 func (it *Iter) Seek(id ID) int {
 	if !it.HasData() {
 		return Less
@@ -163,6 +170,20 @@ func (it *Iter) ID() ID {
 func (it *Iter) Value() []byte {
 	b := int(it.hdrlen + it.idlen)
 	return it.data[b : b+it.vallen]
+}
+
+func (it *Iter) Reference() ID {
+	if it.Lit() != Reference { // todo conversions
+		return ID{}
+	}
+	return UnzipID(it.Value())
+}
+
+func (it *Iter) Integer() int64 {
+	if it.Lit() != Integer {
+		return 0
+	}
+	return UnzipInt64(it.Value())
 }
 
 func (it *Iter) Record() []byte {

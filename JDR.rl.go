@@ -1763,6 +1763,9 @@ func JDRlexer(state *JDRstate) (err error) {
 		}
 	}
 
+	if p == len(data) && cs < JDR_first_final {
+		return ErrIncomplete
+	}
 	if p != len(data) || cs < JDR_first_final {
 		state.jdr = state.jdr[p:]
 		return errors.New("JDR bad syntax")
