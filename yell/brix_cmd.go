@@ -9,7 +9,7 @@ import (
 // brix:new({@author-seq field:"value"})
 func CmdBrixNew(ctx *Context, args rdx.Iter) (out []byte, err error) {
 	w := rdx.Brik{}
-	err = w.Create([]rdx.Sha256{})
+	err = w.Start([]rdx.Sha256{})
 	_, err = w.WriteAll(args.Rest()) // FIXME normalize
 	if err != nil {
 		_ = w.Unlink()
@@ -200,7 +200,7 @@ func CmdBrixAdd(ctx *Context, args rdx.Iter) (out []byte, err error) {
 	}
 	w := rdx.Brik{}
 	deps := []rdx.Sha256{brix.Hash7574()}
-	err = w.Create(deps)
+	err = w.Start(deps)
 	_, err = w.WriteAll(args.Rest())
 	if err != nil {
 		_ = w.Unlink()

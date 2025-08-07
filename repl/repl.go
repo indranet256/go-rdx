@@ -12,26 +12,36 @@ var Errturn = errors.New("everything's gonna be allright")
 type Command func(repl *REPL, args *rdx.Iter) (out []byte, err error)
 
 var Yell = map[rdx.ID]Command{
-	rdx.ID{0xb68, 0x2dcb8}:           CmdIdInt,
-	rdx.ID{0x0, 0xa7cb78}:            CmdExit,
-	rdx.ID{42798108211, 11689452}:    CmdCryptoHash,
-	rdx.ID{42798108211, 59803705670}: CmdCryptoHash,
-	rdx.ID{0, 59803705670}:           CmdCryptoHash,
-	rdx.ID{3319, 62054915247}:        CmdOsUnlink,
-	rdx.ID{3319, 216808}:             CmdOsPwd,
-	rdx.ID{3319, 834571126}:          CmdOsMkDir,
-	rdx.ID{3319, 3127}:               CmdOsLsDir,
-	rdx.ID{3319, 834636916}:          CmdOsMkTmpDir,
-	rdx.ID{3319, 218795059874678}:    CmdOsMkTmpDir,
-	rdx.ID{0, 60009667755}:           CmdString,
-	rdx.ID{0, 12770808}:              CmdList,
+	rdx.ID{0x0, 0xa7cb78}:  CmdExit,   // exit
+	rdx.ID{0, 60009667755}: CmdString, // string
+	rdx.ID{0, 12770808}:    CmdList,   // list
+	rdx.ID{0, 178808}:      CmdGet,    // get
+	rdx.ID{0, 216696}:      CmdPut,    // put
+
+	rdx.ID{936532457, 207483}: CmdSpaceNew, // space-new
+
+	rdx.ID{0xb68, 0x2dcb8}: CmdIdInt, // id-int
+
+	rdx.ID{42798108211, 11689452}:    CmdCryptoHash, // crypto-hash
+	rdx.ID{42798108211, 59803705670}: CmdCryptoHash, // crypto-sha256
+	rdx.ID{0, 59803705670}:           CmdCryptoHash, // 0-sha256
+
+	rdx.ID{3319, 62054915247}:     CmdOsUnlink,   // os-unlink
+	rdx.ID{3319, 216808}:          CmdOsPwd,      // os-pwd
+	rdx.ID{3319, 834571126}:       CmdOsMkDir,    // os-mkdir
+	rdx.ID{3319, 3127}:            CmdOsLsDir,    // os-ls
+	rdx.ID{3319, 834636916}:       CmdOsMkTmpDir, // os-mktmp
+	rdx.ID{3319, 218795059874678}: CmdOsMkTmpDir, // os-mktmpdir
+	rdx.ID{3319, 2536}:            CmdOsChDir,    // os-cd
 }
 
 type REPL struct {
-	repo   *rdx.Repo
-	branch *rdx.Branch
-	cmds   map[rdx.ID]Command
-	vals   map[rdx.ID]any
+	spaceId  rdx.ID
+	branchId rdx.ID
+	space    rdx.Branch
+	branch   rdx.Branch
+	cmds     map[rdx.ID]Command
+	vals     map[rdx.ID]any
 }
 
 func NewREPL(cmds map[rdx.ID]Command, vals map[rdx.ID]any) *REPL {
@@ -99,11 +109,9 @@ func (repl *REPL) Eval(code *rdx.Iter) (out []byte, err error) {
 				return code.Record(), nil
 			}
 		}
-		if repl.branch != nil {
-			stored := repl.branch.Get(ref)
-			if stored != nil {
-				return stored, nil
-			}
+		stored := repl.branch.Get(ref)
+		if stored != nil {
+			return stored, nil
 		}
 		fallthrough
 	case rdx.Float:
@@ -134,12 +142,10 @@ func (repl *REPL) Eval(code *rdx.Iter) (out []byte, err error) {
 				return code.Record(), nil
 			}
 		}
-		if repl.branch != nil {
-			ref.Src = repl.branch.Clock.Src
-			stored := repl.branch.Get(ref)
-			if stored != nil {
-				return stored, nil
-			}
+		ref.Src = repl.branch.Clock.Src
+		stored := repl.branch.Get(ref)
+		if stored != nil {
+			return stored, nil
 		}
 		out = append(out, code.Record()...)
 		return

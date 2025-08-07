@@ -73,7 +73,15 @@ func ZipUint64Pair(big, lil uint64) []byte {
 		binary.LittleEndian.PutUint64(ret[0:8], big)
 		binary.LittleEndian.PutUint32(ret[8:12], uint32(lil))
 		return ret[0:12]
-	case 0x08, 0x18, 0x28, 0x48, 0x88:
+	case 0x08, 0x18, 0x28:
+		binary.LittleEndian.PutUint16(ret[0:2], uint16(big))
+		binary.LittleEndian.PutUint64(ret[3:11], lil)
+		return ret[0:11]
+	case 0x48:
+		binary.LittleEndian.PutUint32(ret[0:4], uint32(big))
+		binary.LittleEndian.PutUint64(ret[5:13], lil)
+		return ret[0:13]
+	case 0x88:
 		binary.LittleEndian.PutUint64(ret[0:8], big)
 		binary.LittleEndian.PutUint64(ret[8:16], lil)
 		return ret[0:16]
@@ -112,9 +120,15 @@ func UnzipUint64Pair(buf []byte) (big, lil uint64) {
 	case 10:
 		big = binary.LittleEndian.Uint64(buf[0:8])
 		lil = uint64(binary.LittleEndian.Uint16(buf[8:10]))
+	case 11:
+		big = uint64(binary.LittleEndian.Uint16(buf[0:2]))
+		lil = uint64(binary.LittleEndian.Uint64(buf[3:11]))
 	case 12:
 		big = binary.LittleEndian.Uint64(buf[0:8])
 		lil = uint64(binary.LittleEndian.Uint32(buf[8:12]))
+	case 13:
+		big = uint64(binary.LittleEndian.Uint32(buf[0:4]))
+		lil = uint64(binary.LittleEndian.Uint64(buf[5:13]))
 	case 16:
 		big = binary.LittleEndian.Uint64(buf[0:8])
 		lil = binary.LittleEndian.Uint64(buf[8:16])

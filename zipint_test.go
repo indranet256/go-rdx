@@ -8,6 +8,7 @@ import (
 
 func TestEncodeVarPair(t *testing.T) {
 	nums := []uint64{
+		0,
 		0xca,
 		0xbeff,
 		0x12345678,

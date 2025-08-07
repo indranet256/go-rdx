@@ -28,6 +28,8 @@ const (
 	CompressLZ4
 )
 
+const BrixPath = ".rdx/"
+const BrixTmpExt = ".brik.tmp"
 const BrixFileExt = ".brik"
 const BrixPageLen = 1 << 12
 
@@ -83,6 +85,12 @@ func (ie IndexEntry) Position() uint64 {
 	return ie.pos & mask48
 }
 
+// Brik file format is based on the Principle of Least Surprise:
+// 8 bytes: magic, "BRIX0001" for this 0.0.1 revision
+// 32b*M: metadata, Sha256 hashes defining the usual Merkle DAG
+// D bytes: data, id-ordered RDX records of any type (normally PLEX)
+// 32b*I: a pretty regular index, page start IDs and bloom filters
+// 32+32+64: Sha256 of the above, the author's Ed25519 key and signature
 type BrikHeader struct {
 	Magic    [8]byte
 	MetaLen  uint64
@@ -92,7 +100,7 @@ type BrikHeader struct {
 
 const BrixIndexEntryLen = 32
 const BrixHeaderLen = 32
-const BrixMagic = "BRIX    "
+const BrixMagic = "BRIX0001"
 
 func (hdr BrikHeader) AppendBinary(to []byte) ([]byte, error) {
 	to = append(to, BrixMagic...)
@@ -144,6 +152,27 @@ type Brik struct {
 	// The default iterator
 	At    *BrikReader
 	block []byte
+}
+
+type Stage map[ID]RDX
+
+func (stage Stage) Add(some RDX) error {
+	it := NewIter(some)
+	for it.Read() {
+		id := it.ID()
+		ex, ok := stage[id]
+		if ok {
+			inputs := [][]byte{ex, it.Record()}
+			merged, err := Merge(nil, inputs)
+			if err != nil {
+				return err
+			}
+			stage[id] = merged
+		} else {
+			stage[id] = it.Record()
+		}
+	}
+	return it.Error()
 }
 
 func (brik *Brik) Open(reader ReaderAt) (err error) {
@@ -225,6 +254,7 @@ func (brik *Brik) PageLen() int {
 
 func (brik *Brik) OpenByHash(hash Sha256) error {
 	name := make([]byte, 0, 32+16)
+	name = append(name, BrixPath...)
 	name = append(name, hash.String()...)
 	name = append(name, BrixFileExt...)
 	brik.Hash7574 = hash
@@ -332,8 +362,35 @@ func (brik *Brik) Close() (err error) {
 	return
 }
 
-func (brik *Brik) Create(meta []Sha256) (err error) {
-	brik.File, err = os.CreateTemp(".", ".tmp.*.brik")
+func MakeBrik(deps []Sha256, recs Stage) (hash7574 Sha256, err error) {
+	var brik Brik
+	err = brik.Start(deps)
+	if err != nil {
+		return
+	}
+	keys := make([]ID, 0, len(recs))
+	for key, _ := range recs {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		a, b := keys[i], keys[j]
+		return a.Compare(b) < Eq
+	})
+	for i := 0; i < len(keys) && err == nil; i++ {
+		_, err = brik.Write(recs[keys[i]])
+	}
+	if err == nil {
+		err = brik.Seal()
+		hash7574 = brik.Hash7574
+	} else {
+		_ = brik.Unlink()
+	}
+	_ = brik.Close() // todo only on error
+	return
+}
+
+func (brik *Brik) Start(meta []Sha256) (err error) {
+	brik.File, err = os.CreateTemp(BrixPath, ".tmp.*.brik")
 	if err != nil {
 		return
 	}
@@ -458,7 +515,7 @@ func (brik *Brik) Seal() (err error) {
 	}
 
 	brik.Hash7574 = brik.Merkle.Sum()
-	newpath := brik.Hash7574.String() + BrixFileExt
+	newpath := BrixPath + brik.Hash7574.String() + BrixFileExt
 	err = os.Rename(tmppath, newpath)
 	brik.File, err = os.OpenFile(newpath, os.O_RDWR, 0)
 	if err != nil {
@@ -473,11 +530,28 @@ func (brik *Brik) Seal() (err error) {
 	err = brik.File.Close()
 	brik.File = nil
 
+	// FIXME dont reopen
 	if err == nil {
 		err = brik.OpenByHash(brik.Hash7574)
 	}
 
 	return
+}
+
+func (brik *Brik) Seek(id ID) (reader BrikReader, err error) {
+	return
+}
+
+func (brik *Brik) ToStage(stage Stage) error {
+	reader, err := brik.Seek(ID{})
+	if err != nil {
+		return err
+	}
+	for reader.Read() {
+		stage[reader.ID()] = reader.Record()
+	}
+	err = reader.Close()
+	return nil
 }
 
 // BrikReader iterates over one sorted record file (a brik).
@@ -797,7 +871,7 @@ func (brix Brix) join() (joined *Brik, err error) {
 		deps = append(deps, b.Hash7574)
 	}
 	joined = &Brik{}
-	err = joined.Create(deps)
+	err = joined.Start(deps)
 	if err != nil {
 		return
 	}
@@ -834,7 +908,7 @@ func (brix Brix) Merge(base int) (sha Sha256, err error) {
 	for _, m := range merged {
 		meta = append(meta, m.Hash7574)
 	}
-	err = w.Create(meta)
+	err = w.Start(meta)
 	var it BrixReader
 	it, err = merged.Iterator()
 	for err == nil && it.Read() {

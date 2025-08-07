@@ -1,21 +1,75 @@
 package main
 
-import "github.com/gritzko/rdx"
+import (
+	"errors"
+	"github.com/gritzko/rdx"
+)
 
-// branch-open e5f379
-func CmdBranchOpen(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+// fork -> s4a35Rlh6N
+func CmdFork(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
-func CmdBranchAdd(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+// open Branch
+// open Branch-234
+// open e5f379
+func CmdOpen(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
-// branch-commit -> f2ae63
-func CmdBranchCommit(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+// join Branch
+// join Branch-234
+// join f2ae63
+func CmdJoin(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
-func CmdBranchClose(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+// add {@Alice-1232 key:"value"}
+func CmdAdd(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	return
+}
+
+var ErrNoArgument = errors.New("no argument provided")
+
+// put {key:"value"} -> Alice-4450
+func CmdPut(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if !args.Read() {
+		return nil, ErrNoArgument
+	}
+	var id rdx.ID
+	id, err = repl.branch.Put(args.Record())
+	if err == nil {
+		out = rdx.AppendReference(out, id)
+	}
+	return
+}
+
+// set {@Alice-234 key:"value"} -> Alice-236
+func CmdSet(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	return
+}
+
+// get Alice-1230 -> {@Alice-1232 key:"value"}
+func CmdGet(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	return
+}
+
+// rollback
+// back
+func CmdRollback(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	return
+}
+
+// commit -> branch-345
+// save -> f2ae63
+func CmdSeal(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	return
+}
+
+func CmdSave(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	return
+}
+
+func CmdClose(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }

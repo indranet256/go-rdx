@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"math/bits"
+	"sort"
 	"unicode/utf8"
 )
 
@@ -448,6 +449,53 @@ func AppendInteger(data []byte, val int64) []byte {
 	return WriteTLKV(data, Integer, nil, b)
 }
 
+func MakeString(term string) RDX {
+	return AppendString(nil, []byte(term))
+}
+
+func MakeTerm(term string) RDX {
+	return AppendTerm(nil, []byte(term))
+}
+
+func MakeTuple(id ID, val RDX) RDX {
+	return RDX{}.AppendTuple(id, val)
+}
+
+func MakeEuler(id ID, val RDX) RDX {
+	return RDX{}.AppendEuler(id, val)
+}
+
+func MakePLEXOf(id ID, val []RDX, z Compare) RDX {
+	sort.Slice(val, func(i, j int) bool {
+		ii := NewIter(val[i])
+		jj := NewIter(val[j])
+		return z(&ii, &jj) < Eq
+	})
+	l := 0
+	for _, v := range val {
+		l += len(v)
+	}
+	marks := make(Marks, 0, 1)
+	ret := make(RDX, 0, l+24)
+	if l <= 0xff {
+		ret = OpenShortTLV(ret, Euler, &marks)
+	} else {
+		ret = OpenTLV(ret, Euler, &marks)
+	}
+	zip := ZipID(id)
+	ret = append(ret, byte(len(zip)))
+	ret = append(ret, zip...)
+	for _, v := range val {
+		ret = append(ret, v...)
+	}
+	ret, _ = CloseTLV(ret, Euler, &marks)
+	return ret
+}
+
+func MakeEulerOf(id ID, val []RDX) RDX {
+	return MakePLEXOf(id, val, CompareEuler)
+}
+
 func AppendString(data []byte, val []byte) []byte {
 	return WriteTLKV(data, String, nil, val)
 }
@@ -458,6 +506,49 @@ func AppendTerm(data []byte, val []byte) []byte {
 
 func AppendReference(data []byte, val ID) []byte {
 	return WriteTLKV(data, Reference, nil, ZipID(val))
+}
+
+func (rdx RDX) AppendReference(val ID) RDX {
+	return AppendReference(rdx, val)
+}
+
+func (rdx RDX) AppendString(val string) RDX {
+	return AppendString(rdx, []byte(val))
+}
+
+func (rdx RDX) AppendTerm(val string) RDX {
+	return AppendTerm(rdx, []byte(val))
+}
+
+func (rdx RDX) AppendPLEX(lit byte, id ID, val RDX) (ret RDX) {
+	marks := make(Marks, 0, 1)
+	if len(val) <= 0xff {
+		ret = OpenShortTLV(rdx, lit, &marks)
+	} else {
+		ret = OpenTLV(rdx, lit, &marks)
+	}
+	zip := ZipID(id)
+	ret = append(ret, byte(len(zip)))
+	ret = append(ret, zip...)
+	ret = append(ret, val...)
+	ret, _ = CloseTLV(ret, lit, &marks)
+	return
+}
+
+func (rdx RDX) AppendTuple(id ID, val RDX) (ret RDX) {
+	return rdx.AppendPLEX(Tuple, id, val)
+}
+
+func (rdx RDX) AppendLinear(id ID, val RDX) (ret RDX) {
+	return rdx.AppendPLEX(Linear, id, val)
+}
+
+func (rdx RDX) AppendEuler(id ID, val RDX) (ret RDX) {
+	return rdx.AppendPLEX(Euler, id, val)
+}
+
+func (rdx RDX) AppendMultix(id ID, val RDX) (ret RDX) {
+	return rdx.AppendPLEX(Multix, id, val)
 }
 
 var ErrBadFloatRecord = errors.New("bad Float record format")
