@@ -119,6 +119,9 @@ func CmdFor(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	var loopVar, spec rdx.ID
 	loopVar = UnderscoreId
 	var eval []byte
+
+	// TODO pickStringID(), pickReader() !!!
+
 	eval, err = repl.Eval(args)
 
 	ait := rdx.NewIter(eval)

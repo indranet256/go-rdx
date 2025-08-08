@@ -9,6 +9,7 @@ import (
 )
 
 var Errturn = errors.New("everything's gonna be allright")
+var ErrNoSpaceOpen = errors.New("no space open")
 
 type Command func(repl *REPL, args *rdx.Iter) (out []byte, err error)
 
@@ -25,12 +26,17 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{0, 886758584}:   CmdPrint,  // print
 	rdx.ID{0, 667106793}:   CmdClose,  // close
 
-	rdx.ID{10185596, 12770808}:  CmdBrixList,
-	rdx.ID{10185583, 12770808}:  CmdBrikList,
-	rdx.ID{10185596, 667106793}: CmdClose,
-	rdx.ID{10185596, 667106793}: CmdClose,
+	rdx.ID{12770808, 10185583}:  CmdListBrik, // list-brik
+	rdx.ID{667106793, 10185583}: CmdClose,    // close-brik
+	rdx.ID{12770808, 10185596}:  CmdListBrix, // list-brix
+	rdx.ID{667106793, 10185596}: CmdClose,    // close-brix
 
-	rdx.ID{936532457, 207483}: CmdSpaceNew, // space-new
+	rdx.ID{12999657, 41718065644}: CmdMakeBranch, // make-branch
+
+	rdx.ID{12999657, 207483}:    CmdMakeSpace, // make-space
+	rdx.ID{13585010, 936532457}: CmdOpenSpace, // open-space
+	rdx.ID{0, 936532457}:        CmdOpenSpace, // space
+	rdx.ID{14601467, 936532457}: CmdShowSpace, // show-space
 
 	rdx.ID{0xb68, 0x2dcb8}: CmdIdInt, // id-int
 
@@ -61,21 +67,6 @@ func NewREPL(cmds map[rdx.ID]Command, vals map[rdx.ID]any) *REPL {
 		vals = make(map[rdx.ID]any)
 	}
 	return &REPL{cmds: cmds, vals: vals}
-}
-
-// if () [] else []
-// for () []
-// call(proc params);
-// fn fn fn param;
-// math-ctan bob-123;
-func (repl *REPL) IsCall(at rdx.Iter) bool {
-	if at.Lit() != rdx.Term {
-		return false
-	}
-	seq, _ := rdx.ParseRON64(at.Value())
-	id := rdx.ID{0, seq}
-	_, ok := repl.cmds[id]
-	return ok
 }
 
 func (repl *REPL) EvalCommand(code *rdx.Iter, cmd Command) (out []byte, err error) {

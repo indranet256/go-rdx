@@ -6,6 +6,15 @@ import (
 	"github.com/gritzko/rdx"
 )
 
+// make-branch -> s4a35Rlh6N
+func CmdMakeBranch(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if repl.spaceId.IsZero() {
+		return nil, ErrNoSpaceOpen
+	}
+	
+	return
+}
+
 // fork -> s4a35Rlh6N
 func CmdFork(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return

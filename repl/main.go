@@ -3,9 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/gritzko/rdx"
 	"os"
 	"strings"
+
+	"github.com/gritzko/rdx"
 )
 
 func LoadJDR(path string) (cmds []byte, err error) {
@@ -52,7 +53,9 @@ func EvalArgs(repl *REPL) (err error) {
 
 	out, err = repl.Evaluate(cmds)
 	jdr, _ := rdx.WriteAllJDR(nil, out, 0)
-	fmt.Println(string(jdr))
+	if len(jdr) > 0 {
+		fmt.Println(string(jdr))
+	}
 
 	return
 }
@@ -73,8 +76,7 @@ func main() {
 	}
 
 	if err != nil {
-		fmt.Println(err.Error())
-		fmt.Printf("%sbad command:%s %s\n", TermEsc(LIGHT_RED), TermEsc(0), err.Error())
+		_, _ = fmt.Fprintf(os.Stderr, "%sbad command:%s %s\n", TermEsc(LIGHT_RED), TermEsc(0), err.Error())
 		os.Exit(-1)
 	}
 }

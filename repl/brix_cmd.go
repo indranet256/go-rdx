@@ -69,11 +69,11 @@ func pickBrix(at rdx.Iter) (brik *rdx.Brik, err error) {
 
 // brik-list("b" fa428e)
 // brik-list fa428e
-func CmdBrikList(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	readerId := rdx.ID{0, rand.Uint64() & rdx.Mask60bit}
+func CmdListBrik(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if !args.Read() {
 		return nil, ErrNoArgument
 	}
+	readerId, err := pickStringID(args)
 	var brik *rdx.Brik
 	brik, err = repl.pickBrik(*args)
 	if err != nil {
@@ -105,7 +105,7 @@ func pickStringID(args *rdx.Iter) (id rdx.ID, err error) {
 }
 
 // brix-list fa428e
-func CmdBrixList(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+func CmdListBrix(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if !args.Read() {
 		return nil, ErrNoArgument
 	}

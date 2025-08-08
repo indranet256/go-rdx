@@ -3,8 +3,9 @@ package main
 import (
 	"crypto/ed25519"
 	"encoding/hex"
-	"github.com/gritzko/rdx"
 	"os"
+
+	"github.com/gritzko/rdx"
 )
 
 var SpaceExt = ".space"
@@ -20,7 +21,7 @@ const IdEd25519SignSeq = 1152823100548846199
 // BRANCH.branch branch-0 -> {~~~ed25519:bbb} // author's metainfo
 
 // space-new mybranch "here I try things" -> pubkey
-func CmdSpaceNew(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+func CmdMakeSpace(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	handle := ""
 	if args.Peek() == rdx.Term && args.Read() {
 		handle = string(args.Value())
@@ -55,13 +56,31 @@ func CmdSpaceNew(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
-func CmdSpace(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	// open
+func CmdOpenSpace(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if !args.Read() {
+		return nil, ErrNoArgument
+	}
+	if repl.space.IsOpen() {
+		_ = repl.space.Close()
+		_ = repl.branch.Close()
+	}
+	var id rdx.ID
+	id, err = pickVar(*args)
+	if id.Src == 0 {
+		id.Src, id.Seq = id.Seq, id.Src
+	}
+	if err == nil {
+		err = repl.space.Open(id)
+	}
 	return
 }
 
 // id (branch, commit...)
-func CmdSpaceShow(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+func CmdShowSpace(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if !repl.space.IsOpen() {
+		return nil, ErrNoSpaceOpen
+	}
+	out, err = repl.space.Info()
 	return
 }
 

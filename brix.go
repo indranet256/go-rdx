@@ -659,6 +659,21 @@ func (brix Brix) OpenByHash(hash Sha256) (more Brix, err error) {
 	return
 }
 
+func (brix Brix) OpenByPath(path string) (more Brix, err error) {
+	more = brix
+	b := &Brik{}
+	err = b.OpenByPath(path)
+	if len(b.Meta) > 0 && !b.Meta[0].IsEmpty() {
+		more, err = brix.OpenByHash(b.Meta[0])
+	}
+	if err == nil {
+		more = append(more, b)
+	} else {
+		_ = b.Close()
+	}
+	return
+}
+
 func (brix Brix) Close() (err error) {
 	for _, b := range brix {
 		e := b.Close()

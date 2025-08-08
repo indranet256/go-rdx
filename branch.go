@@ -58,12 +58,25 @@ func MakeBranch(handle, title string,
 	return
 }
 
+var ErrNotImplementedYet = errors.New("not implemented yet")
+
 // read-only branch
-func (b *Branch) Open(hash Sha256) (err error) {
-	if !hash.IsEmpty() {
-		b.Brix, err = b.Brix.OpenByHash(hash)
+func (b *Branch) Open(id ID) (err error) {
+	if id.Seq != 0 {
+		return ErrNotImplementedYet
 	}
+	path := BrixPath + string(RON64String(id.Src)) + BrixFileExt
+	b.Brix, err = b.Brix.OpenByPath(path)
+	if err == nil {
+		b.Clock = id // TODO recover
+	}
+	b.Stage = make(Stage)
 	return
+}
+
+func (b *Branch) Info() (info RDX, err error) {
+	id := ID{b.Clock.Src, 0}
+	return b.Brix.Get(nil, id)
 }
 
 // sealed branch
@@ -168,7 +181,14 @@ func (b *Branch) Compact(newHeight int) (err error) {
 }
 
 func (b *Branch) Close() error {
-	return nil
+	b.Clock = ID{}
+	_ = b.Local.Close()
+	b.Stage = nil
+	return b.Brix.Close()
+}
+
+func (b *Branch) IsOpen() bool {
+	return len(b.Brix) > 0 || !b.Clock.IsZero()
 }
 
 type BranchReader struct {
