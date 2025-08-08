@@ -2,10 +2,12 @@ package main
 
 import (
 	"errors"
+
 	"github.com/gritzko/rdx"
 )
 
 var ErrBadArguments = errors.New("bad command arguments")
+var ErrBadArgumentType = errors.New("bad command argument type")
 
 func CmdIdInt(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if !args.Read() {

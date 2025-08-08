@@ -10,6 +10,7 @@ import (
 
 var Errturn = errors.New("everything's gonna be allright")
 var ErrNoSpaceOpen = errors.New("no space open")
+var ErrNoBranchOpen = errors.New("no branch open")
 
 type Command func(repl *REPL, args *rdx.Iter) (out []byte, err error)
 
@@ -17,6 +18,7 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{0x0, 0xa7cb78}:  CmdExit,   // exit
 	rdx.ID{0, 60009667755}: CmdString, // string
 	rdx.ID{0, 12770808}:    CmdList,   // list
+	rdx.ID{0, 178808}:      CmdGet,    // get
 	rdx.ID{0, 178808}:      CmdGet,    // get
 	rdx.ID{0, 216696}:      CmdPut,    // put
 	rdx.ID{0, 14326120}:    CmdRead,   // read
@@ -113,7 +115,7 @@ func (repl *REPL) Eval(code *rdx.Iter) (out []byte, err error) {
 				return code.Record(), nil
 			}
 		}
-		stored := repl.branch.Get(ref)
+		stored, _ := repl.branch.Get(ref)
 		if stored != nil {
 			return stored, nil
 		}
@@ -147,7 +149,7 @@ func (repl *REPL) Eval(code *rdx.Iter) (out []byte, err error) {
 			}
 		}
 		ref.Src = repl.branch.Clock.Src
-		stored := repl.branch.Get(ref)
+		stored, _ := repl.branch.Get(ref)
 		if stored != nil {
 			return stored, nil
 		}

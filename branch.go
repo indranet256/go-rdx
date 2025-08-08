@@ -136,10 +136,10 @@ func (b *Branch) Add(delta RDX) (err error) {
 	return
 }
 
-func (b *Branch) Get(id ID) RDX {
+func (b *Branch) Get(id ID) (rec RDX, err error) {
 	id.Seq &= SeqMask
 	stage, _ := b.Stage[id]
-	return stage
+	return stage, nil
 }
 
 var ErrNoClock = errors.New("no clock set")

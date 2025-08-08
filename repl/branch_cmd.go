@@ -53,11 +53,25 @@ var ErrNoArgument = errors.New("no argument provided")
 
 // put {key:"value"} -> Alice-4450
 func CmdPut(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	repl.branch.Clock.Src = 1
+	repl.branch.Stage = make(rdx.Stage)
 	if !args.Read() {
 		return nil, ErrNoArgument
 	}
+	var eval []byte
+	if args.Lit() == rdx.Tuple {
+		i := rdx.NewIter(args.Value())
+		if !i.Read() {
+			return nil, ErrNoArgument
+		}
+		eval, err = repl.Eval(&i)
+	} else {
+		eval, err = repl.Eval(args)
+	}
 	var id rdx.ID
-	id, err = repl.branch.Put(args.Record())
+	if err == nil {
+		id, err = repl.branch.Put(eval)
+	}
 	if err == nil {
 		out = rdx.AppendReference(out, id)
 	}
@@ -69,8 +83,50 @@ func CmdSet(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
+func (repl *REPL) evalArgs(args *rdx.Iter) (eval rdx.Iter, err error) {
+	if !args.Read() {
+		err = ErrNoArgument
+		return
+	}
+	var e []byte
+	e, err = repl.Eval(args)
+	if err != nil {
+		return
+	}
+	eval = rdx.NewIter(e)
+	if !eval.Read() {
+		err = ErrNoArgument
+	} else if eval.Lit() == rdx.Tuple {
+		eval = rdx.NewIter(eval.Value())
+		if !eval.Read() {
+			err = ErrNoArgument
+		}
+	}
+	return
+}
+
+func (repl *REPL) pickEvalId(args *rdx.Iter) (id rdx.ID, rest rdx.RDX, err error) {
+	var eval rdx.Iter
+	eval, err = repl.evalArgs(args)
+	if err != nil {
+		return
+	}
+	if eval.Lit() == rdx.Reference {
+		id = eval.Reference()
+		rest = eval.Rest()
+	} else { // todo
+		err = ErrBadArgumentType
+	}
+	return
+}
+
 // get Alice-1230 -> {@Alice-1232 key:"value"}
 func CmdGet(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	var id rdx.ID
+	id, _, err = repl.pickEvalId(args)
+	if err == nil {
+		out, err = repl.branch.Get(id)
+	}
 	return
 }
 
