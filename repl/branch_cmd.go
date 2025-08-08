@@ -46,6 +46,27 @@ func CmdJoin(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 
 // add {@Alice-1232 key:"value"}
 func CmdAdd(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	var eval rdx.Iter
+	eval, err = repl.evalArgs(args)
+	if err != nil {
+		return
+	}
+	var added []byte
+	var id rdx.ID
+	if rdx.IsPLEX(eval.Lit()) {
+		id = eval.ID()
+		added = eval.Record()
+	} else {
+		id, err = pickId(eval)
+		if !eval.Read() {
+			return nil, ErrNoArgument
+		}
+		added = rdx.WriteRDX(nil, eval.Lit(), id, eval.Value())
+	}
+	err = repl.branch.Add(added)
+	if err == nil {
+		out = rdx.AppendReference(out, id)
+	}
 	return
 }
 
@@ -53,8 +74,6 @@ var ErrNoArgument = errors.New("no argument provided")
 
 // put {key:"value"} -> Alice-4450
 func CmdPut(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	repl.branch.Clock.Src = 1
-	repl.branch.Stage = make(rdx.Stage)
 	if !args.Read() {
 		return nil, ErrNoArgument
 	}

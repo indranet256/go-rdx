@@ -17,16 +17,19 @@ type Command func(repl *REPL, args *rdx.Iter) (out []byte, err error)
 var Yell = map[rdx.ID]Command{
 	rdx.ID{0x0, 0xa7cb78}:  CmdExit,   // exit
 	rdx.ID{0, 60009667755}: CmdString, // string
-	rdx.ID{0, 12770808}:    CmdList,   // list
-	rdx.ID{0, 178808}:      CmdGet,    // get
-	rdx.ID{0, 178808}:      CmdGet,    // get
-	rdx.ID{0, 216696}:      CmdPut,    // put
-	rdx.ID{0, 14326120}:    CmdRead,   // read
-	rdx.ID{0, 175350}:      CmdFor,    // for
-	rdx.ID{0, 203124}:      CmdFor,    // map
-	rdx.ID{0, 227957}:      CmdSeq,    // seq
-	rdx.ID{0, 886758584}:   CmdPrint,  // print
-	rdx.ID{0, 667106793}:   CmdClose,  // close
+	rdx.ID{0, 12770808}:    CmdList,   // list({val}) list(val1 val2 val3)
+	rdx.ID{0, 178808}:      CmdGet,    // get(id)
+	rdx.ID{0, 216696}:      CmdPut,    // put(val)
+	rdx.ID{0, 227960}:      CmdSet,    // set({@id}) set(id val)
+	rdx.ID{0, 154152}:      CmdAdd,    // add({@id}) add(id {val})
+	rdx.ID{0, 13585010}:    CmdOpen,   // open(space branch)
+
+	rdx.ID{0, 14326120}:  CmdRead,  // read(rdr)
+	rdx.ID{0, 175350}:    CmdFor,   // for(rdr)[code]
+	rdx.ID{0, 203124}:    CmdFor,   // map(rdr)[code]
+	rdx.ID{0, 227957}:    CmdSeq,   // seq(var from to step)
+	rdx.ID{0, 886758584}: CmdPrint, // print(...)
+	rdx.ID{0, 667106793}: CmdClose, // close(closer) close()
 
 	rdx.ID{12770808, 10185583}:  CmdListBrik, // list-brik
 	rdx.ID{667106793, 10185583}: CmdClose,    // close-brik
@@ -70,6 +73,15 @@ func NewREPL(cmds map[rdx.ID]Command, vals map[rdx.ID]any) *REPL {
 		vals = make(map[rdx.ID]any)
 	}
 	return &REPL{cmds: cmds, vals: vals}
+}
+
+func (repl *REPL) Close() (err error) {
+	err = repl.space.Close()
+	if repl.branch.IsOpen() {
+		_ = repl.branch.Close()
+	}
+	repl.vals = nil
+	return
 }
 
 func (repl *REPL) EvalCommand(code *rdx.Iter, cmd Command) (out []byte, err error) {

@@ -65,7 +65,7 @@ func CmdOpenSpace(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		_ = repl.branch.Close()
 	}
 	var id rdx.ID
-	id, err = pickVar(*args)
+	id, err = pickId(*args)
 	if id.Src == 0 {
 		id.Src, id.Seq = id.Seq, id.Src
 	}

@@ -13,7 +13,7 @@ import (
 
 var ErrNotAVariable = errors.New("the argument is not a variable")
 
-func pickVar(at rdx.Iter) (id rdx.ID, err error) {
+func pickId(at rdx.Iter) (id rdx.ID, err error) {
 	switch at.Lit() {
 	case rdx.Integer:
 		str := fmt.Sprintf("%d", rdx.UnzipInt64(at.Value()))
@@ -134,10 +134,10 @@ func CmdFor(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 			return nil, ErrNoLoopVariable
 		}
 	}
-	spec, err = pickVar(ait)
+	spec, err = pickId(ait)
 	if err == nil && ait.Read() {
 		loopVar = spec
-		spec, err = pickVar(ait)
+		spec, err = pickId(ait)
 	}
 	if err != nil {
 		return
@@ -204,10 +204,10 @@ func CmdRead(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	varId := rdx.ID0
 	var readerId rdx.ID
 	if len(it.Rest()) != 0 {
-		varId, err = pickVar(it)
+		varId, err = pickId(it)
 	}
 	if err == nil {
-		readerId, err = pickVar(it)
+		readerId, err = pickId(it)
 	}
 	if err != nil {
 		return
@@ -257,7 +257,7 @@ func CmdSeq(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		return nil, ErrNoArgument
 	}
 	if inner.Lit() != rdx.Integer {
-		id, err = pickVar(inner)
+		id, err = pickId(inner)
 		if err != nil {
 			return
 		}
@@ -307,7 +307,8 @@ func (sr *SeqReader) Error() error {
 func CmdClose(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	var id rdx.ID
 	if !args.Read() {
-		return nil, ErrNoArgument
+		err = repl.Close()
+		return
 	}
 	it := *args
 	if it.Lit() == rdx.Tuple {
@@ -316,7 +317,7 @@ func CmdClose(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 			return nil, ErrNoArgument
 		}
 	}
-	id, err = pickVar(it)
+	id, err = pickId(it)
 
 	a, ok := repl.vals[id]
 	if !ok {
@@ -334,7 +335,7 @@ func CmdClose(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 func CmdIdNow(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	var id rdx.ID
 	if args.Read() {
-		id, _ = pickVar(*args)
+		id, _ = pickId(*args)
 		if id.Src == 0 {
 			id.Src, id.Seq = id.Seq, id.Src
 		}

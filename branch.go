@@ -119,6 +119,7 @@ func (b *Branch) Tick() ID {
 
 // Adds a record change.
 func (b *Branch) Add(delta RDX) (err error) {
+	// FIXME here and in other places: normalize
 	it := NewIter(delta)
 	if !it.Read() {
 		return ErrBadRecord
