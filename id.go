@@ -1,6 +1,9 @@
 package rdx
 
-import "math"
+import (
+	"math"
+	"time"
+)
 
 type ID struct {
 	Src uint64
@@ -100,6 +103,21 @@ func (a ID) Xor() uint64 {
 	x ^= x >> 8
 	x ^= x >> 4
 	return x
+}
+
+// 2588GWn000
+func Timestamp() (t uint64) {
+	now := time.Now()
+	y := uint64(now.Year() - 2000)
+	t = t | ((y / 10) << (9 * 6))
+	t = t | ((y % 10) << (8 * 6))
+	t = t | (uint64(now.Month()) << (7 * 6))
+	t = t | (uint64(now.Day()) << (6 * 6))
+	t = t | (uint64(now.Hour()) << (5 * 6))
+	t = t | (uint64(now.Minute()) << (4 * 6))
+	t = t | (uint64(now.Second()) << (3 * 6))
+	t = t | (uint64(now.Nanosecond() >> 2))
+	return
 }
 
 const Mask60bit = (uint64(1) << 60) - 1

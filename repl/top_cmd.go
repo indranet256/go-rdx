@@ -330,3 +330,16 @@ func CmdClose(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 
 	return
 }
+
+func CmdIdNow(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	var id rdx.ID
+	if args.Read() {
+		id, _ = pickVar(*args)
+		if id.Src == 0 {
+			id.Src, id.Seq = id.Seq, id.Src
+		}
+	}
+	id.Seq = rdx.Timestamp()
+	out = rdx.AppendReference(nil, id)
+	return
+}

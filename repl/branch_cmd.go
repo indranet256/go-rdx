@@ -11,18 +11,28 @@ func CmdMakeBranch(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if repl.spaceId.IsZero() {
 		return nil, ErrNoSpaceOpen
 	}
-	
+
+	return
+}
+
+// list-branches
+func CmdListBranches(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if repl.spaceId.IsZero() {
+		return nil, ErrNoSpaceOpen
+	}
+
 	return
 }
 
 // fork -> s4a35Rlh6N
+// fork-branch(orig-1234) -> s4a35Rlh6N
 func CmdFork(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
-// open Branch
-// open Branch-234
-// open e5f379
+// open-branch Branch
+// open-branch Branch-234
+// open-branch e5f379
 func CmdOpen(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }

@@ -39,6 +39,7 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{14601467, 936532457}: CmdShowSpace, // show-space
 
 	rdx.ID{0xb68, 0x2dcb8}: CmdIdInt, // id-int
+	rdx.ID{0xb68, 208123}:  CmdIdNow, // id-now
 
 	rdx.ID{42798108211, 11689452}:    CmdCryptoHash, // crypto-hash
 	rdx.ID{42798108211, 59803705670}: CmdCryptoHash, // crypto-sha256
