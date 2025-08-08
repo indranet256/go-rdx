@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
+
 	"github.com/gritzko/rdx"
 )
 
@@ -21,20 +23,22 @@ func guessHash(at rdx.Iter) (sha rdx.Sha256, err error) {
 }
 
 // brik-list("b" fa428e)
+// brik-list fa428e
 func CmdBrikList(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	if !args.Read() || args.Lit() != rdx.String {
-		return nil, ErrBadArguments
+	readerId := rdx.ID{0, rand.Uint64() & rdx.Mask60bit}
+	if !args.Read() {
+		return nil, ErrNoArgument
 	}
-	handle, rest := rdx.ParseID(args.Value())
-	if len(rest) > 0 {
-		return nil, ErrBadArguments
+	if args.Lit() == rdx.String {
+		var rest []byte
+		readerId, rest = rdx.ParseID(args.Value())
+		if len(rest) > 0 {
+			return nil, ErrBadArguments
+		}
+		args.Read()
 	}
 	var sha rdx.Sha256
-	if !args.Read() {
-		err = ErrNoArgument
-	} else {
-		sha, err = guessHash(*args)
-	}
+	sha, err = guessHash(*args)
 	if err != nil {
 		return
 	}
@@ -44,15 +48,46 @@ func CmdBrikList(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		return
 	}
 	var it rdx.BrikReader
-	it, err = brik.Seek(rdx.ID{})
+	it, err = brik.Reader()
 	if err != nil {
 		return
 	}
-	repl.vals[handle] = it
+	repl.vals[readerId] = &it
+	out = rdx.AppendReference(nil, readerId)
 	return
 }
 
 // brix-list fa428e
 func CmdBrixList(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+
+	readerId := rdx.ID{0, rand.Uint64() & rdx.Mask60bit}
+	if !args.Read() {
+		return nil, ErrNoArgument
+	}
+	if args.Lit() == rdx.String {
+		var rest []byte
+		readerId, rest = rdx.ParseID(args.Value())
+		if len(rest) > 0 {
+			return nil, ErrBadArguments
+		}
+		args.Read()
+	}
+	var sha rdx.Sha256
+	sha, err = guessHash(*args)
+	if err != nil {
+		return
+	}
+	var brix rdx.Brix
+	brix, err = brix.OpenByHash(sha)
+	if err != nil {
+		return
+	}
+	var it rdx.BrixReader
+	it, err = brix.Reader()
+	if err != nil {
+		return
+	}
+	repl.vals[readerId] = &it
+	out = rdx.AppendReference(nil, readerId)
 	return
 }

@@ -234,7 +234,7 @@ func CmdBrixList(ctx *Context, rest rdx.Iter) (out []byte, err error) {
 		return nil, ErrBrixNameNotFound
 	}
 	var it rdx.BrixReader
-	it, err = brix.Iterator()
+	it, err = brix.Reader()
 	if err != nil {
 		return
 	}

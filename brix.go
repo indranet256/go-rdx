@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/pierrec/lz4/v4"
 	"io"
 	"math/bits"
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/pierrec/lz4/v4"
 )
 
 var ErrBadFile = errors.New("not a valid BrixReader file")
@@ -133,8 +134,8 @@ func (hdr *BrikHeader) UnmarshalBinary(from []byte) error {
 
 type Brik struct {
 	// The underlying file
-	File   *os.File
-	Reader ReaderAt
+	File *os.File
+	Data ReaderAt
 	// File header, section lengths
 	Header BrikHeader
 	// Brik position in the Wall, expressed as hashes
@@ -186,7 +187,7 @@ func (brik *Brik) Open(reader ReaderAt) (err error) {
 		return ErrBadFile
 	}
 
-	brik.Reader = reader
+	brik.Data = reader
 	err = brik.Header.UnmarshalBinary(head[:])
 	if err != nil {
 		return
@@ -205,7 +206,7 @@ func (brik *Brik) loadHashes() (err error) {
 	meta := make([]byte, brik.Header.MetaLen)
 	brik.Meta = make([]Sha256, 0, brik.Header.MetaLen/Sha256Bytes)
 	n := 0
-	n, err = brik.Reader.ReadAt(meta, BrixHeaderLen)
+	n, err = brik.Data.ReadAt(meta, BrixHeaderLen)
 	if err != nil {
 		return err
 	}
@@ -224,7 +225,7 @@ func (brik *Brik) loadIndex() (err error) {
 	brik.Index = make([]IndexEntry, 0, brik.Header.IndexLen/BrixIndexEntryLen)
 	for todo > 0 {
 		var e [BrixIndexEntryLen]byte
-		_, err = brik.Reader.ReadAt(e[:], off)
+		_, err = brik.Data.ReadAt(e[:], off)
 		if err != nil {
 			break
 		}
@@ -297,7 +298,7 @@ func (brik *Brik) loadPage(i int) (page []byte, err error) {
 	}
 	start := BrixHeaderLen + brik.Header.MetaLen
 	pad := make([]byte, till-from)
-	_, err = brik.Reader.ReadAt(pad, int64(start+from))
+	_, err = brik.Data.ReadAt(pad, int64(start+from))
 	if err != nil {
 		return
 	}
@@ -354,10 +355,10 @@ func (brik *Brik) ReadRecord(id ID) (record []byte, err error) {
 func (brik *Brik) Close() (err error) {
 	if brik.File != nil {
 		err = brik.File.Close()
-	} else if brik.Reader != nil {
-		err = brik.Reader.Close()
+	} else if brik.Data != nil {
+		err = brik.Data.Close()
 	}
-	brik.Reader = nil
+	brik.Data = nil
 	brik.File = nil
 	return
 }
@@ -394,7 +395,7 @@ func (brik *Brik) Start(meta []Sha256) (err error) {
 	if err != nil {
 		return
 	}
-	brik.Reader = brik.File
+	brik.Data = brik.File
 	brik.Meta = append(brik.Meta, meta...)
 	brik.Index = append(brik.Index, IndexEntry{})
 	brik.Header.MetaLen = uint64(len(meta) * Sha256Bytes)
@@ -538,7 +539,29 @@ func (brik *Brik) Seal() (err error) {
 	return
 }
 
+func (brik *Brik) Reader() (reader BrikReader, err error) {
+	reader.host = brik
+	var page []byte
+	page, err = brik.loadPage(reader.pagendx)
+	if err == nil {
+		reader.iter = NewIter(page)
+	}
+	return
+}
+
 func (brik *Brik) Seek(id ID) (reader BrikReader, err error) {
+	reader.host = brik
+	reader.pagendx = brik.findPage(id)
+	if reader.pagendx >= len(brik.Index) {
+		err = ErrRecordNotFound
+		return
+	}
+	var page []byte
+	page, err = brik.loadPage(reader.pagendx)
+	if err == nil {
+		reader.iter = NewIter(page)
+		reader.iter.Seek(id)
+	}
 	return
 }
 
@@ -579,7 +602,9 @@ func (bit *BrikReader) Read() bool {
 		return bit.Read()
 	}
 }
-
+func (bit *BrikReader) Parsed() (lit byte, id ID, value []byte) {
+	return bit.iter.Parsed()
+}
 func (bit *BrikReader) Record() []byte {
 	return bit.iter.Record()
 }
@@ -679,7 +704,7 @@ func (brix Brix) Get(pad []byte, id ID) (rec []byte, err error) {
 	return
 }
 
-func (brix Brix) Iterator() (xit BrixReader, err error) {
+func (brix Brix) Reader() (xit BrixReader, err error) {
 	if len(brix) > MaxBrixLen {
 		err = ErrTooManyBrix
 		return
@@ -876,7 +901,7 @@ func (brix Brix) join() (joined *Brik, err error) {
 		return
 	}
 	var it BrixReader
-	it, err = brix.Iterator()
+	it, err = brix.Reader()
 	for err == nil && it.Read() {
 		_, err = joined.Write(it.Record())
 	}
@@ -910,7 +935,7 @@ func (brix Brix) Merge(base int) (sha Sha256, err error) {
 	}
 	err = w.Start(meta)
 	var it BrixReader
-	it, err = merged.Iterator()
+	it, err = merged.Reader()
 	for err == nil && it.Read() {
 		_, err = w.WriteAll(it.Record())
 	}
