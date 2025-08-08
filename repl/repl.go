@@ -23,9 +23,12 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{0, 203124}:      CmdFor,    // map
 	rdx.ID{0, 227957}:      CmdSeq,    // seq
 	rdx.ID{0, 886758584}:   CmdPrint,  // print
+	rdx.ID{0, 667106793}:   CmdClose,  // close
 
-	rdx.ID{10185596, 12770808}: CmdBrixList,
-	rdx.ID{10185583, 12770808}: CmdBrikList,
+	rdx.ID{10185596, 12770808}:  CmdBrixList,
+	rdx.ID{10185583, 12770808}:  CmdBrikList,
+	rdx.ID{10185596, 667106793}: CmdClose,
+	rdx.ID{10185596, 667106793}: CmdClose,
 
 	rdx.ID{936532457, 207483}: CmdSpaceNew, // space-new
 

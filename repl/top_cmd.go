@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"reflect"
 
@@ -297,4 +298,32 @@ func (sr *SeqReader) Parsed() (lit byte, id rdx.ID, value []byte) {
 }
 func (sr *SeqReader) Error() error {
 	return nil
+}
+
+// close(var)
+func CmdClose(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	var id rdx.ID
+	if !args.Read() {
+		return nil, ErrNoArgument
+	}
+	it := *args
+	if it.Lit() == rdx.Tuple {
+		it = rdx.NewIter(it.Value())
+		if !it.Read() {
+			return nil, ErrNoArgument
+		}
+	}
+	id, err = pickVar(it)
+
+	a, ok := repl.vals[id]
+	if !ok {
+		return nil, ErrNotAVariable
+	}
+	c, tok := a.(io.Closer)
+	if !tok {
+		return nil, ErrBadVariableType
+	}
+	err = c.Close()
+
+	return
 }

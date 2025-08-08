@@ -1,11 +1,28 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 
 	"github.com/gritzko/rdx"
 )
+
+var ErrBadVariableType = errors.New("bad variable type")
+
+func pickString(at rdx.Iter) (term string, err error) {
+	switch at.Lit() {
+	case rdx.Integer:
+		term = fmt.Sprintf("%d", rdx.UnzipInt64(at.Value()))
+	case rdx.Term:
+		fallthrough
+	case rdx.String:
+		term = string(at.Value())
+	default:
+		return "", ErrBadVariableType
+	}
+	return
+}
 
 func pickHash(at rdx.Iter) (sha rdx.Sha256, err error) {
 	switch at.Lit() {
@@ -17,8 +34,36 @@ func pickHash(at rdx.Iter) (sha rdx.Sha256, err error) {
 	case rdx.String:
 		sha, err = rdx.FindByHashlet(string(at.Value()))
 	default:
-		err = ErrBadArguments
+		err = ErrBadVariableType
 	}
+	return
+}
+
+func (repl *REPL) pickBrik(at rdx.Iter) (brik *rdx.Brik, err error) {
+	var hashlet string
+	hashlet, err = pickString(at)
+	id, _ := rdx.ParseID([]byte(hashlet))
+	ex, ok := repl.vals[id]
+	if ok {
+		brik, ok = ex.(*rdx.Brik)
+		if !ok {
+			return nil, ErrBadArguments
+		}
+	} else {
+		var sha rdx.Sha256
+		sha, err = rdx.FindByHashlet(hashlet)
+		if err == nil {
+			brik = &rdx.Brik{}
+			err = brik.OpenByHash(sha)
+		}
+		if err == nil {
+			repl.vals[id] = brik
+		}
+	}
+	return
+}
+
+func pickBrix(at rdx.Iter) (brik *rdx.Brik, err error) {
 	return
 }
 
@@ -29,17 +74,8 @@ func CmdBrikList(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if !args.Read() {
 		return nil, ErrNoArgument
 	}
-	readerId, err = pickStringID(args)
-	if err != nil {
-		return
-	}
-	var sha rdx.Sha256
-	sha, err = pickHash(*args)
-	if err != nil {
-		return
-	}
-	var brik rdx.Brik
-	err = brik.OpenByHash(sha)
+	var brik *rdx.Brik
+	brik, err = repl.pickBrik(*args)
 	if err != nil {
 		return
 	}

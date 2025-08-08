@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+
 	"github.com/gritzko/rdx"
 )
 
@@ -67,9 +68,5 @@ func CmdSeal(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 }
 
 func CmdSave(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	return
-}
-
-func CmdClose(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
