@@ -3,8 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/gritzko/rdx"
 	"io"
+
+	"github.com/gritzko/rdx"
 )
 
 var Errturn = errors.New("everything's gonna be allright")
@@ -17,6 +18,14 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{0, 12770808}:    CmdList,   // list
 	rdx.ID{0, 178808}:      CmdGet,    // get
 	rdx.ID{0, 216696}:      CmdPut,    // put
+	rdx.ID{0, 14326120}:    CmdRead,   // read
+	rdx.ID{0, 175350}:      CmdFor,    // for
+	rdx.ID{0, 203124}:      CmdFor,    // map
+	rdx.ID{0, 227957}:      CmdSeq,    // seq
+	rdx.ID{0, 886758584}:   CmdPrint,  // print
+
+	rdx.ID{10185596, 12770808}: CmdBrixList,
+	rdx.ID{10185583, 12770808}: CmdBrikList,
 
 	rdx.ID{936532457, 207483}: CmdSpaceNew, // space-new
 
@@ -128,8 +137,8 @@ func (repl *REPL) Eval(code *rdx.Iter) (out []byte, err error) {
 		seq, _ := rdx.ParseRON64(code.Value())
 		ref := rdx.ID{0, seq}
 		cmd, okcmd := repl.cmds[ref]
-		if okcmd {
-			return repl.EvalCommand(code, cmd)
+		if okcmd { // controls evaluate stuff themselves
+			return cmd(repl, code)
 		}
 		local, oklocal := repl.vals[ref]
 		if oklocal {

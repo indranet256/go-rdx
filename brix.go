@@ -263,7 +263,7 @@ func (brik *Brik) OpenByHash(hash Sha256) error {
 
 func FindByHashlet(hashlet string) (sha Sha256, err error) {
 	var list []os.DirEntry
-	list, err = os.ReadDir(".")
+	list, err = os.ReadDir(BrixPath)
 	var nm string
 	for _, l := range list {
 		if l.IsDir() {
