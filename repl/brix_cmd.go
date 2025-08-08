@@ -7,7 +7,7 @@ import (
 	"github.com/gritzko/rdx"
 )
 
-func guessHash(at rdx.Iter) (sha rdx.Sha256, err error) {
+func pickHash(at rdx.Iter) (sha rdx.Sha256, err error) {
 	switch at.Lit() {
 	case rdx.Integer:
 		str := fmt.Sprintf("%d", rdx.UnzipInt64(at.Value()))
@@ -29,16 +29,12 @@ func CmdBrikList(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if !args.Read() {
 		return nil, ErrNoArgument
 	}
-	if args.Lit() == rdx.String {
-		var rest []byte
-		readerId, rest = rdx.ParseID(args.Value())
-		if len(rest) > 0 {
-			return nil, ErrBadArguments
-		}
-		args.Read()
+	readerId, err = pickStringID(args)
+	if err != nil {
+		return
 	}
 	var sha rdx.Sha256
-	sha, err = guessHash(*args)
+	sha, err = pickHash(*args)
 	if err != nil {
 		return
 	}
@@ -57,23 +53,33 @@ func CmdBrikList(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
+func pickStringID(args *rdx.Iter) (id rdx.ID, err error) {
+	if args.Lit() != rdx.String {
+		id = rdx.ID{0, rand.Uint64() & rdx.Mask60bit}
+	} else {
+		var rest []byte
+		id, rest = rdx.ParseID(args.Value())
+		if len(rest) > 0 {
+			err = ErrBadArguments
+		} else {
+			args.Read()
+		}
+	}
+	return
+}
+
 // brix-list fa428e
 func CmdBrixList(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-
-	readerId := rdx.ID{0, rand.Uint64() & rdx.Mask60bit}
 	if !args.Read() {
 		return nil, ErrNoArgument
 	}
-	if args.Lit() == rdx.String {
-		var rest []byte
-		readerId, rest = rdx.ParseID(args.Value())
-		if len(rest) > 0 {
-			return nil, ErrBadArguments
-		}
-		args.Read()
+	var readerId rdx.ID
+	readerId, err = pickStringID(args)
+	if err != nil {
+		return
 	}
 	var sha rdx.Sha256
-	sha, err = guessHash(*args)
+	sha, err = pickHash(*args)
 	if err != nil {
 		return
 	}

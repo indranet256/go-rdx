@@ -12,7 +12,7 @@ import (
 
 var ErrNotAVariable = errors.New("the argument is not a variable")
 
-func guessVar(at rdx.Iter) (id rdx.ID, err error) {
+func pickVar(at rdx.Iter) (id rdx.ID, err error) {
 	switch at.Lit() {
 	case rdx.Integer:
 		str := fmt.Sprintf("%d", rdx.UnzipInt64(at.Value()))
@@ -71,14 +71,14 @@ func CmdPrint(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 // list(1 2 3)
 // list(eset)
 func CmdList(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	id := rdx.ID{0, rand.Uint64() & rdx.Mask60bit}
+	var id rdx.ID
 	var eval []byte
 	if !args.Read() {
 		return nil, ErrNoArgument
 	}
-	if args.Lit() == rdx.String {
-		id, _ = rdx.ParseID(args.Value())
-		args.Read()
+	id, err = pickStringID(args)
+	if err != nil {
+		return
 	}
 	eval, err = repl.Eval(args)
 	if err != nil {
@@ -130,10 +130,10 @@ func CmdFor(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 			return nil, ErrNoLoopVariable
 		}
 	}
-	spec, err = guessVar(ait)
+	spec, err = pickVar(ait)
 	if err == nil && ait.Read() {
 		loopVar = spec
-		spec, err = guessVar(ait)
+		spec, err = pickVar(ait)
 	}
 	if err != nil {
 		return
@@ -200,10 +200,10 @@ func CmdRead(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	varId := rdx.ID0
 	var readerId rdx.ID
 	if len(it.Rest()) != 0 {
-		varId, err = guessVar(it)
+		varId, err = pickVar(it)
 	}
 	if err == nil {
-		readerId, err = guessVar(it)
+		readerId, err = pickVar(it)
 	}
 	if err != nil {
 		return
@@ -253,7 +253,7 @@ func CmdSeq(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		return nil, ErrNoArgument
 	}
 	if inner.Lit() != rdx.Integer {
-		id, err = guessVar(inner)
+		id, err = pickVar(inner)
 		if err != nil {
 			return
 		}
