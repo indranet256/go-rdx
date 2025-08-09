@@ -449,6 +449,11 @@ func AppendInteger(data []byte, val int64) []byte {
 	return WriteTLKV(data, Integer, nil, b)
 }
 
+func AppendFloat(data []byte, val float64) []byte {
+	b := ZipFloat64(val)
+	return WriteTLKV(data, Integer, nil, b)
+}
+
 func MakeString(term string) RDX {
 	return AppendString(nil, []byte(term))
 }
@@ -465,12 +470,46 @@ func MakeEuler(id ID, val RDX) RDX {
 	return RDX{}.AppendEuler(id, val)
 }
 
-func MakePLEXOf(id ID, val []RDX, z Compare) RDX {
-	sort.Slice(val, func(i, j int) bool {
-		ii := NewIter(val[i])
-		jj := NewIter(val[j])
-		return z(&ii, &jj) < Eq
-	})
+func F(id ID, val float64) RDX {
+	return WriteRDX(nil, Float, id, ZipFloat64(val))
+}
+func I(id ID, val int64) RDX {
+	return WriteRDX(nil, Integer, id, ZipInt64(val))
+}
+func R(id ID, val ID) RDX {
+	return WriteRDX(nil, Reference, id, ZipID(val))
+}
+func S(id ID, val string) RDX {
+	return WriteRDX(nil, String, id, []byte(val))
+}
+func T(id ID, val string) RDX {
+	return WriteRDX(nil, Term, id, []byte(val))
+}
+
+func F0(val float64) RDX {
+	return WriteRDX(nil, Float, ID0, ZipFloat64(val))
+}
+func I0(val int64) RDX {
+	return WriteRDX(nil, Integer, ID0, ZipInt64(val))
+}
+func R0(val ID) RDX {
+	return WriteRDX(nil, Reference, ID0, ZipID(val))
+}
+func S0(val string) RDX {
+	return WriteRDX(nil, String, ID0, []byte(val))
+}
+func T0(val string) RDX {
+	return WriteRDX(nil, Term, ID0, []byte(val))
+}
+
+func MakePLEXOf(lit byte, id ID, val []RDX, z Compare) RDX {
+	if z != nil {
+		sort.Slice(val, func(i, j int) bool {
+			ii := NewIter(val[i])
+			jj := NewIter(val[j])
+			return z(&ii, &jj) < Eq
+		})
+	}
 	l := 0
 	for _, v := range val {
 		l += len(v)
@@ -478,9 +517,9 @@ func MakePLEXOf(id ID, val []RDX, z Compare) RDX {
 	marks := make(Marks, 0, 1)
 	ret := make(RDX, 0, l+24)
 	if l <= 0xff {
-		ret = OpenShortTLV(ret, Euler, &marks)
+		ret = OpenShortTLV(ret, lit, &marks)
 	} else {
-		ret = OpenTLV(ret, Euler, &marks)
+		ret = OpenTLV(ret, lit, &marks)
 	}
 	zip := ZipID(id)
 	ret = append(ret, byte(len(zip)))
@@ -488,12 +527,34 @@ func MakePLEXOf(id ID, val []RDX, z Compare) RDX {
 	for _, v := range val {
 		ret = append(ret, v...)
 	}
-	ret, _ = CloseTLV(ret, Euler, &marks)
+	ret, _ = CloseTLV(ret, lit, &marks)
 	return ret
 }
 
-func MakeEulerOf(id ID, val []RDX) RDX {
-	return MakePLEXOf(id, val, CompareEuler)
+func P0(vals ...RDX) RDX {
+	return MakePLEXOf(Tuple, ID0, vals, CompareTuple)
+}
+func L0(val ...RDX) RDX {
+	return MakePLEXOf(Linear, ID0, val, nil)
+}
+func E0(val ...RDX) RDX {
+	return MakePLEXOf(Euler, ID0, val, CompareEuler)
+}
+func X0(val ...RDX) RDX {
+	return MakePLEXOf(Multix, ID0, val, CompareMultix)
+}
+
+func P(id ID, val ...RDX) RDX {
+	return MakePLEXOf(Tuple, id, val, CompareTuple)
+}
+func L(id ID, val ...RDX) RDX {
+	return MakePLEXOf(Linear, id, val, nil)
+}
+func E(id ID, val ...RDX) RDX {
+	return MakePLEXOf(Euler, id, val, CompareEuler)
+}
+func X(id ID, val ...RDX) RDX {
+	return MakePLEXOf(Multix, id, val, CompareMultix)
 }
 
 func AppendString(data []byte, val []byte) []byte {
@@ -696,4 +757,70 @@ func flaten(data, rdx []byte, stack *Marks) (flat []byte, err error) {
 func Flatten(data, rdx []byte) (flat []byte, err error) {
 	stack := make(Marks, 0, 32)
 	return flaten(data, rdx, &stack)
+}
+
+func delve(data RDX, path Iter, z Compare) (found RDX, err error) {
+	it := NewIter(data)
+	i := Less
+	for i < Eq && it.Read() {
+		i = z(&it, &path)
+	}
+	if !it.HasData() || i > Eq {
+		err = ErrRecordNotFound
+		return
+	}
+	if !path.Read() {
+		return it.Record(), nil
+	}
+	return scan(it, path)
+}
+
+var ErrBadPath = errors.New("bad path")
+
+func delveP(data RDX, path Iter) (found RDX, err error) {
+	if path.Lit() != Integer {
+		err = ErrBadPath
+		return
+	}
+	it := NewIter(data)
+	n := UnzipInt64(path.Value())
+	for n >= 0 && it.Read() {
+		n--
+	}
+	if !it.HasData() {
+		err = ErrRecordNotFound
+		return
+	}
+	if !path.Read() {
+		return it.Record(), nil
+	} else if !IsPLEX(it.Lit()) {
+		err = ErrRecordNotFound
+		return
+	} else {
+		return scan(it, path)
+	}
+}
+
+func scan(it Iter, path Iter) (found RDX, err error) {
+	switch it.Lit() {
+	case Tuple:
+		found, err = delveP(it.Value(), path)
+	case Linear:
+		found, err = delve(it.Value(), path, CompareLinear)
+	case Euler:
+		found, err = delve(it.Value(), path, CompareEuler)
+	case Multix:
+		found, err = delve(it.Value(), path, CompareMultix)
+	default:
+		err = ErrRecordNotFound
+	}
+	return
+}
+
+func Delve(data, path RDX) (entry RDX, err error) {
+	pi := NewIter(path)
+	if !pi.Read() {
+		return data, nil
+	}
+	return delveP(data, pi)
 }
