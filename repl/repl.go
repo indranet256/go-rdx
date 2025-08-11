@@ -15,6 +15,7 @@ var ErrNoBranchOpen = errors.New("no branch open")
 type Command func(repl *REPL, args *rdx.Iter) (out []byte, err error)
 
 var Yell = map[rdx.ID]Command{
+	rdx.ID{0, 239990}:      CmdVar,    // var i 0
 	rdx.ID{0x0, 0xa7cb78}:  CmdExit,   // exit
 	rdx.ID{0, 60009667755}: CmdString, // string
 	rdx.ID{0, 12770808}:    CmdList,   // list({val}) list(val1 val2 val3)
@@ -118,7 +119,7 @@ func (repl *REPL) EvalCommand(code *rdx.Iter, cmd Command) (out []byte, err erro
 	return
 }
 
-func (repl *REPL) Eval(code *rdx.Iter) (out []byte, err error) {
+func (repl *REPL) Eval(code *rdx.Iter) (out rdx.RDX, err error) {
 	switch code.Lit() {
 	case rdx.Reference:
 		ref := code.Reference()
@@ -199,12 +200,18 @@ func (repl *REPL) Eval(code *rdx.Iter) (out []byte, err error) {
 	return
 }
 
+type oldVar struct {
+	nm  rdx.ID
+	val any
+}
+
 func (repl *REPL) Call(proc Proc, args *rdx.Iter) (out []byte, err error) {
 	var eval rdx.Iter
 	eval, err = repl.evalArgs(args)
 	if err != nil {
 		return
 	}
+	var olds []oldVar
 	parit := rdx.NewIter(proc.params)
 	for parit.Read() {
 		var pn rdx.ID
@@ -215,11 +222,18 @@ func (repl *REPL) Call(proc Proc, args *rdx.Iter) (out []byte, err error) {
 		if !eval.Read() {
 			return nil, errors.New("argument is missing: " + string(pn.String()))
 		}
-		// todo save
+		olds = append(olds, oldVar{pn, repl.vals[pn]})
 		repl.vals[pn] = eval.Record()
 	}
-	// todo clear
-	return repl.Evaluate(proc.body)
+	out, err = repl.Evaluate(proc.body)
+	for _, old := range olds {
+		if old.val == nil {
+			delete(repl.vals, old.nm)
+		} else {
+			repl.vals[old.nm] = old.val
+		}
+	}
+	return
 }
 
 func (repl *REPL) Evaluate(code []byte) (out []byte, err error) {

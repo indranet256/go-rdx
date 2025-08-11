@@ -34,6 +34,27 @@ func CmdExit(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return nil, Errturn
 }
 
+func CmdVar(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if !args.Read() {
+		return nil, ErrNotAVariable
+	}
+	var n rdx.ID
+	n, err = pickId(*args)
+	if err != nil {
+		return
+	}
+	if !args.Read() {
+		repl.vals[n] = rdx.RDX{}
+		return
+	}
+	var eval rdx.RDX
+	eval, err = repl.Eval(args)
+	if err == nil {
+		repl.vals[n] = eval
+	}
+	return
+}
+
 var ErrNoProcedureName = errors.New("no procedure name")
 var ErrNoProcedureParams = errors.New("no procedure name")
 var ErrNoProcedureBody = errors.New("no procedure body")
