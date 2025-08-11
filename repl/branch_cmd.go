@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"errors"
 
 	"github.com/gritzko/rdx"
@@ -8,16 +9,54 @@ import (
 
 // make-branch -> s4a35Rlh6N
 func CmdMakeBranch(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	if repl.spaceId.IsZero() {
+	if !repl.space.IsOpen() {
 		return nil, ErrNoSpaceOpen
 	}
+	handle := ""
+	if args.Peek() == rdx.Term && args.Read() {
+		handle = string(args.Value())
+	}
+	title := "just a branch"
+	if args.Peek() == rdx.String && args.Read() {
+		title = string(args.Value())
+	}
+	recs := make(rdx.Stage)
+	if repl.branch.Stage != nil {
+		recs, repl.branch.Stage = repl.branch.Stage, recs
+	}
+	keys := rdx.MakeKeypair()
+	if len(handle) == 0 {
+		i := keys.KeyLet()
+		handle = string(rdx.RON64String(i & rdx.Mask60bit))
+	}
+	var sha rdx.Sha256
+	sha, err = rdx.MakeBranch(handle, title, recs, &keys)
+	if err != nil {
+		return
+	}
 
+	spaceId := rdx.ID{repl.space.Clock.Src, 0}
+	branchId := rdx.ID{keys.KeyLet(), 0}
+	err = repl.space.Add(
+		rdx.E(spaceId,
+			rdx.P0(rdx.T0("branches"), rdx.X0(rdx.S(branchId, title))),
+		))
+	if err != nil {
+		return
+	}
+	_, err = repl.space.Seal()
+	if err != nil {
+		return
+	}
+
+	out = rdx.AppendTerm(out, []byte(hex.EncodeToString(keys.Pub)))
+	out = rdx.AppendTerm(out, []byte(hex.EncodeToString(sha[:])))
 	return
 }
 
 // list-branches
 func CmdListBranches(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	if repl.spaceId.IsZero() {
+	if !repl.space.IsOpen() {
 		return nil, ErrNoSpaceOpen
 	}
 
@@ -30,10 +69,35 @@ func CmdFork(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
-// open-branch Branch
-// open-branch Branch-234
-// open-branch e5f379
+// open(space, branch)
+// open Branch
+// open Branch-234
+// open e5f379
 func CmdOpen(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	var it rdx.Iter
+	var id rdx.ID
+	it, err = repl.evalArgs(args)
+	if err != nil {
+		return
+	}
+	if !it.Read() {
+		err = ErrNoArgument
+	}
+	id, err = pickId(it)
+	if err != nil {
+		return
+	}
+	err = repl.space.Open(id)
+	if err != nil {
+		return
+	}
+	if it.Read() {
+		id, err = pickId(it)
+		if err != nil {
+			return
+		}
+		err = repl.branch.Open(id)
+	}
 	return
 }
 
@@ -50,6 +114,9 @@ func CmdAdd(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	eval, err = repl.evalArgs(args)
 	if err != nil {
 		return
+	}
+	if !eval.Read() {
+		return nil, ErrNoArgument
 	}
 	var added []byte
 	var id rdx.ID
@@ -117,9 +184,6 @@ func (repl *REPL) evalArgs(args *rdx.Iter) (eval rdx.Iter, err error) {
 		err = ErrNoArgument
 	} else if eval.Lit() == rdx.Tuple {
 		eval = rdx.NewIter(eval.Value())
-		if !eval.Read() {
-			err = ErrNoArgument
-		}
 	}
 	return
 }
@@ -128,6 +192,10 @@ func (repl *REPL) pickEvalId(args *rdx.Iter) (id rdx.ID, rest rdx.RDX, err error
 	var eval rdx.Iter
 	eval, err = repl.evalArgs(args)
 	if err != nil {
+		return
+	}
+	if !eval.Read() {
+		err = ErrNoArgument
 		return
 	}
 	if eval.Lit() == rdx.Reference {

@@ -34,6 +34,34 @@ func CmdExit(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return nil, Errturn
 }
 
+var ErrNoProcedureName = errors.New("no procedure name")
+var ErrNoProcedureParams = errors.New("no procedure name")
+var ErrNoProcedureBody = errors.New("no procedure body")
+
+// proc Fn(p1 p2 p3) [ ... ]
+func CmdProc(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if !args.Read() {
+		return nil, ErrNoProcedureName
+	}
+	var name rdx.ID
+	name, err = pickId(*args)
+	if err != nil {
+		return
+	}
+	if !args.Read() || args.Lit() != rdx.Tuple {
+		return nil, ErrNoProcedureParams
+	}
+	var pro Proc
+	pro.params = args.Value()
+	if !args.Read() || !rdx.IsPLEX(args.Lit()) {
+		return nil, ErrNoProcedureBody
+	}
+	pro.body = args.Value()
+	repl.pros[name] = pro
+	//return rdx.R0(name), nil
+	return
+}
+
 func CmdString(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	stack := make(rdx.Marks, 2)
 	tmp := rdx.OpenShortTLV(nil, rdx.String, &stack)
@@ -43,6 +71,26 @@ func CmdString(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	}
 	out, err = rdx.CloseTLV(tmp, rdx.String, &stack)
 	return
+}
+
+func CmdPick(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	var params rdx.Iter
+	params, err = repl.evalArgs(args)
+	if err != nil {
+		return
+	}
+	if !params.Read() {
+		return nil, ErrNoArgument
+	}
+	key := params.Record()
+	if !params.Read() {
+		return nil, ErrNoArgument
+	}
+	if !rdx.IsPLEX(params.Lit()) {
+		return nil, ErrBadArgumentType
+	}
+	plex := params.Record()
+	return rdx.Pick(key, plex)
 }
 
 func CmdPrint(repl *REPL, args *rdx.Iter) (out []byte, err error) {
@@ -293,7 +341,7 @@ func (sr *SeqReader) Read() bool {
 	}
 	return false
 }
-func (sr *SeqReader) Record() []byte {
+func (sr *SeqReader) Record() rdx.RDX {
 	return rdx.AppendInteger(nil, sr.i)
 }
 func (sr *SeqReader) Parsed() (lit byte, id rdx.ID, value []byte) {

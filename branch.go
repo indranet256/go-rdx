@@ -11,13 +11,18 @@ import (
 type Branch struct {
 	Brix  Brix
 	Clock ID
-	Local Brik
+	Tip   Brik
 	Stage Stage
 }
 
 type KeyPair struct {
 	Pub ed25519.PublicKey
 	Sec ed25519.PrivateKey
+}
+
+func MakeKeypair() (keys KeyPair) {
+	keys.Pub, keys.Sec, _ = ed25519.GenerateKey(nil)
+	return
 }
 
 func (pair *KeyPair) KeyLet() uint64 {
@@ -30,11 +35,12 @@ func MakeBranch(handle, title string,
 	recs Stage, keys *KeyPair) (sha Sha256, err error) {
 	id := ID{keys.KeyLet(), 0}
 	pub := hex.EncodeToString(keys.Pub)
-	err = recs.Add(MakeEulerOf(id, []RDX{
-		MakeTuple(ID0, MakeTerm("ed25519pub").AppendString(pub)),
-		MakeTuple(ID0, MakeTerm("id").AppendString(handle)),
-		MakeTuple(ID0, MakeTerm("title").AppendString(title)),
-	}))
+	err = recs.Add(E(id,
+		P0(T0("ed25519pub"), S0(pub)),
+		P0(T0("id"), S0(handle)),
+		P0(T0("title"), S0(title)),
+		// todo clock type, other things
+	))
 	if err != nil {
 		return
 	}
@@ -45,32 +51,78 @@ func MakeBranch(handle, title string,
 	}
 	private := make(Stage)
 	sec := hex.EncodeToString(keys.Sec)
-	err = private.Add(MakeEulerOf(id, []RDX{
-		MakeTuple(ID0, MakeTerm("ed25519sec").AppendString(sec)),
-	}))
+	err = private.Add(E(id,
+		P0(T0("ed25519sec"), S0(sec)),
+	))
 	tipsha, err = MakeBrik([]Sha256{sha}, private)
 	if err != nil {
 		return
 	}
-	hashfn := BrixPath + tipsha.String() + BrixFileExt
-	handfn := BrixPath + handle + BrixFileExt
+	hashfn := BrikPath(tipsha)
+	handfn := TipPath(keys.KeyLet())
 	err = os.Rename(hashfn, handfn)
 	return
 }
 
+func TipPath(src uint64) string {
+	return BrixPath + string(RON64String(src)) + BrixFileExt
+}
+
 var ErrNotImplementedYet = errors.New("not implemented yet")
+var ErrBadTipFormat = errors.New("bad branch tip format")
+var ClockID = ID{0, 667105775}
+
+func pickClock(src uint64, clock RDX) (c ID) {
+	cit := NewIter(clock)
+	if cit.Read() && cit.Lit() == Multix {
+		cint := NewIter((cit.Value()))
+		for cint.Read() && cint.ID().Src != src {
+		}
+		if cint.HasData() {
+			c = cint.ID()
+		}
+	}
+	return
+}
 
 // read-only branch
 func (b *Branch) Open(id ID) (err error) {
+	if id.Src == 0 && id.Seq != 0 { // notational: branch, not branch-0
+		id.Src, id.Seq = id.Seq, 0
+	}
 	if id.Seq != 0 {
 		return ErrNotImplementedYet
 	}
-	path := BrixPath + string(RON64String(id.Src)) + BrixFileExt
-	b.Brix, err = b.Brix.OpenByPath(path)
-	if err == nil {
-		b.Clock = id // TODO recover
+	path := TipPath(id.Src)
+	err = b.Tip.OpenByPath(path)
+	if err != nil {
+		return
+	}
+	var clock RDX
+	clock, _ = b.Tip.Get(ClockID)
+	if len(clock) > 0 {
+		b.Clock = pickClock(id.Src, clock)
+	}
+	reflen := len(b.Tip.Meta)
+	if reflen > 2 {
+		return ErrBadTipFormat
+	}
+	if reflen > 0 {
+		b.Brix, err = b.Brix.OpenByHash(b.Tip.Meta[0])
+		if err != nil { // FIXME
+			return
+		}
 	}
 	b.Stage = make(Stage)
+	if reflen == 2 {
+		var stage Brik
+		err = stage.OpenByHash(b.Tip.Meta[1])
+		if err != nil {
+			return
+		}
+		_ = stage.ToStage(b.Stage)
+		_ = stage.Close()
+	}
 	return
 }
 
@@ -168,13 +220,41 @@ func (b *Branch) Set(elem RDX) error {
 }
 
 // Saves the current staged state
-func (b *Branch) Save(filename string) (err error) {
+func (b *Branch) Stash(filename string) (err error) {
 	return nil
 }
 
 // Commits the staged part
-func (b *Branch) Seal() (err error) {
-	return nil
+func (b *Branch) Seal() (sha Sha256, err error) {
+	tipStage := make(Stage)
+	err = b.Tip.ToStage(tipStage)
+	if err != nil {
+		return
+	}
+	var tipSha Sha256
+	deps := []Sha256{b.Brix.Hash7574()}
+	sha, err = MakeBrik(deps, b.Stage)
+	if err != nil {
+		return
+	}
+	// fixme clock
+	tipdeps := []Sha256{sha}
+	_ = tipStage.Add(X(ClockID, T(b.Clock, "sealed")))
+	tipSha, err = MakeBrik(tipdeps, tipStage)
+	if err != nil {
+		return
+	}
+	err = os.Rename(BrikPath(tipSha), TipPath(b.Clock.Src))
+	if err != nil {
+		return
+	}
+	b.Brix, err = b.Brix.OpenByHash(sha)
+	if err != nil {
+		return
+	}
+	_ = b.Tip.Close()
+	err = b.Tip.OpenByHash(tipSha)
+	return
 }
 
 func (b *Branch) Compact(newHeight int) (err error) {
@@ -183,7 +263,7 @@ func (b *Branch) Compact(newHeight int) (err error) {
 
 func (b *Branch) Close() error {
 	b.Clock = ID{}
-	_ = b.Local.Close()
+	_ = b.Tip.Close()
 	b.Stage = nil
 	return b.Brix.Close()
 }

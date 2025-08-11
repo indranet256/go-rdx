@@ -17,7 +17,7 @@ type Reader interface {
 	// moves to the next record
 	Read() bool
 
-	Record() []byte
+	Record() RDX
 	Parsed() (lit byte, id ID, value []byte)
 
 	Error() error
@@ -186,7 +186,7 @@ func (it *Iter) Integer() int64 {
 	return UnzipInt64(it.Value())
 }
 
-func (it *Iter) Record() []byte {
+func (it *Iter) Record() RDX {
 	return it.data[:int(it.hdrlen+it.idlen)+it.vallen]
 }
 

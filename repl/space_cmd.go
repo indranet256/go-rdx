@@ -16,7 +16,7 @@ const IdEd25519SignSeq = 1152823100548846199
 
 // branch-seq -> {title:"some commit",sha:ae26b48..., ~:aaa}
 // branch-0 -> {title:"somebranch", key:5b93... commits:[], ~:aaa}
-// space-0 -> {title:"somespace", type:space, braches:{}, ~:aaa}
+// space-0 -> {title:"somespace", type:space, braches:<>, ~:aaa}
 // HANDLE.space  space-0 -> {peers:{}...} // local info
 // BRANCH.branch branch-0 -> {~~~ed25519:bbb} // author's metainfo
 

@@ -132,6 +132,10 @@ func (hdr *BrikHeader) UnmarshalBinary(from []byte) error {
 	return nil
 }
 
+func BrikPath(sha Sha256) string {
+	return BrixPath + sha.String() + BrixFileExt
+}
+
 type Brik struct {
 	// The underlying file
 	File *os.File
@@ -329,7 +333,7 @@ func (brik *Brik) LoadPage(ndx int) (err error) {
 	return
 }
 
-func (brik *Brik) ReadRecord(id ID) (record []byte, err error) {
+func (brik *Brik) Get(id ID) (record []byte, err error) {
 	i := brik.findPage(id)
 	if i == len(brik.Index) || !brik.Index[i].MayHaveID(id) {
 		return nil, ErrRecordNotFound
@@ -605,7 +609,7 @@ func (bit *BrikReader) Read() bool {
 func (bit *BrikReader) Parsed() (lit byte, id ID, value []byte) {
 	return bit.iter.Parsed()
 }
-func (bit *BrikReader) Record() []byte {
+func (bit *BrikReader) Record() RDX {
 	return bit.iter.Record()
 }
 func (bit *BrikReader) ID() ID {
@@ -700,7 +704,7 @@ func (brix Brix) OpenByHashlet(hashlet string) (more Brix, err error) {
 func (brix Brix) Get(pad []byte, id ID) (rec []byte, err error) {
 	var inputs = make([][]byte, 0, len(brix))
 	for _, b := range brix {
-		in, e := b.ReadRecord(id)
+		in, e := b.Get(id)
 		if e == ErrRecordNotFound {
 			continue
 		} else if e == nil {
@@ -878,7 +882,7 @@ func (xit *BrixReader) Seek(id ID) int {
 	}
 }
 
-func (xit *BrixReader) Record() []byte {
+func (xit *BrixReader) Record() RDX {
 	return xit.win.Record()
 }
 

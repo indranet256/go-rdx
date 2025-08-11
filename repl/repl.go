@@ -23,6 +23,8 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{0, 227960}:      CmdSet,    // set({@id}) set(id val)
 	rdx.ID{0, 154152}:      CmdAdd,    // add({@id}) add(id {val})
 	rdx.ID{0, 13585010}:    CmdOpen,   // open(space branch)
+	rdx.ID{0, 13818351}:    CmdPick,   // pick(a {a:1 b:2}) -> a:1
+	rdx.ID{0, 13855975}:    CmdProc,   // proc Fn(p1 p2 p3) [ ...code...]
 
 	rdx.ID{0, 14326120}:  CmdRead,  // read(rdr)
 	rdx.ID{0, 175350}:    CmdFor,   // for(rdr)[code]
@@ -60,19 +62,22 @@ var Yell = map[rdx.ID]Command{
 }
 
 type REPL struct {
-	spaceId  rdx.ID
-	branchId rdx.ID
-	space    rdx.Branch
-	branch   rdx.Branch
-	cmds     map[rdx.ID]Command
-	vals     map[rdx.ID]any
+	space  rdx.Branch
+	branch rdx.Branch
+	cmds   map[rdx.ID]Command
+	vals   map[rdx.ID]any
+	pros   map[rdx.ID]Proc
+}
+
+type Proc struct {
+	params, body rdx.RDX
 }
 
 func NewREPL(cmds map[rdx.ID]Command, vals map[rdx.ID]any) *REPL {
 	if vals == nil {
 		vals = make(map[rdx.ID]any)
 	}
-	return &REPL{cmds: cmds, vals: vals}
+	return &REPL{cmds: cmds, vals: vals, pros: make(map[rdx.ID]Proc)}
 }
 
 func (repl *REPL) Close() (err error) {
@@ -152,6 +157,8 @@ func (repl *REPL) Eval(code *rdx.Iter) (out []byte, err error) {
 		local, oklocal := repl.vals[ref]
 		if oklocal {
 			switch local.(type) {
+			case rdx.RDX:
+				return local.(rdx.RDX), nil
 			case []byte:
 				return local.([]byte), nil
 			case rdx.Reader:
@@ -159,6 +166,10 @@ func (repl *REPL) Eval(code *rdx.Iter) (out []byte, err error) {
 			default:
 				return code.Record(), nil
 			}
+		}
+		proc, okproc := repl.pros[ref]
+		if okproc {
+			return repl.Call(proc, code)
 		}
 		ref.Src = repl.branch.Clock.Src
 		stored, _ := repl.branch.Get(ref)
@@ -181,6 +192,29 @@ func (repl *REPL) Eval(code *rdx.Iter) (out []byte, err error) {
 		}
 	}
 	return
+}
+
+func (repl *REPL) Call(proc Proc, args *rdx.Iter) (out []byte, err error) {
+	var eval rdx.Iter
+	eval, err = repl.evalArgs(args)
+	if err != nil {
+		return
+	}
+	parit := rdx.NewIter(proc.params)
+	for parit.Read() {
+		var pn rdx.ID
+		pn, err = pickId(parit)
+		if err != nil {
+			return
+		}
+		if !eval.Read() {
+			return nil, errors.New("argument is missing: " + string(pn.String()))
+		}
+		// todo save
+		repl.vals[pn] = eval.Record()
+	}
+	// todo clear
+	return repl.Evaluate(proc.body)
 }
 
 func (repl *REPL) Evaluate(code []byte) (out []byte, err error) {

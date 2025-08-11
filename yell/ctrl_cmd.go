@@ -148,7 +148,7 @@ func (sr *SeqReader) Read() bool {
 	}
 	return false
 }
-func (sr *SeqReader) Record() []byte {
+func (sr *SeqReader) Record() RDX {
 	return rdx.AppendInteger(nil, sr.i)
 }
 func (sr *SeqReader) Parsed() (lit byte, id rdx.ID, value []byte) {

@@ -581,6 +581,10 @@ func (rdx RDX) AppendTerm(val string) RDX {
 	return AppendTerm(rdx, []byte(val))
 }
 
+func (rdx RDX) AppendInteger(val int64) RDX {
+	return AppendInteger(rdx, val)
+}
+
 func (rdx RDX) AppendPLEX(lit byte, id ID, val RDX) (ret RDX) {
 	marks := make(Marks, 0, 1)
 	if len(val) <= 0xff {
@@ -618,13 +622,16 @@ var ErrBadReferenceRecord = errors.New("bad Reference record format")
 var ErrBadStringRecord = errors.New("bad String record format")
 var ErrBadTermRecord = errors.New("bad Term record format")
 
-func Normalize(rdx []byte) (norm []byte, err error) {
+// Normalizes a raw RDX input (all keys in order, no duplicates, no overlong
+// encoding, etc etc. Inputs that are *certainly* normalized get mentioned as
+// `rdx.RDX` while not-necessarily-normalized go as `[]byte`.
+func Normalize(rdx []byte) (RDX []byte, err error) {
 	data := make([]byte, 0, len(rdx))
 	stack := Marks{}
 	return normalize(data, rdx, CompareTuple, &stack)
 }
 
-func normalize(data, rdx []byte, z Compare, stack *Marks) (norm []byte, err error) {
+func normalize(data, rdx []byte, z Compare, stack *Marks) (norm RDX, err error) {
 	if len(rdx) == 0 {
 		return
 	}
@@ -812,6 +819,54 @@ func scan(it Iter, path Iter) (found RDX, err error) {
 	case Multix:
 		found, err = delve(it.Value(), path, CompareMultix)
 	default:
+		err = ErrRecordNotFound
+	}
+	return
+}
+
+var ErrNoKeyProvided = errors.New("no key provided")
+var ErrNotPLEX = errors.New("not a PLEX container element")
+
+func Pick(key, data RDX) (entry RDX, err error) {
+	dit := NewIter(data)
+	kit := NewIter(key)
+	if !kit.Read() {
+		return nil, ErrNoKeyProvided
+	}
+	if !dit.Read() {
+		return nil, ErrBadRecord
+	}
+	var z Compare
+	switch dit.Lit() {
+	case Tuple:
+		z = nil // fixme
+	case Linear:
+		z = CompareLinear
+	case Euler:
+		z = CompareEuler
+	case Multix:
+		z = CompareMultix
+	default:
+		return nil, ErrNotPLEX
+	}
+	it := NewIter(dit.Value())
+	i := Less
+	if z != nil {
+		for i < Eq && it.Read() {
+			i = z(&it, &kit)
+		}
+	} else {
+		k := kit.Integer()
+		for k >= 0 && it.Read() {
+			k--
+		}
+		if it.HasData() {
+			i = Eq
+		}
+	}
+	if i == Eq {
+		entry = it.Record()
+	} else {
 		err = ErrRecordNotFound
 	}
 	return
