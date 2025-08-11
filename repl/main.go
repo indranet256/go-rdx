@@ -9,7 +9,7 @@ import (
 	"github.com/gritzko/rdx"
 )
 
-func LoadJDR(path string) (cmds []byte, err error) {
+func LoadJDR(path string) (cmds rdx.RDX, err error) {
 	var file *os.File
 	file, err = os.Open(path)
 	if err != nil {
@@ -60,17 +60,41 @@ func EvalArgs(repl *REPL) (err error) {
 	return
 }
 
+func (repl *REPL) EvalFile(path string) (out rdx.RDX, err error) {
+	var code rdx.RDX
+	code, err = LoadJDR(path)
+	if err != nil {
+		return
+	}
+	return repl.Evaluate(code)
+}
+
+func FileExists(path string) bool {
+	f, e := os.Stat(path)
+	return e == nil && !f.IsDir()
+}
+
 func main() {
 	var err error
 	repl := NewREPL(Yell, nil)
 
-	if len(os.Args) > 1 {
-		err = EvalArgs(repl)
-	} else {
+	if len(os.Args) == 1 {
 		for err == nil {
 			err = repl.Loop(os.Stdin, os.Stdout)
 		}
+	} else if len(os.Args) == 2 && FileExists(os.Args[1]) {
+		var out, jdr []byte
+		out, err = repl.EvalFile(os.Args[1])
+		if err == nil {
+			jdr, _ = rdx.WriteAllJDR(nil, out, 0)
+			if len(jdr) > 0 {
+				fmt.Println(string(jdr))
+			}
+		}
+	} else {
+		err = EvalArgs(repl)
 	}
+
 	if err == Errturn {
 		err = nil
 	}

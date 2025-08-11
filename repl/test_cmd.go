@@ -1,0 +1,102 @@
+package main
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+
+	"github.com/gritzko/rdx"
+)
+
+var ErrBadTestEqArgs = errors.New("test.eq(comment, eval, correct)")
+
+func report(comment, correct, expr, fact rdx.RDX) string {
+	text := make([]byte, 0, 256)
+	text = appendTermEsc(text, DARK_BLUE)
+	text = append(text, comment...)
+	text = append(text, '\t')
+	if !bytes.Equal(fact, correct) {
+		text = appendTermEsc(text, DARK_RED)
+		text = append(text, "FAIL"...)
+		text = append(text, '\n')
+		text = appendTermEsc(text, LIGHT_GRAY)
+		text = append(text, "want\t"...)
+		text = appendTermEsc(text, DARK_GREEN)
+		jdrc, _ := rdx.WriteAllJDR(nil, correct, 0)
+		text = append(text, jdrc...)
+		text = append(text, '\n')
+		text = appendTermEsc(text, LIGHT_GRAY)
+		text = append(text, "have\t"...)
+		text = appendTermEsc(text, LIGHT_RED)
+		jdrv, _ := rdx.WriteAllJDR(nil, fact, 0)
+		text = append(text, jdrv...)
+		text = append(text, '\n')
+		text = appendTermEsc(text, LIGHT_GRAY)
+		text = append(text, "eval\t"...)
+		text = appendTermEsc(text, 0)
+		jdrev, _ := rdx.WriteAllJDR(nil, expr, 0)
+		text = append(text, jdrev...)
+	} else {
+		text = appendTermEsc(text, LIGHT_GREEN)
+		text = append(text, "OK"...)
+		text = appendTermEsc(text, 0)
+	}
+	return string(text)
+}
+
+func CmdTestEq(ctx *REPL, arg *rdx.Iter) (ret []byte, err error) {
+	var comment, correct, expr, fact []byte
+	if !arg.Read() {
+		return nil, ErrBadTestEqArgs
+	}
+	if arg.Lit() == rdx.String {
+		comment = arg.Value()
+		if !arg.Read() {
+			return
+		}
+	} else {
+		comment = []byte("unnamed test")
+	}
+	correct, err = ctx.Eval(arg)
+	if arg.Read() {
+		expr = arg.Record()
+		fact, err = ctx.Eval(arg)
+	} else {
+		fact = correct
+		correct = []byte{}
+	}
+	fmt.Println(report(comment, correct, expr, fact))
+	return nil, nil
+}
+
+func CmdTest(ctx *REPL, args *rdx.Iter) (ret []byte, err error) {
+	var eval, comment, correct, expr, fact []byte
+	if !args.Read() || args.Lit() != rdx.Tuple {
+		return nil, ErrBadTestEqArgs
+	}
+	expr = args.Value()
+	eit := rdx.NewIter(expr)
+	if eit.Peek() == rdx.String {
+		if !eit.Read() {
+			return
+		}
+		comment = eit.Value()
+	} else {
+		comment = []byte("unnamed test")
+	}
+	eval, err = ctx.Evaluate(eit.Rest())
+	res := rdx.NewIter(eval)
+	if !res.Read() {
+		return nil, ErrNoProcedureParams
+	}
+	correct = res.Record()
+	for res.Read() {
+		fact = res.Record()
+		if !bytes.Equal(correct, fact) {
+			fmt.Println(report(comment, correct, expr, fact))
+			return nil, nil
+		}
+	}
+	fmt.Println(report(comment, correct, expr, fact))
+	return nil, nil
+}

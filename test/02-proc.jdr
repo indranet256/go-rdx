@@ -1,0 +1,7 @@
+proc adder(a b) [
+    sum-int(a b)
+]
+
+test-eq("default call"
+        3
+        adder(1 2) )

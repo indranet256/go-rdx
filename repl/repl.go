@@ -33,6 +33,11 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{0, 886758584}: CmdPrint, // print(...)
 	rdx.ID{0, 667106793}: CmdClose, // close(closer) close()
 
+	rdx.ID{228977, 187576}: CmdSumInt, // sum-int(1 2 3 4)
+
+	rdx.ID{14851576, 2677}: CmdTestEq, // test-eq("comment" correct eval)
+	rdx.ID{0, 14851576}:    CmdTest,   // test("comment" correct eval)
+
 	rdx.ID{12770808, 10185583}:  CmdListBrik, // list-brik
 	rdx.ID{667106793, 10185583}: CmdClose,    // close-brik
 	rdx.ID{12770808, 10185596}:  CmdListBrix, // list-brix
@@ -272,13 +277,13 @@ func (repl *REPL) Loop(reader io.Reader, writer io.Writer) (err error) {
 	return
 }
 
-func appendtermEsc(data []byte, code int) []byte {
+func appendTermEsc(data []byte, code int) []byte {
 	return append(data, []byte(fmt.Sprintf("\x1b[%dm", code))...)
 }
 
 func TermEsc(code int) []byte {
 	ret := make([]byte, 0, 16)
-	return appendtermEsc(ret, code)
+	return appendTermEsc(ret, code)
 }
 
 func (repl *REPL) InitTerm() {
@@ -317,6 +322,9 @@ func (repl *REPL) InitTerm() {
 	repl.vals[rdx.ParseIDString("LIGHT_PINK_BG")] = rdx.AppendString(nil, TermEsc(105))
 	repl.vals[rdx.ParseIDString("LIGHT_CYAN_BG")] = rdx.AppendString(nil, TermEsc(106))
 	repl.vals[rdx.ParseIDString("LIGHT_GRAY_BG")] = rdx.AppendString(nil, TermEsc(107))
+
+	repl.vals[rdx.ParseIDString("__version")] = rdx.S0("RDXLisp v0.0.1")
+
 	return
 }
 
