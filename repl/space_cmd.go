@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/ed25519"
-	"encoding/hex"
 	"os"
 
 	"github.com/gritzko/rdx"
@@ -14,22 +13,26 @@ const IdEd25519SecKeySeq = 1152919967043440713
 const IdSha256SumSeq = 1150584288716750449
 const IdEd25519SignSeq = 1152823100548846199
 
-// branch-seq -> {title:"some commit",sha:ae26b48..., ~:aaa}
-// branch-0 -> {title:"somebranch", key:5b93... commits:[], ~:aaa}
-// space-0 -> {title:"somespace", type:space, braches:<>, ~:aaa}
-// HANDLE.space  space-0 -> {peers:{}...} // local info
-// BRANCH.branch branch-0 -> {~~~ed25519:bbb} // author's metainfo
-
-// space-new mybranch "here I try things" -> pubkey
+// space: < (@bE4Kc2Ofc-23b2 "crypto" "Changes to the yell crypto API" pubkey), ...>
+// branch: { (@bE4Kc2Ofc-23bd "Author B" "Ed25519 extended" hash) }
+// make-space(handle "description")
 func CmdMakeSpace(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	handle := ""
-	if args.Peek() == rdx.Term && args.Read() {
-		handle = string(args.Value())
+	if !args.Read() {
+		return nil, ErrNoArgument
 	}
-	title := "just a branch"
-	if args.Peek() == rdx.String && args.Read() {
-		title = string(args.Value())
+	var handle uint64
+	handle, err = repl.pickHandle(*args)
+	if err != nil {
+		return
 	}
+	legend := "some space"
+	if args.Read() {
+		legend, err = pickString(*args)
+		if err != nil {
+			return
+		}
+	}
+	//todo args.Rest()
 	var stat os.FileInfo
 	stat, err = os.Stat(rdx.BrixPath)
 	if err != nil {
@@ -46,13 +49,10 @@ func CmdMakeSpace(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if err != nil {
 		return
 	}
-	if len(handle) == 0 {
-		i := keys.KeyLet()
-		handle = string(rdx.RON64String(i & rdx.Mask60bit))
-	}
-	sha, err := rdx.MakeSpace(handle, title, recs, &keys)
-	out = rdx.AppendTerm(out, []byte(hex.EncodeToString(keys.Pub)))
-	out = rdx.AppendTerm(out, []byte(hex.EncodeToString(sha[:])))
+
+	_, err = rdx.MakeSpace(handle, legend, recs, &keys)
+
+	out = rdx.R0(rdx.ID{keys.KeyLet(), 0})
 	return
 }
 
@@ -65,12 +65,15 @@ func CmdOpenSpace(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		_ = repl.branch.Close()
 	}
 	var id rdx.ID
-	id, err = pickId(*args)
+	id, err = pickID(*args)
 	if id.Src == 0 {
 		id.Src, id.Seq = id.Seq, id.Src
 	}
 	if err == nil {
 		err = repl.space.Open(id)
+	}
+	if err == nil {
+		err = repl.space.LoadCreds(id.Src)
 	}
 	return
 }

@@ -13,7 +13,7 @@ import (
 
 var ErrNotAVariable = errors.New("the argument is not a variable")
 
-func pickId(at rdx.Iter) (id rdx.ID, err error) {
+func pickID(at rdx.Iter) (id rdx.ID, err error) {
 	switch at.Lit() {
 	case rdx.Integer:
 		str := fmt.Sprintf("%d", rdx.UnzipInt64(at.Value()))
@@ -73,7 +73,7 @@ func CmdVar(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		return nil, ErrNotAVariable
 	}
 	var n rdx.ID
-	n, err = pickId(*args)
+	n, err = pickID(*args)
 	if err != nil {
 		return
 	}
@@ -99,7 +99,7 @@ func CmdProc(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		return nil, ErrNoProcedureName
 	}
 	var name rdx.ID
-	name, err = pickId(*args)
+	name, err = pickID(*args)
 	if err != nil {
 		return
 	}
@@ -169,9 +169,12 @@ func CmdPrint(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		if !gotunder {
 			return nil, ErrNoArgument
 		}
-		b, ok := under.([]byte)
+		b, ok := under.(rdx.RDX)
 		if !ok {
-			return nil, ErrNotAVariable
+			b, ok = under.([]byte)
+			if !ok {
+				return nil, ErrNotAVariable
+			}
 		}
 		eval = b
 	} else {
@@ -251,10 +254,10 @@ func CmdFor(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 			return nil, ErrNoLoopVariable
 		}
 	}
-	spec, err = pickId(ait)
+	spec, err = pickID(ait)
 	if err == nil && ait.Read() {
 		loopVar = spec
-		spec, err = pickId(ait)
+		spec, err = pickID(ait)
 	}
 	if err != nil {
 		return
@@ -321,10 +324,10 @@ func CmdRead(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	varId := rdx.ID0
 	var readerId rdx.ID
 	if len(it.Rest()) != 0 {
-		varId, err = pickId(it)
+		varId, err = pickID(it)
 	}
 	if err == nil {
-		readerId, err = pickId(it)
+		readerId, err = pickID(it)
 	}
 	if err != nil {
 		return
@@ -374,7 +377,7 @@ func CmdSeq(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		return nil, ErrNoArgument
 	}
 	if inner.Lit() != rdx.Integer {
-		id, err = pickId(inner)
+		id, err = pickID(inner)
 		if err != nil {
 			return
 		}
@@ -434,7 +437,7 @@ func CmdClose(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 			return nil, ErrNoArgument
 		}
 	}
-	id, err = pickId(it)
+	id, err = pickID(it)
 
 	a, ok := repl.vals[id]
 	if !ok {
@@ -452,7 +455,7 @@ func CmdClose(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 func CmdIdNow(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	var id rdx.ID
 	if args.Read() {
-		id, _ = pickId(*args)
+		id, _ = pickID(*args)
 		if id.Src == 0 {
 			id.Src, id.Seq = id.Seq, id.Src
 		}

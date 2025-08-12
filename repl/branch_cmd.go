@@ -7,50 +7,69 @@ import (
 	"github.com/gritzko/rdx"
 )
 
-// make-branch -> s4a35Rlh6N
+func (repl *REPL) pickHandle(args rdx.Iter) (handle uint64, err error) {
+	var id rdx.ID
+	id, err = pickID(args)
+	if err != nil || id.Src != 0 || id.Seq == 0 {
+		err = ErrBadArguments
+	} else {
+		handle = id.Seq
+	}
+	return
+}
+
+// space: < (@bE4Kc2Ofc-23b2 crypto "Changes to the yell crypto API" pubkey), ...>
+// branch: { (@bE4Kc2Ofc-23bd tag "Ed25519 extended" hash) }
+// make-branch(handle mission)
 func CmdMakeBranch(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if !repl.space.IsOpen() {
 		return nil, ErrNoSpaceOpen
 	}
-	handle := ""
-	if args.Peek() == rdx.Term && args.Read() {
-		handle = string(args.Value())
+	if !args.Read() {
+		return nil, ErrNoArgument
 	}
-	title := "just a branch"
-	if args.Peek() == rdx.String && args.Read() {
-		title = string(args.Value())
+	var handle uint64
+	handle, err = repl.pickHandle(*args)
+	if err != nil {
+		return
+	}
+	legend := "some branch"
+	if args.Read() {
+		legend, err = pickString(*args)
+		if err != nil {
+			return
+		}
 	}
 	recs := make(rdx.Stage)
 	if repl.branch.Stage != nil {
 		recs, repl.branch.Stage = repl.branch.Stage, recs
 	}
 	keys := rdx.MakeKeypair()
-	if len(handle) == 0 {
+	/*if len(handle) == 0 {
 		i := keys.KeyLet()
 		handle = string(rdx.RON64String(i & rdx.Mask60bit))
-	}
-	var sha rdx.Sha256
-	sha, err = rdx.MakeBranch(handle, title, recs, &keys)
+	}*/
+	_, err = rdx.MakeBranch(handle, legend, recs, &keys, false)
 	if err != nil {
 		return
 	}
 
 	spaceId := rdx.ID{repl.space.Clock.Src, 0}
-	branchId := rdx.ID{keys.KeyLet(), 0}
+	branchId := rdx.ID{Src: keys.KeyLet()}
 	err = repl.space.Add(
-		rdx.E(spaceId,
-			rdx.P0(rdx.T0("branches"), rdx.X0(rdx.S(branchId, title))),
+		rdx.X(spaceId,
+			rdx.P(branchId,
+				rdx.R0(rdx.ID{handle, 0}), rdx.S0(legend), rdx.S0(hex.EncodeToString(keys.Pub)),
+			),
 		))
-	if err != nil {
-		return
+	if err == nil {
+		_, err = repl.space.Seal()
 	}
-	_, err = repl.space.Seal()
 	if err != nil {
 		return
 	}
 
-	out = rdx.AppendTerm(out, []byte(hex.EncodeToString(keys.Pub)))
-	out = rdx.AppendTerm(out, []byte(hex.EncodeToString(sha[:])))
+	out = rdx.R0(branchId)
 	return
 }
 
@@ -83,7 +102,7 @@ func CmdOpen(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if !it.Read() {
 		err = ErrNoArgument
 	}
-	id, err = pickId(it)
+	id, err = pickID(it)
 	if err != nil {
 		return
 	}
@@ -92,7 +111,7 @@ func CmdOpen(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		return
 	}
 	if it.Read() {
-		id, err = pickId(it)
+		id, err = pickID(it)
 		if err != nil {
 			return
 		}
@@ -124,7 +143,7 @@ func CmdAdd(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		id = eval.ID()
 		added = eval.Record()
 	} else {
-		id, err = pickId(eval)
+		id, err = pickID(eval)
 		if !eval.Read() {
 			return nil, ErrNoArgument
 		}

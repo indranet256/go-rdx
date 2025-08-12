@@ -40,6 +40,27 @@ func pickHash(at rdx.Iter) (sha rdx.Sha256, err error) {
 }
 
 func (repl *REPL) pickBrik(at rdx.Iter) (brik *rdx.Brik, err error) {
+	brik = &rdx.Brik{}
+	
+	if at.Lit() == rdx.Reference {
+		id := at.Reference()
+		pre, has := repl.vals[id]
+		if has {
+			prebrik, ok := pre.(*rdx.Brik)
+			if ok {
+				return prebrik, nil
+			} else {
+				return nil, ErrBadVariableType
+			}
+		}
+		path := rdx.TipPath(id.Src)
+		err = brik.OpenByPath(path)
+		if err == nil {
+			repl.vals[id] = brik
+		}
+		return brik, err
+	}
+
 	var hashlet string
 	hashlet, err = pickString(at)
 	id, _ := rdx.ParseID([]byte(hashlet))
@@ -53,7 +74,6 @@ func (repl *REPL) pickBrik(at rdx.Iter) (brik *rdx.Brik, err error) {
 		var sha rdx.Sha256
 		sha, err = rdx.FindByHashlet(hashlet)
 		if err == nil {
-			brik = &rdx.Brik{}
 			err = brik.OpenByHash(sha)
 		}
 		if err == nil {

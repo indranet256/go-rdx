@@ -101,7 +101,7 @@ type BrikHeader struct {
 
 const BrixIndexEntryLen = 32
 const BrixHeaderLen = 32
-const BrixMagic = "BRIX0001"
+const BrixMagic = "BRIXv001"
 
 func (hdr BrikHeader) AppendBinary(to []byte) ([]byte, error) {
 	to = append(to, BrixMagic...)
@@ -290,8 +290,8 @@ func FindByHashlet(hashlet string) (sha Sha256, err error) {
 
 func (brik *Brik) findPage(id ID) int {
 	return sort.Search(len(brik.Index), func(ndx int) bool {
-		return brik.Index[ndx].From.Compare(id) >= Eq
-	})
+		return brik.Index[ndx].From.Compare(id) > Eq
+	}) - 1
 }
 
 func (brik *Brik) loadPage(i int) (page []byte, err error) {
@@ -333,9 +333,9 @@ func (brik *Brik) LoadPage(ndx int) (err error) {
 	return
 }
 
-func (brik *Brik) Get(id ID) (record []byte, err error) {
+func (brik *Brik) Get(id ID) (record RDX, err error) {
 	i := brik.findPage(id)
-	if i == len(brik.Index) || !brik.Index[i].MayHaveID(id) {
+	if i < 0 || !brik.Index[i].MayHaveID(id) {
 		return nil, ErrRecordNotFound
 	}
 	if brik.At == nil || i != brik.At.pagendx || brik.At.host == nil {
@@ -556,9 +556,8 @@ func (brik *Brik) Reader() (reader BrikReader, err error) {
 func (brik *Brik) Seek(id ID) (reader BrikReader, err error) {
 	reader.host = brik
 	reader.pagendx = brik.findPage(id)
-	if reader.pagendx >= len(brik.Index) {
-		err = ErrRecordNotFound
-		return
+	if reader.pagendx < 0 {
+		reader.pagendx = 0 // seek eq or greater
 	}
 	var page []byte
 	page, err = brik.loadPage(reader.pagendx)

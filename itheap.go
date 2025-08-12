@@ -80,6 +80,14 @@ func (it *Iter) HasFailed() bool {
 	return it.errndx > 0
 }
 
+func (it *Iter) Into() bool {
+	if !IsPLEX(it.Lit()) {
+		return false
+	}
+	*it = NewIter(it.Value())
+	return true
+}
+
 func (it *Iter) Read() bool {
 	if len(it.data) == 0 || it.errndx > 0 {
 		return false

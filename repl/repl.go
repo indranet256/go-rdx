@@ -49,15 +49,15 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{12770808, 10185596}:  CmdListBrix, // list-brix
 	rdx.ID{667106793, 10185596}: CmdClose,    // close-brix
 
-	rdx.ID{12999657, 41718065644}: CmdMakeBranch, // make-branch
+	rdx.ID{12999657, 41718065644}: CmdMakeBranch, // make-branch(handle "mission")
 
-	rdx.ID{12999657, 2860483104841}:    CmdCryptoKeyGen,
-	rdx.ID{14605042, 2860483104841}:    CmdCryptoSign,
-	rdx.ID{62979234493, 2860483104841}: CmdCryptoVerify,
+	rdx.ID{12999657, 2860483104841}:    CmdCryptoKeyGen, // make-ed25519
+	rdx.ID{14605042, 2860483104841}:    CmdCryptoSign,   // sign-ed25519
+	rdx.ID{62979234493, 2860483104841}: CmdCryptoVerify, // verify-ed25519
 
-	rdx.ID{12999657, 207483}:    CmdMakeSpace, // make-space
-	rdx.ID{13585010, 936532457}: CmdOpenSpace, // open-space
-	rdx.ID{0, 936532457}:        CmdOpenSpace, // space
+	rdx.ID{12999657, 936532457}: CmdMakeSpace, // make-space(handle "description")
+	rdx.ID{13585010, 936532457}: CmdOpenSpace, // open-space(handle)
+	rdx.ID{0, 936532457}:        CmdOpenSpace, // space handle
 	rdx.ID{14601467, 936532457}: CmdShowSpace, // show-space
 
 	rdx.ID{0xb68, 0x2dcb8}: CmdIdInt, // id-int
@@ -221,7 +221,7 @@ func (repl *REPL) Call(proc Proc, args *rdx.Iter) (out []byte, err error) {
 	parit := rdx.NewIter(proc.params)
 	for parit.Read() {
 		var pn rdx.ID
-		pn, err = pickId(parit)
+		pn, err = pickID(parit)
 		if err != nil {
 			return
 		}

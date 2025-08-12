@@ -9,10 +9,11 @@ import (
 )
 
 type Branch struct {
-	Brix  Brix
-	Clock ID
-	Tip   Brik
-	Stage Stage
+	Brix   Brix
+	Clock  ID
+	Tip    Brik
+	Stage  Stage
+	Handle uint64
 }
 
 type KeyPair struct {
@@ -25,44 +26,19 @@ func MakeKeypair() (keys KeyPair) {
 	return
 }
 
+func (pair *KeyPair) PubRDX() RDX {
+	return P0(S0(hex.EncodeToString(pair.Pub)))
+}
+
+func (pair *KeyPair) RDX() RDX {
+	return P0(S0(hex.EncodeToString(pair.Pub)), S0(hex.EncodeToString(pair.Sec)))
+}
+
 func (pair *KeyPair) KeyLet() uint64 {
 	return binary.LittleEndian.Uint64(pair.Pub) & Mask60bit
 }
 
 var ID0 = ID{}
-
-func MakeBranch(handle, title string,
-	recs Stage, keys *KeyPair) (sha Sha256, err error) {
-	id := ID{keys.KeyLet(), 0}
-	pub := hex.EncodeToString(keys.Pub)
-	err = recs.Add(E(id,
-		P0(T0("ed25519pub"), S0(pub)),
-		P0(T0("id"), S0(handle)),
-		P0(T0("title"), S0(title)),
-		// todo clock type, other things
-	))
-	if err != nil {
-		return
-	}
-	var tipsha Sha256
-	sha, err = MakeBrik([]Sha256{}, recs)
-	if err != nil {
-		return
-	}
-	private := make(Stage)
-	sec := hex.EncodeToString(keys.Sec)
-	err = private.Add(E(id,
-		P0(T0("ed25519sec"), S0(sec)),
-	))
-	tipsha, err = MakeBrik([]Sha256{sha}, private)
-	if err != nil {
-		return
-	}
-	hashfn := BrikPath(tipsha)
-	handfn := TipPath(keys.KeyLet())
-	err = os.Rename(hashfn, handfn)
-	return
-}
 
 func TipPath(src uint64) string {
 	return BrixPath + string(RON64String(src)) + BrixFileExt
@@ -85,7 +61,6 @@ func pickClock(src uint64, clock RDX) (c ID) {
 	return
 }
 
-// read-only branch
 func (b *Branch) Open(id ID) (err error) {
 	if id.Src == 0 && id.Seq != 0 { // notational: branch, not branch-0
 		id.Src, id.Seq = id.Seq, 0
@@ -98,11 +73,7 @@ func (b *Branch) Open(id ID) (err error) {
 	if err != nil {
 		return
 	}
-	var clock RDX
-	clock, _ = b.Tip.Get(ClockID)
-	if len(clock) > 0 {
-		b.Clock = pickClock(id.Src, clock)
-	}
+
 	reflen := len(b.Tip.Meta)
 	if reflen > 2 {
 		return ErrBadTipFormat
@@ -226,6 +197,14 @@ func (b *Branch) Stash(filename string) (err error) {
 
 // Commits the staged part
 func (b *Branch) Seal() (sha Sha256, err error) {
+	if b.Clock.Src == 0 {
+		return Sha256{}, errors.New("the branch is not writable")
+	}
+	b.Clock.Seq++ // todo
+	if len(b.Stage) == 0 {
+		err = errors.New("no staged changes")
+		return
+	}
 	tipStage := make(Stage)
 	err = b.Tip.ToStage(tipStage)
 	if err != nil {
@@ -237,14 +216,24 @@ func (b *Branch) Seal() (sha Sha256, err error) {
 	if err != nil {
 		return
 	}
-	// fixme clock
+	// todo clock
+	metaId := ID{b.Clock.Src, 0}
+	var meta RDX
+	meta, err = b.Tip.Get(metaId)
+	if err != nil || !IsPLEX(Peek(meta)) {
+		err = errors.New("the meta record is missing")
+		return
+	}
+	var edited RDX
+	edit := X(metaId, P(metaId, R0(ID{b.Handle, b.Clock.Seq})))
+	edited, err = Merge(nil, [][]byte{meta, edit})
 	tipdeps := []Sha256{sha}
-	_ = tipStage.Add(X(ClockID, T(b.Clock, "sealed")))
+	_ = tipStage.Add(edited)
 	tipSha, err = MakeBrik(tipdeps, tipStage)
 	if err != nil {
 		return
 	}
-	err = os.Rename(BrikPath(tipSha), TipPath(b.Clock.Src))
+	err = os.Rename(BrikPath(tipSha), TipPath(b.Handle))
 	if err != nil {
 		return
 	}
@@ -253,7 +242,8 @@ func (b *Branch) Seal() (sha Sha256, err error) {
 		return
 	}
 	_ = b.Tip.Close()
-	err = b.Tip.OpenByHash(tipSha)
+	err = b.Tip.OpenByPath(TipPath(b.Handle))
+	// TODO sign it
 	return
 }
 
