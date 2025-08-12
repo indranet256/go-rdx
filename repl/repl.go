@@ -51,6 +51,10 @@ var Yell = map[rdx.ID]Command{
 
 	rdx.ID{12999657, 41718065644}: CmdMakeBranch, // make-branch
 
+	rdx.ID{12999657, 2860483104841}:    CmdCryptoKeyGen,
+	rdx.ID{14605042, 2860483104841}:    CmdCryptoSign,
+	rdx.ID{62979234493, 2860483104841}: CmdCryptoVerify,
+
 	rdx.ID{12999657, 207483}:    CmdMakeSpace, // make-space
 	rdx.ID{13585010, 936532457}: CmdOpenSpace, // open-space
 	rdx.ID{0, 936532457}:        CmdOpenSpace, // space
@@ -59,9 +63,7 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{0xb68, 0x2dcb8}: CmdIdInt, // id-int
 	rdx.ID{0xb68, 208123}:  CmdIdNow, // id-now
 
-	rdx.ID{42798108211, 11689452}:    CmdCryptoHash, // crypto-hash
-	rdx.ID{42798108211, 59803705670}: CmdCryptoHash, // crypto-sha256
-	rdx.ID{0, 59803705670}:           CmdCryptoHash, // 0-sha256
+	rdx.ID{228977, 59803705670}: CmdSumSha256, // sum-sha256
 
 	rdx.ID{3319, 62054915247}:   CmdOsUnlink,  // os-unlink
 	rdx.ID{178808, 166774}:      CmdGetDir,    // get-dir

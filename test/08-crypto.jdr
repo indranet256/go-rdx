@@ -1,4 +1,8 @@
-test:eq("Hash an empty tuple"
-	7ca0c90edcd9a803aa91d4279e1a77c272804880bbe9daae40e65eb690e9d968
-	crypto:hash(())
+test("Hash an empty tuple"
+	"7ca0c90edcd9a803aa91d4279e1a77c272804880bbe9daae40e65eb690e9d968"
+	sum-sha256(~ ())
 	)
+
+var keys make-ed25519(); 
+var sign sign-ed25519(keys {a:1});
+test-eq("verify Ed25519", OK, verify-ed25519(keys, sign)); 
