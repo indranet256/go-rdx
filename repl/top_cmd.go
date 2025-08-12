@@ -44,6 +44,30 @@ func CmdExit(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return nil, Errturn
 }
 
+func CmdLen(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if !args.Read() {
+		return nil, ErrNoArgument
+	}
+	var l int64
+	var a = *args
+	if a.Lit() == rdx.Tuple {
+		a = rdx.NewIter(args.Value())
+		a.Read()
+	}
+	if !a.HasData() {
+		l = 0
+	} else if !rdx.IsPLEX(a.Lit()) {
+		l = 1
+	} else {
+		it := rdx.NewIter(a.Value())
+		for it.Read() {
+			l++
+		}
+	}
+	out = rdx.I0(l)
+	return
+}
+
 func CmdVar(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if !args.Read() {
 		return nil, ErrNotAVariable

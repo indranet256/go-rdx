@@ -15,6 +15,7 @@ var ErrNoBranchOpen = errors.New("no branch open")
 type Command func(repl *REPL, args *rdx.Iter) (out []byte, err error)
 
 var Yell = map[rdx.ID]Command{
+	rdx.ID{0, 199282}:          CmdLen,      // len [1 2 3] -> 3
 	rdx.ID{0, 239990}:          CmdVar,      // var i 0
 	rdx.ID{0, 58684841394}:     CmdReturn,   // return true
 	rdx.ID{0x0, 0xa7cb78}:      CmdExit,     // exit

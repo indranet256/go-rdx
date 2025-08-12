@@ -1,10 +1,15 @@
-test("float" 123.0 1.23e2)
-test("int" 12 12)
-test("string" "same" "same")
+test("float    " 123.0 1.23e2)
+test("int      " 12 12)
+test("string   " "same" "same")
 test("empty tuples" (()1()()) (,1,,) )
 
 var A "Aaa"
-test("set()" ("Aaa" "Aaa") (A A))
+test("set()    " ("Aaa" "Aaa") (A A))
+
+test("len(plex)" 3 len {a b c})
+test("len(plex)" 3 len({a b c}))
+test("len()    " 0 len())
+test("len(first)" 1 len 123)
 
 test("semicolon1" (1 2 3), 1 2 3;)
 test("semicolon2" (1 2 3), 1:2:3;)
