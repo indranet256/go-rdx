@@ -30,6 +30,16 @@ func pickId(at rdx.Iter) (id rdx.ID, err error) {
 	return
 }
 
+func CmdReturn(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if args.Read() {
+		out, err = repl.Eval(args)
+	}
+	if err == nil {
+		err = Errturn
+	}
+	return
+}
+
 func CmdExit(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return nil, Errturn
 }
@@ -91,6 +101,20 @@ func CmdString(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		tmp = append(tmp, args.String()...)
 	}
 	out, err = rdx.CloseTLV(tmp, rdx.String, &stack)
+	return
+}
+
+func CmdVerbatim(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if args.Read() {
+		out = append(out, args.Record()...)
+	}
+	return
+}
+
+const elseId = 10948073
+
+func CmdIf(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	// todo
 	return
 }
 

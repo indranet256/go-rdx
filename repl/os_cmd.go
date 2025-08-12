@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/gritzko/rdx"
 	"os"
+
+	"github.com/gritzko/rdx"
 )
 
 type OsCallBack func(data []byte, path string) (out []byte, err error)
@@ -42,16 +43,7 @@ func CmdOsUnlink(ctx *REPL, args *rdx.Iter) (out []byte, err error) {
 	})
 }
 
-func CmdOsMkTmpDir(ctx *REPL, args *rdx.Iter) (out []byte, err error) {
-	return osScan(args, func(data []byte, path string) (out []byte, err error) {
-		var fact string
-		fact, err = os.MkdirTemp("", path)
-		out = rdx.AppendString(data, []byte(fact))
-		return
-	})
-}
-
-func CmdOsPwd(ctx *REPL, args *rdx.Iter) (out []byte, err error) {
+func CmdGetDir(ctx *REPL, args *rdx.Iter) (out []byte, err error) {
 	if args.Peek() == rdx.Tuple {
 		args.Read()
 	}
@@ -63,19 +55,31 @@ func CmdOsPwd(ctx *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
-func CmdOsMkDir(ctx *REPL, arg *rdx.Iter) (out []byte, err error) {
-	return osScan(arg, func(data []byte, path string) (out []byte, err error) {
-		return nil, os.Mkdir(path, 0777)
-	})
+func CmdMakeDir(ctx *REPL, arg *rdx.Iter) (out []byte, err error) {
+	var fact string
+	if !arg.Read() {
+		fact, err = os.MkdirTemp("", "yell*")
+	} else {
+		fact, err = pickString(*arg)
+		err = os.Mkdir(fact, 0777)
+	}
+	if err == nil {
+		out = rdx.AppendString(out, []byte(fact))
+	}
+	return
 }
 
-func CmdOsChDir(ctx *REPL, arg *rdx.Iter) (out []byte, err error) {
-	return osScan(arg, func(data []byte, path string) (out []byte, err error) {
+func CmdChangeDir(ctx *REPL, arg *rdx.Iter) (out []byte, err error) {
+	out, err = osScan(arg, func(data []byte, path string) (out []byte, err error) {
 		return nil, os.Chdir(path)
 	})
+	var path string
+	path, _ = os.Getwd()
+	out = rdx.AppendString(out, []byte(path))
+	return
 }
 
-func CmdOsLsDir(ctx *REPL, arg *rdx.Iter) (out []byte, err error) {
+func CmdListDir(ctx *REPL, arg *rdx.Iter) (out []byte, err error) {
 	return osScan(arg, func(data []byte, path string) (out []byte, err error) {
 		if path == "" {
 			path = "."

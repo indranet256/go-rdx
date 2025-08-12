@@ -15,17 +15,21 @@ var ErrNoBranchOpen = errors.New("no branch open")
 type Command func(repl *REPL, args *rdx.Iter) (out []byte, err error)
 
 var Yell = map[rdx.ID]Command{
-	rdx.ID{0, 239990}:      CmdVar,    // var i 0
-	rdx.ID{0x0, 0xa7cb78}:  CmdExit,   // exit
-	rdx.ID{0, 60009667755}: CmdString, // string
-	rdx.ID{0, 12770808}:    CmdList,   // list({val}) list(val1 val2 val3)
-	rdx.ID{0, 178808}:      CmdGet,    // get(id)
-	rdx.ID{0, 216696}:      CmdPut,    // put(val)
-	rdx.ID{0, 227960}:      CmdSet,    // set({@id}) set(id val)
-	rdx.ID{0, 154152}:      CmdAdd,    // add({@id}) add(id {val})
-	rdx.ID{0, 13585010}:    CmdOpen,   // open(space branch)
-	rdx.ID{0, 13818351}:    CmdPick,   // pick(a {a:1 b:2}) -> a:1
-	rdx.ID{0, 13855975}:    CmdProc,   // proc Fn(p1 p2 p3) [ ...code...]
+	rdx.ID{0, 239990}:          CmdVar,      // var i 0
+	rdx.ID{0, 58684841394}:     CmdReturn,   // return true
+	rdx.ID{0x0, 0xa7cb78}:      CmdExit,     // exit
+	rdx.ID{0, 60009667755}:     CmdString,   // string
+	rdx.ID{0, 12770808}:        CmdList,     // list({val}) list(val1 val2 val3)
+	rdx.ID{0, 178808}:          CmdGet,      // get(id)
+	rdx.ID{0, 216696}:          CmdPut,      // put(val)
+	rdx.ID{0, 227960}:          CmdSet,      // set({@id}) set(id val)
+	rdx.ID{0, 154152}:          CmdAdd,      // add({@id}) add(id {val})
+	rdx.ID{0, 13585010}:        CmdOpen,     // open(space branch)
+	rdx.ID{0, 13818351}:        CmdPick,     // pick(a {a:1 b:2}) -> a:1
+	rdx.ID{0, 13855975}:        CmdProc,     // proc Fn(p1 p2 p3) [ ...code...]
+	rdx.ID{0, 2922}:            CmdIf,       // if eq(a b) [...] else [...]
+	rdx.ID{0, 63}:              CmdVerbatim, // ~{a:b}
+	rdx.ID{0, 257962825714545}: CmdVerbatim, // verbatim {a:b}
 
 	rdx.ID{0, 14326120}:  CmdRead,  // read(rdr)
 	rdx.ID{0, 175350}:    CmdFor,   // for(rdr)[code]
@@ -58,13 +62,12 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{42798108211, 59803705670}: CmdCryptoHash, // crypto-sha256
 	rdx.ID{0, 59803705670}:           CmdCryptoHash, // 0-sha256
 
-	rdx.ID{3319, 62054915247}:     CmdOsUnlink,   // os-unlink
-	rdx.ID{3319, 216808}:          CmdOsPwd,      // os-pwd
-	rdx.ID{3319, 834571126}:       CmdOsMkDir,    // os-mkdir
-	rdx.ID{3319, 3127}:            CmdOsLsDir,    // os-ls
-	rdx.ID{3319, 834636916}:       CmdOsMkTmpDir, // os-mktmp
-	rdx.ID{3319, 218795059874678}: CmdOsMkTmpDir, // os-mktmpdir
-	rdx.ID{3319, 2536}:            CmdOsChDir,    // os-cd
+	rdx.ID{3319, 62054915247}:   CmdOsUnlink,  // os-unlink
+	rdx.ID{178808, 166774}:      CmdGetDir,    // get-dir
+	rdx.ID{12999657, 166774}:    CmdMakeDir,   // make-dir
+	rdx.ID{12770808, 166774}:    CmdListDir,   // list-dir
+	rdx.ID{42624035561, 166774}: CmdChangeDir, // change-dir
+
 }
 
 type REPL struct {
@@ -243,9 +246,9 @@ func (repl *REPL) Evaluate(code []byte) (out []byte, err error) {
 		one, err = repl.Eval(&it)
 		if err == Errturn {
 			out = one
-			break
+		} else {
+			out = append(out, one...)
 		}
-		out = append(out, one...)
 	}
 	return
 }

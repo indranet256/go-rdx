@@ -8,7 +8,7 @@ import (
 	"github.com/gritzko/rdx"
 )
 
-var ErrBadTestEqArgs = errors.New("test.eq(comment, eval, correct)")
+var ErrBadTestEqArgs = errors.New("test-eq(comment, correct, eval)")
 
 func report(comment, correct, expr, fact rdx.RDX) string {
 	text := make([]byte, 0, 256)
