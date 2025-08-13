@@ -1,28 +1,28 @@
-test:eq (
+test-eq (
       "Normalize a set of integers"
       {1 2 3 4 5@1 6 7 8}
-      rdx:normalize({8 5@1 7 2 6 1 4 3})
+      normal-rdx({8 5@1 7 2 6 1 4 3})
       )
 
-test:eq (
+test-eq (
         "Normalize a map with integer keys"
         {1:"one" 2:"two" 3:"three"}
-        rdx:normalize({3:"three" 1:"one" 2:"two"})
+        normal-rdx({3:"three" 1:"one" 2:"two"})
     )
 
-test:eq (
+test-eq (
         "Normalize a version vector"
         <56@Bob-88 23@Alice-6>
-        rdx:normalize(<23@Alice-6 56@Bob-88>)
+        normal-rdx(<23@Alice-6 56@Bob-88>)
         )
 
-test:eq (
+test-eq (
         "Normalize an array (good luck with that)"
         [ 1 2 33 4 5 ]
-        rdx:normal([ 1 2 33 4 5 ])
+        normal-rdx([ 1 2 33 4 5 ])
         )
 
-test:eq("Normalize a deeply nested map"
+test-eq("Normalize a deeply nested map"
 	{ 1 2:3 {4:5}}
-	rdx:norm({ 1 {4:5} 2:3})
+	normal-rdx({ 1 {4:5} 2:3})
 	)

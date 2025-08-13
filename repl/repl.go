@@ -41,6 +41,9 @@ var Yell = map[rdx.ID]Command{
 
 	rdx.ID{228977, 187576}: CmdSumInt, // sum-int(1 2 3 4)
 
+	rdx.ID{11209080, 223804}:    CmdFlatRDX,   // flat-rdx {@a-2 b@1 c d@e-3}
+	rdx.ID{54557088112, 223804}: CmdNormalRDX, // normal-rdx { a a a}
+
 	rdx.ID{14851576, 2677}:   CmdTestEq,  // test-eq("comment" correct eval)
 	rdx.ID{14851576, 154672}: CmdTestAll, // test-all("comment" correct eval)
 
