@@ -134,9 +134,6 @@ func CmdAdd(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if err != nil {
 		return
 	}
-	if !eval.Read() {
-		return nil, ErrNoArgument
-	}
 	var added []byte
 	var id rdx.ID
 	if rdx.IsPLEX(eval.Lit()) {
@@ -188,6 +185,7 @@ func CmdSet(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
+// todo is it OK that the returned iterator is positioned?
 func (repl *REPL) evalArgs(args *rdx.Iter) (eval rdx.Iter, err error) {
 	if !args.Read() {
 		err = ErrNoArgument
@@ -253,8 +251,11 @@ func (repl *REPL) pickEvalId(args *rdx.Iter) (id rdx.ID, rest rdx.RDX, err error
 
 // get Alice-1230 -> {@Alice-1232 key:"value"}
 func CmdGet(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if !args.Read() {
+		return nil, ErrNoArgument
+	}
 	var id rdx.ID
-	id, _, err = repl.pickEvalId(args)
+	id, err = pickID(*args)
 	if err == nil {
 		out, err = repl.branch.Get(id)
 	}
@@ -273,6 +274,10 @@ func CmdSeal(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
-func CmdSave(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+func CmdStash(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	err = repl.branch.Stash()
+	if err == nil {
+		out = rdx.S0(repl.branch.Brix.Hash7574().String())
+	}
 	return
 }

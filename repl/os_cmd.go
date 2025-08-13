@@ -37,16 +37,19 @@ func osScan(arg *rdx.Iter, cb OsCallBack) (out []byte, err error) {
 	return
 }
 
-func CmdOsUnlink(ctx *REPL, args *rdx.Iter) (out []byte, err error) {
+func CmdRmFile(ctx *REPL, args *rdx.Iter) (out []byte, err error) {
 	return osScan(args, func(data []byte, path string) (out []byte, err error) {
 		return nil, os.Remove(path)
 	})
 }
 
 func CmdRmDir(ctx *REPL, args *rdx.Iter) (out []byte, err error) {
-	return osScan(args, func(data []byte, path string) (out []byte, err error) {
-		return nil, os.RemoveAll(path)
-	})
+	var path string
+	path, err = pickString(*args)
+	if err != nil {
+		err = os.RemoveAll(path)
+	}
+	return
 }
 
 func CmdGetDir(ctx *REPL, args *rdx.Iter) (out []byte, err error) {

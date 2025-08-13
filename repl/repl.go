@@ -31,6 +31,7 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{0, 2922}:            CmdIf,       // if eq(a b) [...] else [...]
 	rdx.ID{0, 63}:              CmdVerbatim, // ~{a:b}
 	rdx.ID{0, 257962825714545}: CmdVerbatim, // verbatim {a:b}
+	rdx.ID{0, 937582060}:       CmdStash,    // stash
 
 	rdx.ID{0, 14326120}:  CmdRead,  // read(rdr)
 	rdx.ID{0, 175350}:    CmdFor,   // for(rdr)[code]
@@ -47,6 +48,7 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{14851576, 2677}:   CmdTestEq,  // test-eq("comment" correct eval)
 	rdx.ID{14851576, 154672}: CmdTestAll, // test-all("comment" correct eval)
 
+	rdx.ID{11689452, 10185596}:  CmdHashBrix, // hash-brix
 	rdx.ID{12770808, 10185583}:  CmdListBrik, // list-brik
 	rdx.ID{667106793, 10185583}: CmdClose,    // close-brik
 	rdx.ID{12770808, 10185596}:  CmdListBrix, // list-brix
@@ -70,7 +72,7 @@ var Yell = map[rdx.ID]Command{
 
 	rdx.ID{12794216, 11197481}:  CmdLoadFile,  // load-file "path.jdr"
 	rdx.ID{14573225, 11197481}:  CmdSaveFile,  // save-file ("path.jdr" {something})
-	rdx.ID{3319, 62054915247}:   CmdOsUnlink,  // os-unlink
+	rdx.ID{3505, 11197481}:      CmdRmFile,    // rm-file "path.jdr"
 	rdx.ID{3505, 166774}:        CmdRmDir,     // rm-dir
 	rdx.ID{178808, 166774}:      CmdGetDir,    // get-dir
 	rdx.ID{12999657, 166774}:    CmdMakeDir,   // make-dir
@@ -96,7 +98,12 @@ func NewREPL(cmds map[rdx.ID]Command, vals map[rdx.ID]any) *REPL {
 	if vals == nil {
 		vals = make(map[rdx.ID]any)
 	}
-	return &REPL{cmds: cmds, vals: vals, pros: make(map[rdx.ID]Proc)}
+	return &REPL{
+		cmds:   cmds,
+		vals:   vals,
+		pros:   make(map[rdx.ID]Proc),
+		branch: rdx.Branch{Stage: make(rdx.Stage)},
+	}
 }
 
 func (repl *REPL) Close() (err error) {

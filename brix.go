@@ -394,7 +394,19 @@ func MakeBrik(deps []Sha256, recs Stage) (hash7574 Sha256, err error) {
 	return
 }
 
+func makeRdxDir() (err error) {
+	_, err = os.Stat(BrixPath)
+	if err != nil {
+		err = os.MkdirAll(BrixPath, 0o777)
+	}
+	return
+}
+
 func (brik *Brik) Start(meta []Sha256) (err error) {
+	err = makeRdxDir()
+	if err != nil {
+		return
+	}
 	brik.File, err = os.CreateTemp(BrixPath, ".tmp.*.brik")
 	if err != nil {
 		return

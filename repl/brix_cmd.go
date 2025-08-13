@@ -41,7 +41,7 @@ func pickHash(at rdx.Iter) (sha rdx.Sha256, err error) {
 
 func (repl *REPL) pickBrik(at rdx.Iter) (brik *rdx.Brik, err error) {
 	brik = &rdx.Brik{}
-	
+
 	if at.Lit() == rdx.Reference {
 		id := at.Reference()
 		pre, has := repl.vals[id]
@@ -124,6 +124,11 @@ func pickStringID(args *rdx.Iter) (id rdx.ID, err error) {
 	return
 }
 
+func CmdHashBrix(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	out = rdx.S0(repl.branch.Brix.Hash7574().String())
+	return
+}
+
 // brix-list fa428e
 func CmdListBrix(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if !args.Read() {
@@ -132,7 +137,9 @@ func CmdListBrix(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	var readerId rdx.ID
 	readerId, err = pickStringID(args)
 	if err != nil {
-		return
+		repl.vinc++
+		readerId = rdx.ID{0, repl.vinc}
+		err = nil
 	}
 	var sha rdx.Sha256
 	sha, err = pickHash(*args)

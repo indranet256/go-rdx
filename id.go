@@ -24,13 +24,15 @@ func UnzipID(b []byte) (id ID) {
 
 func ParseRON64(ron []byte) (val uint64, rest []byte) {
 	rest = ron
-	for len(rest) > 0 {
+	l := 0
+	for len(rest) > 0 && l <= 10 {
 		n := RON64REV[rest[0]]
 		if n == 0xff {
 			break
 		}
 		val = (val << 6) | uint64(n)
 		rest = rest[1:]
+		l++
 	}
 	return
 }
@@ -63,6 +65,10 @@ func (id ID) String() []byte {
 
 func (id ID) IsZero() bool {
 	return id.Src == 0 && id.Seq == 0
+}
+
+func (id ID) Base() ID {
+	return ID{id.Src, id.Seq &^ 63}
 }
 
 func ParseID(txt []byte) (id ID, rest []byte) {

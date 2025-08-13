@@ -1,15 +1,16 @@
-set(A {@Alice-123 "one":1 "two":2})
-brix:open(B brix:new(A))
-test:eq("BRIK creation"
-        3f978afd4592d7306fc8e095db7b5ecb6d34d66880b2535a2c483e358ea4f8b4
-        brix:id(B) 
+print change-dir make-dir;
+
+var A {@Alice-123 a b c};
+add A;
+stash;
+test-eq("BRIK creation"
+        "8883c3d83cd6034f086545e1dadb22e7580ca16b82da76cbf6d474e250eca203"
+        hash-brix
         )
-test:eq("BRIK get"
-        A
-        brix:get(B, Alice-123) )
-brix:list("L" B)
-set(D map "L" _)
-test:eq("BRIX scan"
-        A
-        D)
-brix:close(B)
+test-eq("BRIK get"  A   get Alice-123 )
+list-brix("L" hash-brix)
+var D map list-brix(hash-brix) _;
+test-eq("BRIX scan" A D)
+close;
+
+rm-dir get-dir;

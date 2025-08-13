@@ -1,0 +1,10 @@
+print change-dir make-dir;
+
+save-file("test.jdr" {test "file"})
+var f load-file("test.jdr")
+
+test-eq("It gets cloudy"
+        {"file" test}
+        f )
+
+rm-dir get-dir;

@@ -16,6 +16,10 @@ type Branch struct {
 	Handle uint64
 }
 
+func (b *Branch) IsWritable() bool {
+	return b.Clock.Src != 0
+}
+
 type KeyPair struct {
 	Pub ed25519.PublicKey
 	Sec ed25519.PrivateKey
@@ -148,21 +152,22 @@ func (b *Branch) Add(delta RDX) (err error) {
 		return ErrBadRecord
 	}
 	id := it.ID()
-	pre, found := b.Stage[id]
+	base := id.Base()
+	pre, found := b.Stage[base]
 	if found {
 		inputs := [][]byte{pre, it.Record()}
 		var merged RDX
 		merged, err = Merge(nil, inputs)
-		b.Stage[id] = merged
+		b.Stage[base] = merged
 	} else {
-		b.Stage[id] = it.Record()
+		b.Stage[base] = it.Record()
 	}
 	return
 }
 
 func (b *Branch) Get(id ID) (rec RDX, err error) {
 	id.Seq &= SeqMask
-	stage, _ := b.Stage[id]
+	stage, _ := b.Stage[id.Base()]
 	return stage, nil
 }
 
@@ -191,8 +196,20 @@ func (b *Branch) Set(elem RDX) error {
 }
 
 // Saves the current staged state
-func (b *Branch) Stash(filename string) (err error) {
-	return nil
+func (b *Branch) Stash() (err error) {
+	if len(b.Stage) == 0 {
+		return errors.New("no new data")
+	}
+	deps := []Sha256{b.Brix.Hash7574()}
+	var hash Sha256
+	hash, err = MakeBrik(deps, b.Stage)
+	if err == nil {
+		b.Brix, err = b.Brix.OpenByHash(hash)
+	}
+	if b.IsWritable() {
+		// todo change the tip
+	}
+	return
 }
 
 // Commits the staged part
