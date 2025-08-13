@@ -51,7 +51,7 @@ func EvalArgs(repl *REPL) (err error) {
 
 	repl.InitTerm()
 
-	out, err = repl.Evaluate(cmds)
+	out, err = repl.evaluate(cmds)
 	jdr, _ := rdx.WriteAllJDR(nil, out, 0)
 	if len(jdr) > 0 {
 		fmt.Println(string(jdr))

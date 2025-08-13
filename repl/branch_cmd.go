@@ -227,7 +227,7 @@ func (repl *REPL) pickIdEval(args *rdx.Iter) (id rdx.ID, rest rdx.RDX, err error
 		}
 	}
 
-	rest, err = repl.Evaluate(it.Rest())
+	rest, err = repl.evaluate(it.Rest())
 
 	return
 }

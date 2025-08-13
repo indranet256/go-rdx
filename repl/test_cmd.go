@@ -58,7 +58,7 @@ func CmdTestEq(ctx *REPL, arg *rdx.Iter) (ret []byte, err error) {
 		comment = []byte("unnamed test")
 	}
 	correct, err = ctx.Eval(arg)
-	fact, err = ctx.Evaluate(arg.Rest())
+	fact, err = ctx.evaluate(arg.Rest())
 	fmt.Println(report(comment, correct, expr, fact))
 	return nil, nil
 }
@@ -73,7 +73,7 @@ func CmdTestAll(ctx *REPL, eit *rdx.Iter) (ret []byte, err error) {
 	} else {
 		comment = []byte("unnamed test")
 	}
-	eval, err = ctx.Evaluate(eit.Rest())
+	eval, err = ctx.evaluate(eit.Rest())
 	res := rdx.NewIter(eval)
 	if !res.Read() {
 		return nil, ErrNoProcedureParams

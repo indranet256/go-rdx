@@ -68,7 +68,10 @@ var Yell = map[rdx.ID]Command{
 
 	rdx.ID{228977, 59803705670}: CmdSumSha256, // sum-sha256
 
+	rdx.ID{12794216, 11197481}:  CmdLoadFile,  // load-file "path.jdr"
+	rdx.ID{14573225, 11197481}:  CmdSaveFile,  // save-file ("path.jdr" {something})
 	rdx.ID{3319, 62054915247}:   CmdOsUnlink,  // os-unlink
+	rdx.ID{3505, 166774}:        CmdRmDir,     // rm-dir
 	rdx.ID{178808, 166774}:      CmdGetDir,    // get-dir
 	rdx.ID{12999657, 166774}:    CmdMakeDir,   // make-dir
 	rdx.ID{12770808, 166774}:    CmdListDir,   // list-dir
@@ -116,7 +119,7 @@ func (repl *REPL) EvalCommand(code *rdx.Iter, cmd Command) (out []byte, err erro
 		params = code.Record()
 	}
 	if params != nil {
-		eval, err = repl.Evaluate(params)
+		eval, err = repl.evaluate(params)
 	}
 	if err == nil {
 		it := rdx.NewIter(eval)
@@ -202,7 +205,7 @@ func (repl *REPL) Eval(code *rdx.Iter) (out rdx.RDX, err error) {
 		fallthrough
 	case rdx.Linear:
 		var ev []byte
-		ev, err = repl.Evaluate(code.Value())
+		ev, err = repl.evaluate(code.Value())
 		if err == nil && ev != nil {
 			out = rdx.WriteRDX(out, code.Lit(), code.ID(), ev)
 		}
@@ -235,7 +238,7 @@ func (repl *REPL) Call(proc Proc, args *rdx.Iter) (out []byte, err error) {
 		olds = append(olds, oldVar{pn, repl.vals[pn]})
 		repl.vals[pn] = eval.Record()
 	}
-	out, err = repl.Evaluate(proc.body)
+	out, err = repl.evaluate(proc.body)
 	for _, old := range olds {
 		if old.val == nil {
 			delete(repl.vals, old.nm)
@@ -246,7 +249,7 @@ func (repl *REPL) Call(proc Proc, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
-func (repl *REPL) Evaluate(code []byte) (out []byte, err error) {
+func (repl *REPL) evaluate(code []byte) (out []byte, err error) {
 	it := rdx.NewIter(code)
 	for err == nil && it.Read() {
 		var one []byte
@@ -258,6 +261,15 @@ func (repl *REPL) Evaluate(code []byte) (out []byte, err error) {
 		}
 	}
 	return
+}
+
+func (repl *REPL) Evaluate(code []byte) (out []byte, err error) {
+	var norm rdx.RDX
+	norm, err = rdx.Normalize(code)
+	if err != nil {
+		return
+	}
+	return repl.evaluate(norm)
 }
 
 var ReplGreeting = "$ "

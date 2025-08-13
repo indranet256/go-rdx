@@ -43,6 +43,12 @@ func CmdOsUnlink(ctx *REPL, args *rdx.Iter) (out []byte, err error) {
 	})
 }
 
+func CmdRmDir(ctx *REPL, args *rdx.Iter) (out []byte, err error) {
+	return osScan(args, func(data []byte, path string) (out []byte, err error) {
+		return nil, os.RemoveAll(path)
+	})
+}
+
 func CmdGetDir(ctx *REPL, args *rdx.Iter) (out []byte, err error) {
 	if args.Peek() == rdx.Tuple {
 		args.Read()
@@ -98,4 +104,33 @@ func CmdListDir(ctx *REPL, arg *rdx.Iter) (out []byte, err error) {
 		out, err = rdx.CloseTLV(out, rdx.Euler, &marks)
 		return
 	})
+}
+
+func CmdLoadFile(ctx *REPL, args *rdx.Iter) (out []byte, err error) {
+	path := ""
+	if !args.Read() {
+		return nil, ErrNoArgument
+	}
+	path, err = pickString(*args)
+	if err != nil {
+		return
+	}
+	return LoadJDR(path)
+}
+
+func CmdSaveFile(ctx *REPL, args *rdx.Iter) (out []byte, err error) {
+	path := ""
+	if !args.Read() {
+		return nil, ErrNoArgument
+	}
+	path, err = pickString(*args)
+	if err != nil {
+		return
+	}
+	var jdr []byte
+	jdr, err = rdx.WriteAllJDR(nil, args.Rest(), 0)
+	if err == nil {
+		err = os.WriteFile(path, jdr, 777)
+	}
+	return
 }

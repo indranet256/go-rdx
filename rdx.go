@@ -628,14 +628,14 @@ var ErrBadTermRecord = errors.New("bad Term record format")
 func Normalize(rdx []byte) (RDX []byte, err error) {
 	data := make([]byte, 0, len(rdx))
 	stack := Marks{}
-	return normalize(data, rdx, CompareTuple, &stack)
+	return normalize(data, rdx, nil, &stack)
 }
 
 func normalize(data, rdx []byte, z Compare, stack *Marks) (norm RDX, err error) {
+	norm = data
 	if len(rdx) == 0 {
 		return
 	}
-	norm = data
 	chunks := [][]byte{}
 	at := NewIter(rdx)
 	at.Read()

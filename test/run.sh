@@ -1,8 +1,9 @@
 #!/bin/sh
 
-(cd ../yell/ && go build)
+clear
+(cd ../repl/ && go build)
 
 for F in `ls *.jdr`; do
     echo "*** Running " $F " ***"
-    ../yell/yell $F
+    ../repl/repl $F
 done
