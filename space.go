@@ -54,7 +54,7 @@ func MakeBranch(handle uint64, legend string, misc Stage, key *KeyPair, isSpace 
 
 // makes the space writable
 func (b *Branch) LoadCreds(handle uint64) (err error) {
-	var meta RDX
+	var meta Stream
 	metaId := ID{handle, 0}
 	meta, err = b.Tip.Get(metaId)
 	if err != nil {
@@ -80,7 +80,7 @@ func (b *Branch) LoadCreds(handle uint64) (err error) {
 	if !IsPLEX(mit.Lit()) {
 		return errors.New(string(mit.ID().String()) + " is not a space")
 	}
-	var self RDX
+	var self Stream
 	self, err = Pick(P(ID{keylet, 0}), mit.Record())
 	if err != nil {
 		return errors.New("space meta self-record not found")

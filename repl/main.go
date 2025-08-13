@@ -9,7 +9,7 @@ import (
 	"github.com/gritzko/rdx"
 )
 
-func LoadJDR(path string) (cmds rdx.RDX, err error) {
+func LoadJDR(path string) (cmds rdx.Stream, err error) {
 	var file *os.File
 	file, err = os.Open(path)
 	if err != nil {
@@ -60,8 +60,8 @@ func EvalArgs(repl *REPL) (err error) {
 	return
 }
 
-func (repl *REPL) EvalFile(path string) (out rdx.RDX, err error) {
-	var code rdx.RDX
+func (repl *REPL) EvalFile(path string) (out rdx.Stream, err error) {
+	var code rdx.Stream
 	code, err = LoadJDR(path)
 	if err != nil {
 		return

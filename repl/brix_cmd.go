@@ -129,6 +129,42 @@ func CmdHashBrix(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
+type BrikHashReader struct {
+	brix rdx.Brix
+	i    int
+}
+
+func (bhr *BrikHashReader) Read() bool {
+	bhr.i++
+	return len(bhr.brix) >= bhr.i
+}
+func (bhr *BrikHashReader) Record() rdx.Stream {
+	if bhr.i <= 0 || bhr.i > len(bhr.brix) {
+		return rdx.S0("")
+	}
+	return rdx.S0(bhr.brix[bhr.i-1].Hash7574.String())
+}
+func (bhr *BrikHashReader) Parsed() (lit byte, id rdx.ID, value []byte) {
+	if bhr.i <= 0 || bhr.i > len(bhr.brix) {
+		return rdx.String, rdx.ID0, rdx.S0("")
+	}
+	return rdx.String, rdx.ID0, []byte(bhr.brix[bhr.i-1].Hash7574.String())
+}
+func (bhr *BrikHashReader) Error() error {
+	return nil
+}
+
+func CmdListBrikHash(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if args.Read() {
+		return nil, ErrNotImplementedYet
+	}
+	repl.vinc++
+	rdrid := rdx.ID{0, repl.vinc}
+	repl.vals[rdrid] = &BrikHashReader{brix: repl.branch.Brix}
+	out = rdx.R0(rdrid)
+	return
+}
+
 // brix-list fa428e
 func CmdListBrix(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if !args.Read() {

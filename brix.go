@@ -89,7 +89,7 @@ func (ie IndexEntry) Position() uint64 {
 // Brik file format is based on the Principle of Least Surprise:
 // 8 bytes: magic, "BRIX0001" for this 0.0.1 revision
 // 32b*M: metadata, Sha256 hashes defining the usual Merkle DAG
-// D bytes: data, id-ordered RDX records of any type (normally PLEX)
+// D bytes: data, id-ordered Stream records of any type (normally PLEX)
 // 32b*I: a pretty regular index, page start IDs and bloom filters
 // 32+32+64: Sha256 of the above, the author's Ed25519 key and signature
 type BrikHeader struct {
@@ -159,9 +159,9 @@ type Brik struct {
 	block []byte
 }
 
-type Stage map[ID]RDX
+type Stage map[ID]Stream
 
-func (stage Stage) Add(some RDX) error {
+func (stage Stage) Add(some Stream) error {
 	it := NewIter(some)
 	for it.Read() {
 		id := it.ID()
@@ -333,7 +333,7 @@ func (brik *Brik) LoadPage(ndx int) (err error) {
 	return
 }
 
-func (brik *Brik) Get(id ID) (record RDX, err error) {
+func (brik *Brik) Get(id ID) (record Stream, err error) {
 	i := brik.findPage(id)
 	if i < 0 || !brik.Index[i].MayHaveID(id) {
 		return nil, ErrRecordNotFound
@@ -620,7 +620,7 @@ func (bit *BrikReader) Read() bool {
 func (bit *BrikReader) Parsed() (lit byte, id ID, value []byte) {
 	return bit.iter.Parsed()
 }
-func (bit *BrikReader) Record() RDX {
+func (bit *BrikReader) Record() Stream {
 	return bit.iter.Record()
 }
 func (bit *BrikReader) ID() ID {
@@ -893,7 +893,7 @@ func (xit *BrixReader) Seek(id ID) int {
 	}
 }
 
-func (xit *BrixReader) Record() RDX {
+func (xit *BrixReader) Record() Stream {
 	return xit.win.Record()
 }
 

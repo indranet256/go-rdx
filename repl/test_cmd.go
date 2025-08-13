@@ -10,7 +10,7 @@ import (
 
 var ErrBadTestEqArgs = errors.New("test-eq(comment, correct, eval)")
 
-func report(comment, correct, expr, fact rdx.RDX) string {
+func report(comment, correct, expr, fact rdx.Stream) string {
 	text := make([]byte, 0, 256)
 	text = appendTermEsc(text, DARK_BLUE)
 	text = append(text, comment...)

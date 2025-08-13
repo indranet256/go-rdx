@@ -205,7 +205,7 @@ func (repl *REPL) evalArgs(args *rdx.Iter) (eval rdx.Iter, err error) {
 	return
 }
 
-func (repl *REPL) pickIdEval(args *rdx.Iter) (id rdx.ID, rest rdx.RDX, err error) {
+func (repl *REPL) pickIdEval(args *rdx.Iter) (id rdx.ID, rest rdx.Stream, err error) {
 	if !args.Read() {
 		err = ErrNoArgument
 		return
@@ -230,7 +230,7 @@ func (repl *REPL) pickIdEval(args *rdx.Iter) (id rdx.ID, rest rdx.RDX, err error
 	return
 }
 
-func (repl *REPL) pickEvalId(args *rdx.Iter) (id rdx.ID, rest rdx.RDX, err error) {
+func (repl *REPL) pickEvalId(args *rdx.Iter) (id rdx.ID, rest rdx.Stream, err error) {
 	var eval rdx.Iter
 	eval, err = repl.evalArgs(args)
 	if err != nil {

@@ -25,14 +25,14 @@ const (
 const MaxInputs = 64
 const MaxNesting = 255
 
-type RDX []byte
+type Stream []byte
 
 var (
-	ErrBadRDXRecord       = errors.New("bad RDX record format")
-	ErrWrongRDXRecordType = errors.New("wrong RDX record type")
+	ErrBadRDXRecord       = errors.New("bad Stream record format")
+	ErrWrongRDXRecordType = errors.New("wrong Stream record type")
 	ErrBadUtf8            = errors.New("bad UTF8 codepoint")
 	ErrBadState           = errors.New("bad state")
-	ErrBadOrder           = errors.New("bad RDX order")
+	ErrBadOrder           = errors.New("bad Stream order")
 	ErrEoF                = errors.New("end of file")
 )
 
@@ -454,55 +454,55 @@ func AppendFloat(data []byte, val float64) []byte {
 	return WriteTLKV(data, Integer, nil, b)
 }
 
-func MakeString(term string) RDX {
+func MakeString(term string) Stream {
 	return AppendString(nil, []byte(term))
 }
 
-func MakeTerm(term string) RDX {
+func MakeTerm(term string) Stream {
 	return AppendTerm(nil, []byte(term))
 }
 
-func MakeTuple(id ID, val RDX) RDX {
-	return RDX{}.AppendTuple(id, val)
+func MakeTuple(id ID, val Stream) Stream {
+	return Stream{}.AppendTuple(id, val)
 }
 
-func MakeEuler(id ID, val RDX) RDX {
-	return RDX{}.AppendEuler(id, val)
+func MakeEuler(id ID, val Stream) Stream {
+	return Stream{}.AppendEuler(id, val)
 }
 
-func F(id ID, val float64) RDX {
+func F(id ID, val float64) Stream {
 	return WriteRDX(nil, Float, id, ZipFloat64(val))
 }
-func I(id ID, val int64) RDX {
+func I(id ID, val int64) Stream {
 	return WriteRDX(nil, Integer, id, ZipInt64(val))
 }
-func R(id ID, val ID) RDX {
+func R(id ID, val ID) Stream {
 	return WriteRDX(nil, Reference, id, ZipID(val))
 }
-func S(id ID, val string) RDX {
+func S(id ID, val string) Stream {
 	return WriteRDX(nil, String, id, []byte(val))
 }
-func T(id ID, val string) RDX {
+func T(id ID, val string) Stream {
 	return WriteRDX(nil, Term, id, []byte(val))
 }
 
-func F0(val float64) RDX {
+func F0(val float64) Stream {
 	return WriteRDX(nil, Float, ID0, ZipFloat64(val))
 }
-func I0(val int64) RDX {
+func I0(val int64) Stream {
 	return WriteRDX(nil, Integer, ID0, ZipInt64(val))
 }
-func R0(val ID) RDX {
+func R0(val ID) Stream {
 	return WriteRDX(nil, Reference, ID0, ZipID(val))
 }
-func S0(val string) RDX {
+func S0(val string) Stream {
 	return WriteRDX(nil, String, ID0, []byte(val))
 }
-func T0(val string) RDX {
+func T0(val string) Stream {
 	return WriteRDX(nil, Term, ID0, []byte(val))
 }
 
-func MakePLEXOf(lit byte, id ID, val []RDX, z Compare) RDX {
+func MakePLEXOf(lit byte, id ID, val []Stream, z Compare) Stream {
 	if z != nil {
 		sort.Slice(val, func(i, j int) bool {
 			ii := NewIter(val[i])
@@ -515,7 +515,7 @@ func MakePLEXOf(lit byte, id ID, val []RDX, z Compare) RDX {
 		l += len(v)
 	}
 	marks := make(Marks, 0, 1)
-	ret := make(RDX, 0, l+24)
+	ret := make(Stream, 0, l+24)
 	if l <= 0xff {
 		ret = OpenShortTLV(ret, lit, &marks)
 	} else {
@@ -531,29 +531,29 @@ func MakePLEXOf(lit byte, id ID, val []RDX, z Compare) RDX {
 	return ret
 }
 
-func P0(vals ...RDX) RDX {
+func P0(vals ...Stream) Stream {
 	return MakePLEXOf(Tuple, ID0, vals, CompareTuple)
 }
-func L0(val ...RDX) RDX {
+func L0(val ...Stream) Stream {
 	return MakePLEXOf(Linear, ID0, val, nil)
 }
-func E0(val ...RDX) RDX {
+func E0(val ...Stream) Stream {
 	return MakePLEXOf(Euler, ID0, val, CompareEuler)
 }
-func X0(val ...RDX) RDX {
+func X0(val ...Stream) Stream {
 	return MakePLEXOf(Multix, ID0, val, CompareMultix)
 }
 
-func P(id ID, val ...RDX) RDX {
+func P(id ID, val ...Stream) Stream {
 	return MakePLEXOf(Tuple, id, val, CompareTuple)
 }
-func L(id ID, val ...RDX) RDX {
+func L(id ID, val ...Stream) Stream {
 	return MakePLEXOf(Linear, id, val, nil)
 }
-func E(id ID, val ...RDX) RDX {
+func E(id ID, val ...Stream) Stream {
 	return MakePLEXOf(Euler, id, val, CompareEuler)
 }
-func X(id ID, val ...RDX) RDX {
+func X(id ID, val ...Stream) Stream {
 	return MakePLEXOf(Multix, id, val, CompareMultix)
 }
 
@@ -569,23 +569,23 @@ func AppendReference(data []byte, val ID) []byte {
 	return WriteTLKV(data, Reference, nil, ZipID(val))
 }
 
-func (rdx RDX) AppendReference(val ID) RDX {
+func (rdx Stream) AppendReference(val ID) Stream {
 	return AppendReference(rdx, val)
 }
 
-func (rdx RDX) AppendString(val string) RDX {
+func (rdx Stream) AppendString(val string) Stream {
 	return AppendString(rdx, []byte(val))
 }
 
-func (rdx RDX) AppendTerm(val string) RDX {
+func (rdx Stream) AppendTerm(val string) Stream {
 	return AppendTerm(rdx, []byte(val))
 }
 
-func (rdx RDX) AppendInteger(val int64) RDX {
+func (rdx Stream) AppendInteger(val int64) Stream {
 	return AppendInteger(rdx, val)
 }
 
-func (rdx RDX) AppendPLEX(lit byte, id ID, val RDX) (ret RDX) {
+func (rdx Stream) AppendPLEX(lit byte, id ID, val Stream) (ret Stream) {
 	marks := make(Marks, 0, 1)
 	if len(val) <= 0xff {
 		ret = OpenShortTLV(rdx, lit, &marks)
@@ -600,19 +600,19 @@ func (rdx RDX) AppendPLEX(lit byte, id ID, val RDX) (ret RDX) {
 	return
 }
 
-func (rdx RDX) AppendTuple(id ID, val RDX) (ret RDX) {
+func (rdx Stream) AppendTuple(id ID, val Stream) (ret Stream) {
 	return rdx.AppendPLEX(Tuple, id, val)
 }
 
-func (rdx RDX) AppendLinear(id ID, val RDX) (ret RDX) {
+func (rdx Stream) AppendLinear(id ID, val Stream) (ret Stream) {
 	return rdx.AppendPLEX(Linear, id, val)
 }
 
-func (rdx RDX) AppendEuler(id ID, val RDX) (ret RDX) {
+func (rdx Stream) AppendEuler(id ID, val Stream) (ret Stream) {
 	return rdx.AppendPLEX(Euler, id, val)
 }
 
-func (rdx RDX) AppendMultix(id ID, val RDX) (ret RDX) {
+func (rdx Stream) AppendMultix(id ID, val Stream) (ret Stream) {
 	return rdx.AppendPLEX(Multix, id, val)
 }
 
@@ -622,16 +622,16 @@ var ErrBadReferenceRecord = errors.New("bad Reference record format")
 var ErrBadStringRecord = errors.New("bad String record format")
 var ErrBadTermRecord = errors.New("bad Term record format")
 
-// Normalizes a raw RDX input (all keys in order, no duplicates, no overlong
+// Normalizes a raw Stream input (all keys in order, no duplicates, no overlong
 // encoding, etc etc. Inputs that are *certainly* normalized get mentioned as
-// `rdx.RDX` while not-necessarily-normalized go as `[]byte`.
+// `rdx.Stream` while not-necessarily-normalized go as `[]byte`.
 func Normalize(rdx []byte) (RDX []byte, err error) {
 	data := make([]byte, 0, len(rdx))
 	stack := Marks{}
 	return normalize(data, rdx, nil, &stack)
 }
 
-func normalize(data, rdx []byte, z Compare, stack *Marks) (norm RDX, err error) {
+func normalize(data, rdx []byte, z Compare, stack *Marks) (norm Stream, err error) {
 	norm = data
 	if len(rdx) == 0 {
 		return
@@ -766,7 +766,7 @@ func Flatten(data, rdx []byte) (flat []byte, err error) {
 	return flaten(data, rdx, &stack)
 }
 
-func delve(data RDX, path Iter, z Compare) (found RDX, err error) {
+func delve(data Stream, path Iter, z Compare) (found Stream, err error) {
 	it := NewIter(data)
 	i := Less
 	for i < Eq && it.Read() {
@@ -784,7 +784,7 @@ func delve(data RDX, path Iter, z Compare) (found RDX, err error) {
 
 var ErrBadPath = errors.New("bad path")
 
-func delveP(data RDX, path Iter) (found RDX, err error) {
+func delveP(data Stream, path Iter) (found Stream, err error) {
 	if path.Lit() != Integer {
 		err = ErrBadPath
 		return
@@ -808,7 +808,7 @@ func delveP(data RDX, path Iter) (found RDX, err error) {
 	}
 }
 
-func scan(it Iter, path Iter) (found RDX, err error) {
+func scan(it Iter, path Iter) (found Stream, err error) {
 	switch it.Lit() {
 	case Tuple:
 		found, err = delveP(it.Value(), path)
@@ -827,7 +827,7 @@ func scan(it Iter, path Iter) (found RDX, err error) {
 var ErrNoKeyProvided = errors.New("no key provided")
 var ErrNotPLEX = errors.New("not a PLEX container element")
 
-func Pick(key, data RDX) (entry RDX, err error) {
+func Pick(key, data Stream) (entry Stream, err error) {
 	dit := NewIter(data)
 	kit := NewIter(key)
 	if !kit.Read() {
@@ -872,7 +872,7 @@ func Pick(key, data RDX) (entry RDX, err error) {
 	return
 }
 
-func Delve(data, path RDX) (entry RDX, err error) {
+func Delve(data, path Stream) (entry Stream, err error) {
 	pi := NewIter(path)
 	if !pi.Read() {
 		return data, nil

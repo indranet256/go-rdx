@@ -30,11 +30,11 @@ func MakeKeypair() (keys KeyPair) {
 	return
 }
 
-func (pair *KeyPair) PubRDX() RDX {
+func (pair *KeyPair) PubRDX() Stream {
 	return P0(S0(hex.EncodeToString(pair.Pub)))
 }
 
-func (pair *KeyPair) RDX() RDX {
+func (pair *KeyPair) RDX() Stream {
 	return P0(S0(hex.EncodeToString(pair.Pub)), S0(hex.EncodeToString(pair.Sec)))
 }
 
@@ -52,7 +52,7 @@ var ErrNotImplementedYet = errors.New("not implemented yet")
 var ErrBadTipFormat = errors.New("bad branch tip format")
 var ClockID = ID{0, 667105775}
 
-func pickClock(src uint64, clock RDX) (c ID) {
+func pickClock(src uint64, clock Stream) (c ID) {
 	cit := NewIter(clock)
 	if cit.Read() && cit.Lit() == Multix {
 		cint := NewIter((cit.Value()))
@@ -101,7 +101,7 @@ func (b *Branch) Open(id ID) (err error) {
 	return
 }
 
-func (b *Branch) Info() (info RDX, err error) {
+func (b *Branch) Info() (info Stream, err error) {
 	id := ID{b.Clock.Src, 0}
 	return b.Brix.Get(nil, id)
 }
@@ -145,7 +145,7 @@ func (b *Branch) Tick() ID {
 }
 
 // Adds a record change.
-func (b *Branch) Add(delta RDX) (err error) {
+func (b *Branch) Add(delta Stream) (err error) {
 	// FIXME here and in other places: normalize
 	it := NewIter(delta)
 	if !it.Read() {
@@ -156,7 +156,7 @@ func (b *Branch) Add(delta RDX) (err error) {
 	pre, found := b.Stage[base]
 	if found {
 		inputs := [][]byte{pre, it.Record()}
-		var merged RDX
+		var merged Stream
 		merged, err = Merge(nil, inputs)
 		b.Stage[base] = merged
 	} else {
@@ -165,7 +165,7 @@ func (b *Branch) Add(delta RDX) (err error) {
 	return
 }
 
-func (b *Branch) Get(id ID) (rec RDX, err error) {
+func (b *Branch) Get(id ID) (rec Stream, err error) {
 	id.Seq &= SeqMask
 	stage, _ := b.Stage[id.Base()]
 	return stage, nil
@@ -174,8 +174,8 @@ func (b *Branch) Get(id ID) (rec RDX, err error) {
 var ErrNoClock = errors.New("no clock set")
 
 // Put creates a record with the content provided;
-// must be one RDX element, preferably PLEX.
-func (b *Branch) Put(elem RDX) (id ID, err error) {
+// must be one Stream element, preferably PLEX.
+func (b *Branch) Put(elem Stream) (id ID, err error) {
 	if b.Clock.Src == 0 {
 		err = ErrNoClock
 		return
@@ -191,7 +191,7 @@ func (b *Branch) Put(elem RDX) (id ID, err error) {
 	return
 }
 
-func (b *Branch) Set(elem RDX) error {
+func (b *Branch) Set(elem Stream) error {
 	return nil
 }
 
@@ -235,13 +235,13 @@ func (b *Branch) Seal() (sha Sha256, err error) {
 	}
 	// todo clock
 	metaId := ID{b.Clock.Src, 0}
-	var meta RDX
+	var meta Stream
 	meta, err = b.Tip.Get(metaId)
 	if err != nil || !IsPLEX(Peek(meta)) {
 		err = errors.New("the meta record is missing")
 		return
 	}
-	var edited RDX
+	var edited Stream
 	edit := X(metaId, P(metaId, R0(ID{b.Handle, b.Clock.Seq})))
 	edited, err = Merge(nil, [][]byte{meta, edit})
 	tipdeps := []Sha256{sha}

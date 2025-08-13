@@ -78,10 +78,10 @@ func CmdVar(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		return
 	}
 	if !args.Read() {
-		repl.vals[n] = rdx.RDX{}
+		repl.vals[n] = rdx.Stream{}
 		return
 	}
-	var eval rdx.RDX
+	var eval rdx.Stream
 	eval, err = repl.Eval(args)
 	if err == nil {
 		repl.vals[n] = eval
@@ -169,7 +169,7 @@ func CmdPrint(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		if !gotunder {
 			return nil, ErrNoArgument
 		}
-		b, ok := under.(rdx.RDX)
+		b, ok := under.(rdx.Stream)
 		if !ok {
 			b, ok = under.([]byte)
 			if !ok {
@@ -398,7 +398,7 @@ func (sr *SeqReader) Read() bool {
 	}
 	return false
 }
-func (sr *SeqReader) Record() rdx.RDX {
+func (sr *SeqReader) Record() rdx.Stream {
 	return rdx.AppendInteger(nil, sr.i)
 }
 func (sr *SeqReader) Parsed() (lit byte, id rdx.ID, value []byte) {

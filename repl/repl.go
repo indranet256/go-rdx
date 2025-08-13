@@ -48,11 +48,12 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{14851576, 2677}:   CmdTestEq,  // test-eq("comment" correct eval)
 	rdx.ID{14851576, 154672}: CmdTestAll, // test-all("comment" correct eval)
 
-	rdx.ID{11689452, 10185596}:  CmdHashBrix, // hash-brix
-	rdx.ID{12770808, 10185583}:  CmdListBrik, // list-brik
-	rdx.ID{667106793, 10185583}: CmdClose,    // close-brik
-	rdx.ID{12770808, 10185596}:  CmdListBrix, // list-brix
-	rdx.ID{667106793, 10185596}: CmdClose,    // close-brix
+	rdx.ID{11689452, 10185596}:        CmdHashBrix,     // hash-brix
+	rdx.ID{12770808, 10185583}:        CmdListBrik,     // list-brik
+	rdx.ID{667106793, 10185583}:       CmdClose,        // close-brik
+	rdx.ID{12770808, 10185596}:        CmdListBrix,     // list-brix
+	rdx.ID{667106793, 10185596}:       CmdClose,        // close-brix
+	rdx.ID{12770808, 170885737766380}: CmdListBrikHash, // list-brikhash
 
 	rdx.ID{12999657, 41718065644}: CmdMakeBranch, // make-branch(handle "mission")
 
@@ -91,7 +92,7 @@ type REPL struct {
 }
 
 type Proc struct {
-	params, body rdx.RDX
+	params, body rdx.Stream
 }
 
 func NewREPL(cmds map[rdx.ID]Command, vals map[rdx.ID]any) *REPL {
@@ -139,7 +140,7 @@ func (repl *REPL) EvalCommand(code *rdx.Iter, cmd Command) (out []byte, err erro
 	return
 }
 
-func (repl *REPL) Eval(code *rdx.Iter) (out rdx.RDX, err error) {
+func (repl *REPL) Eval(code *rdx.Iter) (out rdx.Stream, err error) {
 	switch code.Lit() {
 	case rdx.Reference:
 		ref := code.Reference()
@@ -183,8 +184,8 @@ func (repl *REPL) Eval(code *rdx.Iter) (out rdx.RDX, err error) {
 		local, oklocal := repl.vals[ref]
 		if oklocal {
 			switch local.(type) {
-			case rdx.RDX:
-				return local.(rdx.RDX), nil
+			case rdx.Stream:
+				return local.(rdx.Stream), nil
 			case []byte:
 				return local.([]byte), nil
 			//case rdx.Reader:  for rdr [ print ]
@@ -271,7 +272,7 @@ func (repl *REPL) evaluate(code []byte) (out []byte, err error) {
 }
 
 func (repl *REPL) Evaluate(code []byte) (out []byte, err error) {
-	var norm rdx.RDX
+	var norm rdx.Stream
 	norm, err = rdx.Normalize(code)
 	if err != nil {
 		return

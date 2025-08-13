@@ -17,7 +17,7 @@ type Reader interface {
 	// moves to the next record
 	Read() bool
 
-	Record() RDX
+	Record() Stream
 	Parsed() (lit byte, id ID, value []byte)
 
 	Error() error
@@ -29,6 +29,9 @@ type ReadSeekCloser interface {
 	io.Closer
 }
 
+// Iter is an Stream byte stream iterator. Start state: before the 1st element.
+// Convention: when passing a whole byte stream, use the start state; when
+// passing an element or a group, always position the iterator appropriately.
 type Iter struct {
 	data   []byte
 	vallen int
@@ -66,6 +69,10 @@ func (it *Iter) IsEmpty() bool {
 
 func (it *Iter) HasData() bool {
 	return len(it.data) != 0
+}
+
+func (it *Iter) IsAtStart() bool {
+	return it.errndx == 0 && it.hdrlen == 0
 }
 
 func (it *Iter) Rest() []byte {
@@ -194,7 +201,7 @@ func (it *Iter) Integer() int64 {
 	return UnzipInt64(it.Value())
 }
 
-func (it *Iter) Record() RDX {
+func (it *Iter) Record() Stream {
 	return it.data[:int(it.hdrlen+it.idlen)+it.vallen]
 }
 

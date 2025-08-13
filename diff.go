@@ -86,7 +86,7 @@ func (d *Diff) Step(at int) (err error) {
 	case Multix:
 		return d.MultixStep(at)
 	default:
-		panic("bad RDX type")
+		panic("bad Stream type")
 	}
 }
 
