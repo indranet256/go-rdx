@@ -58,24 +58,13 @@ func CmdTestEq(ctx *REPL, arg *rdx.Iter) (ret []byte, err error) {
 		comment = []byte("unnamed test")
 	}
 	correct, err = ctx.Eval(arg)
-	if arg.Read() {
-		expr = arg.Record()
-		fact, err = ctx.Eval(arg)
-	} else {
-		fact = correct
-		correct = []byte{}
-	}
+	fact, err = ctx.Evaluate(arg.Rest())
 	fmt.Println(report(comment, correct, expr, fact))
 	return nil, nil
 }
 
-func CmdTest(ctx *REPL, args *rdx.Iter) (ret []byte, err error) {
+func CmdTestAll(ctx *REPL, eit *rdx.Iter) (ret []byte, err error) {
 	var eval, comment, correct, expr, fact []byte
-	if !args.Read() || args.Lit() != rdx.Tuple {
-		return nil, ErrBadTestEqArgs
-	}
-	expr = args.Value()
-	eit := rdx.NewIter(expr)
 	if eit.Peek() == rdx.String {
 		if !eit.Read() {
 			return

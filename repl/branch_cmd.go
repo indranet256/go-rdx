@@ -207,6 +207,31 @@ func (repl *REPL) evalArgs(args *rdx.Iter) (eval rdx.Iter, err error) {
 	return
 }
 
+func (repl *REPL) pickIdEval(args *rdx.Iter) (id rdx.ID, rest rdx.RDX, err error) {
+	if !args.Read() {
+		err = ErrNoArgument
+		return
+	}
+	if args.Lit() != rdx.Tuple {
+		rest, err = repl.Eval(args)
+		return
+	}
+	it := rdx.NewIter(args.Value())
+	{
+		t := it
+		t.Read()
+		i, e := pickID(t)
+		if e == nil && repl.cmds[i] == nil && len(t.Rest()) > 0 {
+			id = i
+			it = t
+		}
+	}
+
+	rest, err = repl.Evaluate(it.Rest())
+
+	return
+}
+
 func (repl *REPL) pickEvalId(args *rdx.Iter) (id rdx.ID, rest rdx.RDX, err error) {
 	var eval rdx.Iter
 	eval, err = repl.evalArgs(args)

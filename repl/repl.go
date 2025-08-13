@@ -41,8 +41,8 @@ var Yell = map[rdx.ID]Command{
 
 	rdx.ID{228977, 187576}: CmdSumInt, // sum-int(1 2 3 4)
 
-	rdx.ID{14851576, 2677}: CmdTestEq, // test-eq("comment" correct eval)
-	rdx.ID{0, 14851576}:    CmdTest,   // test("comment" correct eval)
+	rdx.ID{14851576, 2677}:   CmdTestEq,  // test-eq("comment" correct eval)
+	rdx.ID{14851576, 154672}: CmdTestAll, // test-all("comment" correct eval)
 
 	rdx.ID{12770808, 10185583}:  CmdListBrik, // list-brik
 	rdx.ID{667106793, 10185583}: CmdClose,    // close-brik
@@ -79,6 +79,7 @@ type REPL struct {
 	cmds   map[rdx.ID]Command
 	vals   map[rdx.ID]any
 	pros   map[rdx.ID]Proc
+	vinc   uint64
 }
 
 type Proc struct {
@@ -173,8 +174,8 @@ func (repl *REPL) Eval(code *rdx.Iter) (out rdx.RDX, err error) {
 				return local.(rdx.RDX), nil
 			case []byte:
 				return local.([]byte), nil
-			case rdx.Reader:
-				return local.(rdx.Reader).Record(), nil
+			//case rdx.Reader:  for rdr [ print ]
+			//	return local.(rdx.Reader).Record(), nil
 			default:
 				return code.Record(), nil
 			}

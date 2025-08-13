@@ -1,48 +1,59 @@
-set(five (1 2 3 4 5))
+var five (1 2 3 4 5);
 
-test:eq("Reader syntax 1",
+test-eq("Reader syntax 1",
         five,
-        map("i" list(five)) i;
+        map(i list five) i;
         )
 
-test:eq("Evaluate a list (bare)"
-	five
-        ( map(list(1 2 3 4 5)) _ )
-        )
-
-test:eq("Evaluate a list (arrays)"
-        ([1] [2] [3] [4] [5])
-        ( map(list("i" 1 2 3 4 5)) [i] )
-        )
-
-test:eq("Evaluate a list"
+test-eq("Evaluate a list (bare)"
 	    five
-        ( map(list("i" 1 2 3 4 5)) (i) )
+        ( map(list("l" 1 2 3 4 5)) _ )
+        )
+
+test-eq("Evaluate a list (arrays)",
+        ([1] [2] [3] [4] [5]),
+        map("i" list(j 1 2 3 4 5)) [i];
+        )
+
+test-eq("Evaluate a list"
+	    five
+        ( map(i list("j" 1 2 3 4 5)) i )
         )
 
 
-test:eq("Reader syntax 0",
+test-eq("Reader syntax 0",
         five,
         map(list(five)) _;
         )
 
-test:eq("Reader syntax 2",
+test-eq("Reader syntax 2",
         five,
         map(list(five)) _;
         )
 
-test:eq("Reader syntax 3",
+test-eq("Reader syntax 3",
         five,
-        map(list(j five)) j;
+        map(j list(five)) j;
         )
 
-test:eq("Reader syntax 4",
+test-eq("Reader syntax 4",
         five,
         map("k" list(j five)) k;
         )
 
-test:eq("Reader syntax 5",
+test-eq("Reader syntax 5",
         five,
+        map(list(j five)) _;
+        )
+
+
+test-all("Reader syntaxes",
+        five,
+        map(list(five)) _;
+        map(list five) _;
+        map(j list(five)) j;
+        map("k" list(j five)) k;
+        map(k list("j" five)) k;
         map(list(j five)) _;
         )
 

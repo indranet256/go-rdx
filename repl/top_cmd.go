@@ -194,23 +194,21 @@ func CmdPrint(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 func CmdList(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	var id rdx.ID
 	var eval []byte
-	if !args.Read() {
-		return nil, ErrNoArgument
-	}
-	id, err = pickStringID(args)
+	id, eval, err = repl.pickIdEval(args)
 	if err != nil {
 		return
 	}
-	eval, err = repl.Eval(args)
-	if err != nil {
-		return
+	if id.IsZero() {
+		repl.vinc++
+		id = rdx.ID{0, repl.vinc}
 	}
 	it := rdx.NewIter(eval)
-	if !it.Read() {
-		return
-	}
-	if rdx.IsPLEX(it.Lit()) && len(it.Rest()) == 0 {
-		it = rdx.NewIter(it.Value())
+	if rdx.IsPLEX(it.Peek()) {
+		j := it
+		j.Read()
+		if len(j.Rest()) == 0 {
+			it = rdx.NewIter(j.Value())
+		}
 	}
 
 	repl.vals[id] = rdx.Reader(&it)
@@ -233,34 +231,21 @@ var ReaderType = reflect.TypeOf((*rdx.Reader)(nil))
 func CmdFor(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	isMap := bytes.Equal(args.Record(), []byte{'t', 4, 0, 'm', 'a', 'p'})
 	var rdr rdx.Reader
-	if !args.Read() {
-		return nil, ErrNoLoopVariable
-	}
 	var loopVar, spec rdx.ID
-	loopVar = UnderscoreId
+
 	var eval []byte
-
-	// TODO pickStringID(), pickReader() !!!
-
-	eval, err = repl.Eval(args)
-
-	ait := rdx.NewIter(eval)
-	if !ait.Read() {
-		return nil, ErrNoLoopVariable
+	loopVar, eval, err = repl.pickIdEval(args)
+	if loopVar.IsZero() {
+		loopVar = UnderscoreId
 	}
-	if ait.Lit() == rdx.Tuple {
-		ait = rdx.NewIter(ait.Value())
-		if !ait.Read() {
-			return nil, ErrNoLoopVariable
-		}
+	eit := rdx.NewIter(eval)
+	if !eit.Read() {
+		return nil, errors.New("nothing to iterate")
 	}
-	spec, err = pickID(ait)
-	if err == nil && ait.Read() {
-		loopVar = spec
-		spec, err = pickID(ait)
-	}
-	if err != nil {
-		return
+	if eit.Lit() == rdx.Reference && len(eit.Rest()) == 0 {
+		spec = eit.Reference()
+	} else {
+		return nil, errors.New("for(x plex) NIY")
 	}
 
 	local, oklocal := repl.vals[spec]
