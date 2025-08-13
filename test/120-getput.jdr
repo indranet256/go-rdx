@@ -1,0 +1,15 @@
+print change-dir make-dir;
+
+make-space "test";
+make-branch "alice";
+test-eq("one brick" 1 len hash-brix);
+var A put {a:"Alice has a little sheep"};
+test-eq("get()", stamp(A, {a:"Alice has a little sheep"}), get A);
+add(A {b:"Bob has a boner"});
+test-eq(stamp(A {a:"Alice has a little sheep" b:"Bob has a boner"}) get A);
+set(A {c:"Carol has a carrot"})
+test-eq("set()" (c "Carol has a carrot") bare-rdx( get A) );
+del(A);
+test-nil(get A);
+
+rm-dir get-dir;
