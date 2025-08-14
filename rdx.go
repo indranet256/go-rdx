@@ -205,7 +205,7 @@ const (
 type Compare func(a *Iter, b *Iter) int
 
 func CompareLWW(a *Iter, b *Iter) int {
-	z := CompareID(a, b)
+	z := CompareIDRev(a, b)
 	if z == Eq {
 		z = CompareType(a, b)
 	}
@@ -321,6 +321,10 @@ func CompareRevID(ai *Iter, bi *Iter) int {
 
 func CompareID(ai *Iter, bi *Iter) int {
 	return ai.ID().Compare(bi.ID())
+}
+
+func CompareIDRev(ai *Iter, bi *Iter) int {
+	return ai.ID().RevCompare(bi.ID())
 }
 
 func CompareValue(a *Iter, b *Iter) int {

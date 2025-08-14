@@ -43,10 +43,18 @@ type IndexEntry struct {
 	Bloom uint64
 }
 
+func bloomBit(id ID) uint64 {
+	return uint64(1) << (id.Xor() & 63)
+}
+
 func (ie *IndexEntry) MayHaveID(id ID) bool {
-	bloom := ie.Bloom
-	bit := uint64(1) << (id.Xor() & 63)
-	return 0 != (bit & bloom)
+	bb := bloomBit(id)
+	return 0 != (bb & ie.Bloom)
+}
+
+func (ie *IndexEntry) AddID(id ID) {
+	bb := bloomBit(id)
+	ie.Bloom |= bb
 }
 
 func (ie *IndexEntry) AppendBinary(to []byte) ([]byte, error) {
@@ -350,7 +358,7 @@ func (brik *Brik) Get(id ID) (record Stream, err error) {
 			host:    brik,
 		}
 	}
-	if brik.At.Seek(id) == Less {
+	if brik.At.iter.Seek(id) == Less {
 		return nil, ErrRecordNotFound
 	}
 	return brik.At.Record(), nil
@@ -362,8 +370,7 @@ func (brik *Brik) Close() (err error) {
 	} else if brik.Data != nil {
 		err = brik.Data.Close()
 	}
-	brik.Data = nil
-	brik.File = nil
+	*brik = Brik{}
 	return
 }
 
@@ -471,6 +478,8 @@ func (brik *Brik) Unlink() error {
 	return os.Remove(brik.File.Name())
 }
 
+const MaskNoRev = ^uint64(63)
+
 func (brik *Brik) Write(rec []byte) (n int, err error) {
 	idx := &brik.Index[len(brik.Index)-1]
 	var id ID
@@ -495,8 +504,9 @@ func (brik *Brik) Write(rec []byte) (n int, err error) {
 			return 0, ErrBadRecord
 		}
 		idx.From = id
+		idx.From.Seq &= MaskNoRev
 	}
-	idx.Bloom |= uint64(1) << (id.Xor() & 63)
+	idx.AddID(id)
 	brik.block = append(brik.block, rec[:n]...)
 	//brik.At.Id = id
 	// TODO don't copy larger records (1M?)
@@ -586,7 +596,7 @@ func (brik *Brik) ToStage(stage Stage) error {
 		return err
 	}
 	for reader.Read() {
-		stage[reader.ID()] = reader.Record()
+		stage[reader.ID().Stem()] = reader.Record()
 	}
 	err = reader.Close()
 	return nil
@@ -655,12 +665,12 @@ func (bit *BrikReader) Close() error {
 type Brix []*Brik
 
 func (brix Brix) OpenByHash(hash Sha256) (more Brix, err error) {
+	more = brix
 	for _, b := range brix {
 		if b.Hash7574.Equal(hash) {
 			return
 		}
 	}
-	more = brix
 	b := &Brik{}
 	err = b.OpenByHash(hash)
 	if len(b.Meta) > 0 && !b.Meta[0].IsEmpty() {
@@ -689,13 +699,14 @@ func (brix Brix) OpenByPath(path string) (more Brix, err error) {
 	return
 }
 
-func (brix Brix) Close() (err error) {
-	for _, b := range brix {
+func (brix *Brix) Close() (err error) {
+	for _, b := range *brix {
 		e := b.Close()
 		if err == nil {
 			err = e
 		}
 	}
+	(*brix) = (*brix)[:0]
 	return
 }
 
@@ -920,12 +931,13 @@ func (brix Brix) Hash7574() Sha256 {
 	return brix[len(brix)-1].Hash7574
 }
 
-func (brix Brix) join() (joined *Brik, err error) {
-	deps := make([]Sha256, 0, len(brix))
+func (brix Brix) merge(base Sha256) (sha Sha256, err error) {
+	deps := make([]Sha256, 0, len(brix)+1)
+	deps = append(deps, base)
 	for _, b := range brix {
 		deps = append(deps, b.Hash7574)
 	}
-	joined = &Brik{}
+	joined := &Brik{}
 	err = joined.Start(deps)
 	if err != nil {
 		return
@@ -940,6 +952,7 @@ func (brix Brix) join() (joined *Brik, err error) {
 		err = joined.Seal()
 	}
 	if err == nil {
+		sha = joined.Hash7574
 		err = joined.Close()
 	}
 	if err != nil {

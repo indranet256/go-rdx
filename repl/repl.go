@@ -27,6 +27,7 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{0, 154152}:          CmdAdd,      // add({@id}) add(id {val})
 	rdx.ID{0, 166512}:          CmdDel,      // del({@id}) del(id)
 	rdx.ID{0, 13585010}:        CmdOpen,     // open(space branch)
+	rdx.ID{0, 12270450}:        CmdJoin,     // join(branch)
 	rdx.ID{0, 13818351}:        CmdPick,     // pick(a {a:1 b:2}) -> a:1
 	rdx.ID{0, 13855975}:        CmdProc,     // proc Fn(p1 p2 p3) [ ...code...]
 	rdx.ID{0, 2922}:            CmdIf,       // if eq(a b) [...] else [...]
@@ -37,9 +38,12 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{0, 10378288}:        CmdMute,     // call any-procedure()
 	rdx.ID{0, 937582060}:       CmdStash,    // stash
 	rdx.ID{0, 14588272}:        CmdSeal,     // seal(message)
+	rdx.ID{0, 11222447}:        CmdFork,     // fork(message)
 	rdx.ID{0, 937581684}:       CmdStamp,    // stamp(id, plex)
 	rdx.ID{0, 232893}:          CmdTry,      // try(err, call(something))
 	rdx.ID{0, 14867561}:        CmdTime,     // print time
+	rdx.ID{0, 10710260}:        CmdDrop,     // drop
+	rdx.ID{0, 833055465}:       CmdMerge,    // merge
 
 	rdx.ID{0, 14326120}:  CmdRead,  // read(rdr)
 	rdx.ID{0, 175350}:    CmdFor,   // for(rdr)[code]

@@ -1,7 +1,6 @@
 print change-dir make-dir;
 
-make-space "test";
-make-branch "alice";
+fork;
 test-eq("one brick" 1 len hash-brix);
 var A put {a:"Alice has a little sheep"};
 test-eq("get()", stamp(A, {a:"Alice has a little sheep"}), get A);
@@ -13,3 +12,5 @@ del(A);
 test-nil("deleted" get A);
 
 rm-dir get-dir;
+
+return;

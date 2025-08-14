@@ -1,7 +1,8 @@
 print change-dir make-dir;
 
-make-space(a);
-make-branch(b);
+x "make-space(a);"
+x "make-branch(b);"
+fork();
 
 var A {@Alice-123 a b c};
 add A;

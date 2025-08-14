@@ -53,10 +53,10 @@ func MakeBranch(handle uint64, legend string, misc Stage, key *KeyPair, isSpace 
 }
 
 // makes the space writable
-func (b *Branch) LoadCreds(handle uint64) (err error) {
+func (branch *Branch) LoadCreds(handle uint64) (err error) {
 	var meta Stream
 	metaId := ID{handle, 0}
-	meta, err = b.Tip.Get(metaId)
+	meta, err = branch.Tip.Get(metaId)
 	if err != nil {
 		return errors.New("no such space found")
 	}
@@ -68,7 +68,7 @@ func (b *Branch) LoadCreds(handle uint64) (err error) {
 	if mit.Lit() == Reference { // it is a handle, not a key prefix
 		keylet = mit.Reference().Src
 		id0 := ID{keylet, 0}
-		meta, err = b.Tip.Get(id0)
+		meta, err = branch.Tip.Get(id0)
 		if err != nil {
 			return errors.New("space meta record not found for " + string(id0.String()))
 		}
@@ -90,8 +90,8 @@ func (b *Branch) LoadCreds(handle uint64) (err error) {
 	sit := NewIter(self)
 	if sit.Read() && sit.Lit() == Tuple && sit.Into() && sit.Read() && sit.Lit() == Reference {
 		clock := sit.Reference()
-		b.Clock = ID{keylet, clock.Seq}
-		b.Handle = clock.Src
+		branch.Clock = ID{keylet, clock.Seq}
+		branch.Handle = clock.Src
 	}
 	return
 }

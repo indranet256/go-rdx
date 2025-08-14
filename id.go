@@ -88,7 +88,7 @@ func ParseIDString(txt string) (id ID) {
 	return
 }
 
-func (a ID) Compare(b ID) int {
+func (a ID) RevCompare(b ID) int {
 	if a.Seq < b.Seq {
 		return Less
 	} else if a.Seq > b.Seq {
@@ -102,8 +102,30 @@ func (a ID) Compare(b ID) int {
 	}
 }
 
+func (a ID) Compare(b ID) int {
+	aseq := a.Seq & MaskNoRev
+	bseq := b.Seq & MaskNoRev
+	if aseq < bseq {
+		return Less
+	} else if aseq > bseq {
+		return Grtr
+	} else if a.Src < b.Src {
+		return Less
+	} else if a.Src > b.Src {
+		return Grtr
+	} else {
+		return Eq
+	}
+}
+
+const IdRevBits = 6
+
+func (a ID) Stem() ID {
+	return ID{a.Src, a.Seq & MaskNoRev}
+}
+
 func (a ID) Xor() uint64 {
-	x := a.Src ^ a.Seq
+	x := a.Src ^ (a.Seq >> IdRevBits)
 	x ^= x >> 32
 	x ^= x >> 16
 	x ^= x >> 8

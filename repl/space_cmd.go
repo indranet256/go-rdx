@@ -59,6 +59,7 @@ func CmdMakeSpace(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		err = repl.space.LoadCreds(handle)
 		out = rdx.R0(spaceId)
 	}
+	repl.space.Keys = keys // FIXME
 
 	return
 }

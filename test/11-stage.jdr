@@ -1,0 +1,31 @@
+print change-dir make-dir;
+
+make-space("space");
+make-branch("branch");
+
+var A {Alice};
+var B {Bob};
+var C {Carol};
+
+var Aid put A;
+var AB stamp(Aid merge-rdx(A B));
+var ABC stamp(Aid merge-rdx(A B C));
+test-eq("get A" stamp(Aid A) get Aid);
+
+add(Aid B);
+test-eq("get AB" AB get Aid);
+test-nil("not saved" try get-brix(Aid));
+
+stash;
+test-eq("get-brix AB" AB get-brix Aid);
+add(Aid C);
+test-eq("get-brix AB" AB get-brix Aid);
+test-eq("get ABC" ABC get Aid);
+
+seal;
+test-eq("get ABC" ABC get Aid);
+test-eq("get-brix ABC" ABC get-brix Aid);
+
+rm-dir get-dir;
+
+return;

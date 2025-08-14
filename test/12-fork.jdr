@@ -1,0 +1,56 @@
+print change-dir make-dir;
+
+var alice Alice-123;
+var A1 {@Alice-123 1:"one"};
+var A2 {@Alice-123 2:"two"};
+var A3 {@Alice-123 3:"three"};
+var A4 {@Alice-123 4:"four"};
+
+x "no space open";
+var trunk fork();
+
+add(A1);
+test-eq("get A1" A1 get alice);
+seal;
+add(A2);
+test-eq("get A12" merge-rdx(A1 A2) get alice);
+stash;
+test-eq("get A12b" merge-rdx(A1 A2) get alice);
+
+var fork3 fork();
+test-eq("fork3 get A1" A1 get alice);
+add(A3);
+test-eq("fork3 get A13" merge-rdx(A1 A3) get alice);
+seal;
+
+open(trunk);
+test-eq("get A12c" merge-rdx(A1 A2) get alice);
+
+var fork4 fork();
+test-eq("fork4 get A1" A1 get alice);
+add(A4);
+test-eq("fork4 get A14" merge-rdx(A1 A4) get alice);
+seal;
+join(trunk);
+test-eq("fork4 get A14" merge-rdx(A1 A4) get alice);
+
+open(trunk);
+test-eq("get A12d" merge-rdx(A1 A2) get alice);
+join(fork3);
+test-eq("get A123" merge-rdx(A1 A2 A3) get alice);
+merge;
+test-eq("get A123" merge-rdx(A1 A2 A3) get alice);
+join(fork4);
+test-eq("get A1234" merge-rdx(A1 A2 A3 A4) get alice);
+stash;
+test-eq("get A1234" merge-rdx(A1 A2 A3 A4) get alice);
+merge;
+test-eq("get A1234" merge-rdx(A1 A2 A3 A4) get alice);
+drop;
+test-eq("get A1234" merge-rdx(A1 A2 A3 A4) get alice);
+
+close;
+
+rm-dir get-dir;
+
+return;
