@@ -1,46 +1,48 @@
-set(TMP os:mktmp())
-os:cd(TMP)
+print change-dir make-dir;
 
-set(A {@Alice-123 "one":1 "two":2})
-set(dA {@Alice-123 "three":3})
-set(A2 rdx:merge(A dA))
+var A {@Alice-123 "one":1 "two":2};
+var dA {@Alice-123 "three":3};
+var A2 rdx:merge(A dA);
 
-brix:open(DB1 brix:new(A))
-test:eq("BRIK creation"
+make-space;
+make-branch;
+
+test-eq("BRIK creation"
         3f978afd4592d7306fc8e095db7b5ecb6d34d66880b2535a2c483e358ea4f8b4
         brix:id(DB1) 
         )
-test:eq("BRIK add"
+test-eq("BRIK add"
         7725fdb47b9b723f0806cbae0591767950389cc96d244b676209ae5ffe0bbf9f
         brix:add(DB1 dA)
         )
 brix:open(DB2 7725fd)
 
-test:eq("BRIK get"
+test-eq("BRIK get"
         A
-        brix:get(DB1, Alice-123)
+        get(DB1, Alice-123)
         )
 
-test:eq("BRIK get upd"
+test-eq("BRIK get upd"
         A2
-        brix:get(DB2, Alice-123)
+        get(DB2, Alice-123)
         )
 
 set(yhash brix:merge(DB2))
 
-test:eq("BRIK merge"
+test-eq("BRIK merge"
         2a759ce76fa1e29a216d01a75831680f827489aa65864c26edd7fe6707d53b86
         yhash
        )
         
 brix:open(DBY yhash)
 
-test:eq("BRIK get merged"
+test-eq("BRIK get merged"
         A2
-        brix:get(DBY, Alice-123)
+        get(DBY, Alice-123)
         )
 
 brix:close(DBY)
 brix:close(DB2)
 brix:close(DB1)
-os:unlink(TMP)
+
+rm-dir get-dir;

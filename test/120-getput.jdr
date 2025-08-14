@@ -10,6 +10,6 @@ test-eq(stamp(A {a:"Alice has a little sheep" b:"Bob has a boner"}) get A);
 set(A {c:"Carol has a carrot"})
 test-eq("set()" (c "Carol has a carrot") bare-rdx( get A) );
 del(A);
-test-nil(get A);
+test-nil("deleted" get A);
 
 rm-dir get-dir;

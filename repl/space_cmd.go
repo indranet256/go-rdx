@@ -51,8 +51,15 @@ func CmdMakeSpace(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	}
 
 	_, err = rdx.MakeSpace(handle, legend, recs, &keys)
+	spaceId := rdx.ID{handle, 0}
+	if err == nil {
+		err = repl.space.Open(spaceId)
+	}
+	if err == nil {
+		err = repl.space.LoadCreds(handle)
+		out = rdx.R0(spaceId)
+	}
 
-	out = rdx.R0(rdx.ID{keys.KeyLet(), 0})
 	return
 }
 

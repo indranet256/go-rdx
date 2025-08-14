@@ -65,11 +65,14 @@ func CmdMakeBranch(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if err == nil {
 		_, err = repl.space.Seal()
 	}
-	if err != nil {
-		return
+	if err == nil {
+		err = repl.branch.Open(rdx.ID{handle, 0})
+	}
+	if err == nil {
+		err = repl.branch.LoadCreds(handle)
+		out = rdx.R0(branchId)
 	}
 
-	out = rdx.R0(branchId)
 	return
 }
 
@@ -127,28 +130,159 @@ func CmdJoin(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
-// add {@Alice-1232 key:"value"}
-func CmdAdd(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	var eval rdx.Iter
-	eval, err = repl.evalArgs(args)
+func (repl *REPL) PickNameValue(args *rdx.Iter) (handle rdx.ID, value []byte, err error) {
+	if !args.Read() {
+		return
+	}
+	if args.Lit() == rdx.Tuple && args.ID().IsZero() {
+		inner := rdx.NewIter(args.Value())
+		if !inner.Read() {
+			return
+		}
+		if inner.Lit() == rdx.Term && len(inner.Value()) <= 10 {
+			handle, _ = rdx.ParseID(inner.Value())
+			inner.Read()
+		}
+		value, err = repl.Eval(&inner)
+		if err == nil && len(inner.Rest()) > 0 {
+			err = errors.New("extra arguments provided")
+		}
+	} else {
+		if args.Lit() == rdx.Term && len(args.Value()) <= 10 {
+			handle, _ = rdx.ParseID(args.Value())
+			if !args.Read() {
+				return
+			}
+		}
+		value, err = repl.Eval(args)
+	}
+	return
+}
+
+func CmdStamp(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	var handle rdx.ID
+	var value rdx.Stream
+	handle, value, err = repl.PickNameValue(args)
+	if err == nil && handle.Src == 0 {
+		handle, err = repl.ResolveHandle(handle)
+	}
 	if err != nil {
 		return
 	}
-	var added []byte
-	var id rdx.ID
-	if rdx.IsPLEX(eval.Lit()) {
-		id = eval.ID()
-		added = eval.Record()
+	valit := rdx.NewIter(value)
+	if !valit.Read() {
+		return nil, ErrNoArgument
+	}
+	out = rdx.WriteRDX(nil, valit.Lit(), handle, valit.Value())
+	return
+}
+
+func (repl *REPL) ResolveStream(handle rdx.ID) (solved rdx.Stream, err error) {
+	a, found := repl.vals[handle]
+	if !found {
+		return nil, errors.New("handle unknown: " + string(handle.String()))
+	}
+	switch a.(type) {
+	case []byte:
+		return a.([]byte), nil
+	case rdx.Stream:
+		return a.(rdx.Stream), nil
+	default:
+		return nil, ErrBadVariableType
+	}
+}
+
+func (repl *REPL) ResolveHandle(handle rdx.ID) (solved rdx.ID, err error) {
+	idxx, found := repl.vals[handle]
+	if !found {
+		return rdx.ID0, errors.New("handle unknown: " + string(handle.String()))
+	}
+	idx, ok := idxx.(rdx.Stream)
+	if !ok {
+		return rdx.ID0, errors.New("handle resolves to a non-RDX value: " + string(handle.String()))
+	}
+	idit := rdx.NewIter(idx)
+	if idit.Read() && len(idit.Rest()) == 0 && idit.Lit() == rdx.Reference {
+		solved = idit.Reference()
 	} else {
-		id, err = pickID(eval)
-		if !eval.Read() {
+		return rdx.ID0, errors.New("can not resolve handle " + string(handle.String()))
+	}
+	return
+}
+
+func CmdDel(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	var handle rdx.ID
+	var value rdx.Stream
+	handle, value, err = repl.PickNameValue(args)
+	if err != nil {
+		return
+	}
+	if handle.Src == 0 && handle.Seq != 0 {
+		value, err = repl.ResolveStream(handle)
+		if err != nil {
+			return
+		}
+		handle = rdx.ID{}
+	}
+	if handle.IsZero() {
+		valit := rdx.NewIter(value)
+		if !valit.Read() {
 			return nil, ErrNoArgument
 		}
-		added = rdx.WriteRDX(nil, eval.Lit(), id, eval.Value())
+		if !valit.ID().IsZero() {
+			handle = valit.ID()
+		} else if valit.Lit() == rdx.Reference {
+			handle = valit.Reference()
+		} else {
+			return nil, errors.New("no id argument provided")
+		}
 	}
-	err = repl.branch.Add(added)
+	bustId := rdx.ID{handle.Src, handle.Seq | 63}
+	rec := rdx.P(bustId)
+	err = repl.branch.Add(rec)
+	return
+}
+
+// add {@Alice-1232 key:"value"}, add(x {...}), add(alice-132, {...})
+func CmdAdd(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	var handle rdx.ID
+	var value rdx.Stream
+	handle, value, err = repl.PickNameValue(args)
+	if err != nil {
+		return
+	}
+	if len(value) == 0 && !handle.IsZero() { // add(A) where A is {@a-b c d e}
+		value, err = repl.ResolveStream(handle)
+		if err != nil {
+			return
+		}
+		handle = rdx.ID{}
+	}
+	valit := rdx.NewIter(value)
+	if !valit.Read() {
+		return nil, ErrNoArgument
+	}
+	if handle.IsZero() {
+		if valit.ID().IsZero() {
+			return nil, errors.New("no id argument provided")
+		}
+		handle = valit.ID()
+	} else {
+		if handle.Src == 0 {
+			handle, err = repl.ResolveHandle(handle)
+			if err != nil {
+				return
+			}
+		}
+		if valit.ID().IsZero() {
+			value = rdx.WriteRDX(nil, valit.Lit(), handle, valit.Value())
+		} else if handle.Compare(valit.ID()) != rdx.Eq {
+			return nil, errors.New("conflicting ids")
+		}
+	}
+	err = repl.branch.Add(value)
 	if err == nil {
-		out = rdx.AppendReference(out, id)
+		out = rdx.AppendReference(out, handle)
 	}
 	return
 }
@@ -157,24 +291,15 @@ var ErrNoArgument = errors.New("no argument provided")
 
 // put {key:"value"} -> Alice-4450
 func CmdPut(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	if !args.Read() {
-		return nil, ErrNoArgument
-	}
-	var eval []byte
-	if args.Lit() == rdx.Tuple {
-		i := rdx.NewIter(args.Value())
-		if !i.Read() {
-			return nil, ErrNoArgument
-		}
-		eval, err = repl.Eval(&i)
-	} else {
-		eval, err = repl.Eval(args)
-	}
+	var handle rdx.ID
+	var value rdx.Stream
+	handle, value, err = repl.PickNameValue(args)
 	var id rdx.ID
+	id, err = repl.branch.Put(value)
 	if err == nil {
-		id, err = repl.branch.Put(eval)
-	}
-	if err == nil {
+		if !handle.IsZero() {
+			repl.vals[handle] = id
+		}
 		out = rdx.AppendReference(out, id)
 	}
 	return
@@ -182,6 +307,46 @@ func CmdPut(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 
 // set {@Alice-234 key:"value"} -> Alice-236
 func CmdSet(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	var handle rdx.ID
+	var value rdx.Stream
+	handle, value, err = repl.PickNameValue(args)
+	if err != nil {
+		return
+	}
+	if handle.Src == 0 {
+		handle, err = repl.ResolveHandle(handle)
+		if err != nil {
+			return
+		}
+	}
+	valit := rdx.NewIter(value)
+	if !valit.Read() {
+		return nil, ErrNoArgument
+	}
+	if handle.IsZero() {
+		if valit.ID().IsZero() {
+			return nil, errors.New("no id argument provided")
+		}
+		handle = valit.ID()
+	}
+	var pre rdx.Stream
+	pre, err = repl.branch.Get(handle)
+	if err != nil {
+		return
+	}
+	pit := rdx.NewIter(pre)
+	pit.Read()
+	newid := pit.ID()
+	rev := newid.Seq & 63
+	if rev == 63 {
+		return nil, errors.New("revision limit exceeded")
+	}
+	newid.Seq = (newid.Seq & ^uint64(63)) | ((rev &^ uint64(1)) + 2)
+	value = rdx.WriteRDX(nil, valit.Lit(), newid, valit.Value())
+	err = repl.branch.Add(value)
+	if err == nil {
+		out = rdx.AppendReference(out, handle)
+	}
 	return
 }
 
@@ -200,7 +365,7 @@ func (repl *REPL) evalArgs(args *rdx.Iter) (eval rdx.Iter, err error) {
 	if !eval.Read() {
 		err = ErrNoArgument
 	} else if eval.Lit() == rdx.Tuple {
-		eval = rdx.NewIter(eval.Value())
+		eval = rdx.NewIter(eval.Value()) // fixme mistake
 	}
 	return
 }
@@ -256,6 +421,18 @@ func CmdGet(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	}
 	var id rdx.ID
 	id, err = pickID(*args)
+	if id.Src == 0 {
+		local, has := repl.vals[id]
+		if has {
+			r, ok := local.(rdx.Stream)
+			if ok {
+				rit := rdx.NewIter(r)
+				if rit.Read() && rit.Lit() == rdx.Reference {
+					id = rit.Reference()
+				}
+			}
+		}
+	}
 	if err == nil {
 		out, err = repl.branch.Get(id)
 	}

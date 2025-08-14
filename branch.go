@@ -168,6 +168,11 @@ func (b *Branch) Add(delta Stream) (err error) {
 func (b *Branch) Get(id ID) (rec Stream, err error) {
 	id.Seq &= SeqMask
 	stage, _ := b.Stage[id.Base()]
+	// todo merge
+	it := NewIter(stage)
+	if it.Read() && (it.ID().Seq&63) == 63 {
+		stage = nil
+	}
 	return stage, nil
 }
 
@@ -242,7 +247,7 @@ func (b *Branch) Seal() (sha Sha256, err error) {
 		return
 	}
 	var edited Stream
-	edit := X(metaId, P(metaId, R0(ID{b.Handle, b.Clock.Seq})))
+	edit := X(metaId, P(metaId, R0(b.Clock)))
 	edited, err = Merge(nil, [][]byte{meta, edit})
 	tipdeps := []Sha256{sha}
 	_ = tipStage.Add(edited)

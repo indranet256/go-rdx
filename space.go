@@ -3,6 +3,7 @@ package rdx
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 )
 
@@ -14,16 +15,14 @@ func MakeSpace(handle uint64, legend string, misc Stage, key *KeyPair) (sha Sha2
 
 // space: < (@bE4Kc2Ofc-23b2 "crypto" "Changes to the yell crypto API" pubkey), ...>
 // branch: { (@bE4Kc2Ofc-23bd tag "Ed25519 extended" hash) }
+// FIXME make this a member!!!
 func MakeBranch(handle uint64, legend string, misc Stage, key *KeyPair, isSpace bool) (sha Sha256, err error) {
 	id := ID{key.KeyLet(), 0}
 	lnid := ID{handle, 0}
 	pubHex := hex.EncodeToString(key.Pub)
-	F := E
-	if isSpace {
-		F = X
-	}
-	_ = misc.Add(F(id, P(id,
-		R0(ID{handle, 0}),   // handle, clocks
+	_ = misc.Add(E(id, P0(
+		R0(id),              //  clocks
+		R0(ID{handle, 0}),   // handle
 		S0(legend),          // description
 		S(ID{0, 2}, pubHex), // pub key
 	)))
@@ -35,8 +34,9 @@ func MakeBranch(handle uint64, legend string, misc Stage, key *KeyPair, isSpace 
 	}
 	private := make(Stage)
 	secHex := hex.EncodeToString(key.Sec)
-	_ = private.Add(F(id, P(id,
-		R0(ID{handle, 0}),   // handle, clocks
+	_ = private.Add(E(id, P0(
+		R0(id),              //  clocks
+		R0(ID{handle, 0}),   // handle
 		S0(legend),          // description
 		S(ID{0, 1}, secHex), // private key
 	)))
@@ -81,8 +81,10 @@ func (b *Branch) LoadCreds(handle uint64) (err error) {
 		return errors.New(string(mit.ID().String()) + " is not a space")
 	}
 	var self Stream
-	self, err = Pick(P(ID{keylet, 0}), mit.Record())
+	self, err = Pick(P0(R0(ID{keylet, 0})), mit.Record())
 	if err != nil {
+		jdr, _ := WriteAllJDR(nil, mit.Record(), 0)
+		fmt.Println(string(jdr))
 		return errors.New("space meta self-record not found")
 	}
 	sit := NewIter(self)

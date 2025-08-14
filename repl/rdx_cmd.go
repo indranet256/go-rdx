@@ -9,3 +9,10 @@ func CmdFlatRDX(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 func CmdNormalRDX(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return rdx.Normalize(args.Rest())
 }
+
+func CmdBareRDX(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if args.Read() {
+		out = args.Value()
+	}
+	return
+}

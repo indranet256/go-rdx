@@ -63,6 +63,20 @@ func CmdTestEq(ctx *REPL, arg *rdx.Iter) (ret []byte, err error) {
 	return nil, nil
 }
 
+func CmdTestNil(ctx *REPL, eit *rdx.Iter) (ret []byte, err error) {
+	var comment []byte
+	if eit.Peek() == rdx.String {
+		if !eit.Read() {
+			return
+		}
+		comment = eit.Value()
+	} else {
+		comment = []byte("unnamed test")
+	}
+	fmt.Println(report(comment, nil, nil, eit.Rest()))
+	return
+}
+
 func CmdTestAll(ctx *REPL, eit *rdx.Iter) (ret []byte, err error) {
 	var eval, comment, correct, expr, fact []byte
 	if eit.Peek() == rdx.String {

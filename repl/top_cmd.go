@@ -135,6 +135,10 @@ func CmdVerbatim(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
+func CmdMute(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	return
+}
+
 const elseId = 10948073
 
 func CmdIf(repl *REPL, args *rdx.Iter) (out []byte, err error) {

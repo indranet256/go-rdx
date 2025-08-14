@@ -25,13 +25,17 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{0, 216696}:          CmdPut,      // put(val)
 	rdx.ID{0, 227960}:          CmdSet,      // set({@id}) set(id val)
 	rdx.ID{0, 154152}:          CmdAdd,      // add({@id}) add(id {val})
+	rdx.ID{0, 166512}:          CmdDel,      // del({@id}) del(id)
 	rdx.ID{0, 13585010}:        CmdOpen,     // open(space branch)
 	rdx.ID{0, 13818351}:        CmdPick,     // pick(a {a:1 b:2}) -> a:1
 	rdx.ID{0, 13855975}:        CmdProc,     // proc Fn(p1 p2 p3) [ ...code...]
 	rdx.ID{0, 2922}:            CmdIf,       // if eq(a b) [...] else [...]
 	rdx.ID{0, 63}:              CmdVerbatim, // ~{a:b}
 	rdx.ID{0, 257962825714545}: CmdVerbatim, // verbatim {a:b}
+	rdx.ID{0, 60}:              CmdMute,     // x put({a:b})
+	rdx.ID{0, 13082153}:        CmdMute,     // mute change-dir ".."
 	rdx.ID{0, 937582060}:       CmdStash,    // stash
+	rdx.ID{0, 937581684}:       CmdStamp,    // stamp(id, plex)
 
 	rdx.ID{0, 14326120}:  CmdRead,  // read(rdr)
 	rdx.ID{0, 175350}:    CmdFor,   // for(rdr)[code]
@@ -44,16 +48,18 @@ var Yell = map[rdx.ID]Command{
 
 	rdx.ID{11209080, 223804}:    CmdFlatRDX,   // flat-rdx {@a-2 b@1 c d@e-3}
 	rdx.ID{54557088112, 223804}: CmdNormalRDX, // normal-rdx { a a a}
+	rdx.ID{10116521, 223804}:    CmdBareRDX,   // bare plex
 
 	rdx.ID{14851576, 2677}:   CmdTestEq,  // test-eq("comment" correct eval)
 	rdx.ID{14851576, 154672}: CmdTestAll, // test-all("comment" correct eval)
+	rdx.ID{14851576, 207728}: CmdTestNil, // test-nil(expr)
 
-	rdx.ID{11689452, 10185596}:        CmdHashBrix,     // hash-brix
-	rdx.ID{12770808, 10185583}:        CmdListBrik,     // list-brik
-	rdx.ID{667106793, 10185583}:       CmdClose,        // close-brik
-	rdx.ID{12770808, 10185596}:        CmdListBrix,     // list-brix
-	rdx.ID{667106793, 10185596}:       CmdClose,        // close-brix
-	rdx.ID{12770808, 170885737766380}: CmdListBrikHash, // list-brikhash
+	rdx.ID{11689452, 10185596}:    CmdHashBrix,   // hash-brix
+	rdx.ID{11689452, 41718065644}: CmdHashBranch, // hash-branch
+	rdx.ID{12770808, 10185583}:    CmdListBrik,   // list-brik
+	rdx.ID{667106793, 10185583}:   CmdClose,      // close-brik
+	rdx.ID{12770808, 10185596}:    CmdListBrix,   // list-brix
+	rdx.ID{667106793, 10185596}:   CmdClose,      // close-brix
 
 	rdx.ID{12999657, 41718065644}: CmdMakeBranch, // make-branch(handle "mission")
 
@@ -179,7 +185,11 @@ func (repl *REPL) Eval(code *rdx.Iter) (out rdx.Stream, err error) {
 		ref := rdx.ID{0, seq}
 		cmd, okcmd := repl.cmds[ref]
 		if okcmd { // controls evaluate stuff themselves
-			return cmd(repl, code)
+			out, err = cmd(repl, code)
+			if err != nil {
+				err = errors.New(string(ref.String()) + "() fails: " + err.Error())
+			}
+			return
 		}
 		local, oklocal := repl.vals[ref]
 		if oklocal {
@@ -216,6 +226,8 @@ func (repl *REPL) Eval(code *rdx.Iter) (out rdx.Stream, err error) {
 		ev, err = repl.evaluate(code.Value())
 		if err == nil && ev != nil {
 			out = rdx.WriteRDX(out, code.Lit(), code.ID(), ev)
+		} else if err == Errturn {
+			out = ev
 		}
 	}
 	return
