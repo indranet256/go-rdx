@@ -34,8 +34,12 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{0, 257962825714545}: CmdVerbatim, // verbatim {a:b}
 	rdx.ID{0, 60}:              CmdMute,     // x put({a:b})
 	rdx.ID{0, 13082153}:        CmdMute,     // mute change-dir ".."
+	rdx.ID{0, 10378288}:        CmdMute,     // call any-procedure()
 	rdx.ID{0, 937582060}:       CmdStash,    // stash
+	rdx.ID{0, 14588272}:        CmdSeal,     // seal(message)
 	rdx.ID{0, 937581684}:       CmdStamp,    // stamp(id, plex)
+	rdx.ID{0, 232893}:          CmdTry,      // try(err, call(something))
+	rdx.ID{0, 14867561}:        CmdTime,     // print time
 
 	rdx.ID{0, 14326120}:  CmdRead,  // read(rdr)
 	rdx.ID{0, 175350}:    CmdFor,   // for(rdr)[code]
@@ -48,12 +52,15 @@ var Yell = map[rdx.ID]Command{
 
 	rdx.ID{11209080, 223804}:    CmdFlatRDX,   // flat-rdx {@a-2 b@1 c d@e-3}
 	rdx.ID{54557088112, 223804}: CmdNormalRDX, // normal-rdx { a a a}
-	rdx.ID{10116521, 223804}:    CmdBareRDX,   // bare plex
+	rdx.ID{10116521, 223804}:    CmdBareRDX,   // bare-rdx plex
+	rdx.ID{833055465, 223804}:   CmdMergeRDX,  // merge-rdx(v1 v2 v3)
+	rdx.ID{10672810, 223804}:    CmdDiffRDX,   // diff-rdx(v1 v2)
 
 	rdx.ID{14851576, 2677}:   CmdTestEq,  // test-eq("comment" correct eval)
 	rdx.ID{14851576, 154672}: CmdTestAll, // test-all("comment" correct eval)
 	rdx.ID{14851576, 207728}: CmdTestNil, // test-nil(expr)
 
+	rdx.ID{178808, 10185596}:      CmdGetBrix,    // get-brix(id)
 	rdx.ID{11689452, 10185596}:    CmdHashBrix,   // hash-brix
 	rdx.ID{11689452, 41718065644}: CmdHashBranch, // hash-branch
 	rdx.ID{12770808, 10185583}:    CmdListBrik,   // list-brik
@@ -186,7 +193,7 @@ func (repl *REPL) Eval(code *rdx.Iter) (out rdx.Stream, err error) {
 		cmd, okcmd := repl.cmds[ref]
 		if okcmd { // controls evaluate stuff themselves
 			out, err = cmd(repl, code)
-			if err != nil {
+			if err != nil && err != Errturn {
 				err = errors.New(string(ref.String()) + "() fails: " + err.Error())
 			}
 			return

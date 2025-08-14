@@ -1,54 +1,54 @@
-test:eq(    "Tuple diff"
+test-eq(    "Tuple diff"
              ((),2@4,3@34,(@1))
-             rdx:diff(
+             diff-rdx(
                  ( 1 22@2 3@33 4 )
                  ( 1 2 3 )
              )
         )
 
-test:eq(    "Set diff"
+test-eq(    "Set diff"
             { 1@1 2@1 4 5 }
-            rdx:diff(
+            diff-rdx(
                 { 1 2 3 }
                 { 3 4 5 }
             )
         )
 
-test:eq(    "Set nested diff"
+test-eq(    "Set nested diff"
             { 1@1 2@1 4 5 {a@2 b d@1 {@1}} }
-            rdx:diff(
+            diff-rdx(
                 { 1 2 3 { a:b c d {inner stuff}} }
                 { 3 4 5 { a b c } }
             )
         )
 
-test:eq(    "Map diff"
+test-eq(    "Map diff"
             { 1:"one" 3:"three" 4@1 5:"five"@2 }
-            rdx:diff(
+            diff-rdx(
                 { 2:"two" 4:"four" 5:5 }
                 { 1:"one" 2:"two" 3:"three" 5:"five" }
             )
         )
 
-test:eq(    "Linear diff"
+test-eq(    "Linear diff"
             [22@20 1@101 2@201 5@500]
-            rdx:diff(
+            diff-rdx(
                 [1@100, 2@200, 3@300, 4@400]
                 [22, 3, 4, 5]
             )
         )
 
-test:eq(    "Linear diff/trains"
+test-eq(    "Linear diff/trains"
             [2@200 train@100 here@120]
-            rdx:diff(
+            diff-rdx(
                 [1@100, 2@200, 222@220, 22@280, 3@300]
                 [1, 2, train, here, 222, 22, 3]
             )
         )
 
-test:eq(    "Linear diff/zeros"
+test-eq(    "Linear diff/zeros"
             [1 2 two@100 three@200 3 4@1 5]
-            rdx:diff(
+            diff-rdx(
                 [1 2 3 4 5]
                 [1, 2, two, three, 3, 5]
             )
