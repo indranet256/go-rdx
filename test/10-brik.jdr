@@ -1,5 +1,8 @@
 print change-dir make-dir;
 
+make-space(a);
+make-branch(b);
+
 var A {@Alice-123 a b c};
 add A;
 stash;
@@ -8,9 +11,9 @@ test-eq("BRIK creation"
         hash-brix
         )
 test-eq("BRIK get"  A   get Alice-123 )
-list-brix("L" hash-brix)
-var D map list-brix(hash-brix) _;
+var D map (list-brix) _;
 test-eq("BRIX scan" A D)
 close;
 
 rm-dir get-dir;
+return

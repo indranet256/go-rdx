@@ -129,6 +129,15 @@ func CmdHashBranch(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	return
 }
 
+func CmdGetBrix(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	if !args.Read() || args.Lit() != rdx.Reference || len(args.Rest()) > 0 {
+		return nil, ErrBadArguments
+	}
+	id := args.Reference()
+	out, err = repl.branch.Brix.Get(nil, id)
+	return
+}
+
 func CmdHashBrix(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if args.Read() {
 		return nil, ErrNotImplementedYet
@@ -141,28 +150,17 @@ func CmdHashBrix(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 
 // brix-list fa428e
 func CmdListBrix(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	if !args.Read() {
-		return nil, ErrNoArgument
-	}
 	var readerId rdx.ID
-	readerId, err = pickStringID(args)
-	if err != nil {
+	if args.Read() {
+		readerId, err = pickStringID(args)
+	}
+	if readerId.IsZero() {
 		repl.vinc++
 		readerId = rdx.ID{0, repl.vinc}
 		err = nil
 	}
-	var sha rdx.Sha256
-	sha, err = pickHash(*args)
-	if err != nil {
-		return
-	}
-	var brix rdx.Brix
-	brix, err = brix.OpenByHash(sha)
-	if err != nil {
-		return
-	}
 	var it rdx.BrixReader
-	it, err = brix.Reader()
+	it, err = repl.branch.Brix.Reader()
 	if err != nil {
 		return
 	}
