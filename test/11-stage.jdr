@@ -1,7 +1,6 @@
 print change-dir make-dir;
 
-make-space("space");
-make-branch("branch");
+fork("branch");
 
 var A {Alice};
 var B {Bob};

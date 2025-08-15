@@ -29,6 +29,10 @@ type ReadSeekCloser interface {
 	io.Closer
 }
 
+type Getter interface {
+	Get(id ID) (value Stream, err error)
+}
+
 // Iter is an Stream byte stream iterator. Start state: before the 1st element.
 // Convention: when passing a whole byte stream, use the start state; when
 // passing an element or a group, always position the iterator appropriately.

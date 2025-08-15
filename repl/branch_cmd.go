@@ -53,7 +53,7 @@ func CmdMakeBranch(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if err != nil {
 		return
 	}
-	repl.branch.Keys = keys // FIXME
+	//repl.branch.Keys = keys // FIXME
 
 	spaceId := rdx.ID{repl.space.Clock.Src, 0}
 	branchId := rdx.ID{Src: keys.KeyLet()}
@@ -88,10 +88,13 @@ func CmdListBranches(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 
 // fork -> s4a35Rlh6N-0
 func CmdFork(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	legend := "some branch"
 	if args.Read() {
-		// todo the arguments: handle, legend, etc
+		if args.Lit() == rdx.Term || args.Lit() == rdx.String {
+			legend = string(args.Value())
+		}
 	}
-	err = repl.branch.Fork()
+	err = repl.branch.Fork(legend)
 	if err == nil {
 		out = rdx.R0(repl.branch.Clock)
 	}
@@ -117,6 +120,7 @@ func CmdOpen(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		return
 	}
 	_ = repl.branch.Close()
+	id.Seq = 0 // TODO
 	err = repl.branch.Open(id)
 	return
 }

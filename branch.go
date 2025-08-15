@@ -9,18 +9,34 @@ import (
 )
 
 type Branch struct {
+	BranchMeta
+
 	Brix  Brix
-	Clock ID
 	Tip   Brik
 	Stage Stage
 	//@deprecated
 	Handle uint64
 	Len    int
-	Keys   KeyPair
 }
 
 func (branch *Branch) IsWritable() bool {
 	return branch.Clock.Src != 0
+}
+
+func (branch *Branch) PubKey() ed25519.PublicKey {
+	if len(branch.Crypto) == ed25519.PublicKeySize {
+		return branch.Crypto
+	} else if len(branch.Crypto) == ed25519.PrivateKeySize {
+		return branch.Crypto[ed25519.PrivateKeySize:]
+	}
+	return nil
+}
+
+func (branch *Branch) PrivKey() ed25519.PrivateKey {
+	if len(branch.Crypto) == ed25519.PrivateKeySize {
+		return branch.Crypto
+	}
+	return nil
 }
 
 type KeyPair struct {
@@ -357,7 +373,7 @@ var ErrNoKeysNotWritable = errors.New("no private key, branch is not writable")
 // Moves the tip to point to the resulting version.
 // The branch must be writable.
 func (branch *Branch) Seal() (err error) {
-	if !branch.Keys.HasPrivateKey() {
+	if branch.PrivKey() == nil {
 		return ErrNoKeysNotWritable
 	}
 	old := branch.Hash7574()
@@ -377,8 +393,8 @@ func (branch *Branch) Seal() (err error) {
 	var file *os.File
 	file, err = os.OpenFile(top.File.Name(), os.O_WRONLY|os.O_APPEND, 0o777)
 	if err == nil {
-		sign := ed25519.Sign(branch.Keys.Sec, top.Hash7574[:])
-		err = writeAll(file, top.Hash7574[:], branch.Keys.Pub, sign)
+		sign := ed25519.Sign(branch.PrivKey(), top.Hash7574[:])
+		err = writeAll(file, top.Hash7574[:], branch.PubKey(), sign)
 		_ = file.Close()
 	}
 	if err == nil {
@@ -390,7 +406,7 @@ func (branch *Branch) Seal() (err error) {
 	return
 }
 
-func (branch *Branch) Fork() (err error) { // todo legend
+func (branch *Branch) Fork(legend string) (err error) {
 	//if len(branch.Stage) != 0 {  FIXME check if the changes were saved
 	//	return ErrHasStagedChanges
 	//}
@@ -399,15 +415,15 @@ func (branch *Branch) Fork() (err error) { // todo legend
 	if err != nil {
 		return
 	}
-	branch.Keys = MakeKeypair()
-	branch.Clock.Src = branch.Keys.KeyLet()
+	keys := MakeKeypair()
+	branch.Legend = legend
+	branch.Clock.Src = keys.KeyLet()
+	if branch.Clock.Seq == 0 {
+		branch.Clock.Seq = Timestamp()
+	}
+	branch.Crypto = keys.Sec
 	private := make(Stage)
-	secHex := hex.EncodeToString(branch.Keys.Sec)
-	_ = private.Add(E(ID{branch.Clock.Src, 0}, P0(
-		R0(branch.Clock),    //  clocks
-		S0("some branch"),   // description
-		S(ID{0, 1}, secHex), // private key
-	)))
+	_ = private.Add(branch.MetaRDX(ID{branch.Clock.Src, 0}))
 	return branch.makeTip([]Sha256{branch.Brix.Hash7574()}, private)
 }
 
@@ -444,4 +460,44 @@ func writeAll(file *os.File, data ...[]byte) (err error) {
 		}
 	}
 	return
+}
+
+type BranchMeta struct {
+	Clock  ID
+	Legend string
+	Crypto []byte
+	Rest   Stream
+}
+
+func (meta *BranchMeta) Load(val Stream) (err error) {
+	it := NewIter(val)
+	if !it.Read() || it.Lit() != Reference {
+		return ErrBadRecord
+	}
+	meta.Clock = it.Reference()
+	if !it.Read() || (it.Lit() != String && it.Lit() != Term) {
+		return ErrBadRecord
+	}
+	meta.Legend = it.String()
+	if !it.Read() || (it.Lit() != String && it.Lit() != Term) {
+		return ErrBadRecord
+	}
+	meta.Crypto, err = hex.AppendDecode(nil, it.Value())
+	if err != nil {
+		return err
+	}
+	if len(it.Rest()) != 0 {
+		meta.Rest = make(Stream, len(it.Rest()))
+		copy(meta.Rest, it.Rest())
+	}
+	return nil
+}
+
+func (meta *BranchMeta) MetaRDX(id ID) (val Stream) {
+	return P(id,
+		R0(meta.Clock),
+		S0(meta.Legend),
+		S0(hex.EncodeToString(meta.Crypto)),
+		meta.Rest,
+	)
 }
