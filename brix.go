@@ -404,7 +404,7 @@ func MakeBrik(deps []Sha256, recs Stage) (hash7574 Sha256, err error) {
 func makeRdxDir() (err error) {
 	_, err = os.Stat(BrixPath)
 	if err != nil {
-		err = os.MkdirAll(BrixPath, 0o777)
+		err = os.MkdirAll(BrixPath, 0o755)
 	}
 	return
 }

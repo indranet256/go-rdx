@@ -17,50 +17,46 @@ const IdEd25519SignSeq = 1152823100548846199
 // branch: { (@bE4Kc2Ofc-23bd "Author B" "Ed25519 extended" hash) }
 // make-space(handle "description")
 func CmdMakeSpace(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	if !args.Read() {
+	if repl.space.IsOpen() {
+		return nil, rdx.ErrAlreadyOpen
+	}
+	if !args.Read() || (args.Lit() != rdx.Tuple && args.Lit() != rdx.String) {
 		return nil, ErrNoArgument
 	}
-	var handle uint64
-	handle, err = repl.pickHandle(*args)
-	if err != nil {
-		return
-	}
-	legend := "some space"
-	if args.Read() {
-		legend, err = pickString(*args)
-		if err != nil {
-			return
-		}
-	}
-	//todo args.Rest()
+	_ = repl.branch.Close()
+	_ = repl.space.Close()
 	var stat os.FileInfo
 	stat, err = os.Stat(rdx.BrixPath)
 	if err != nil {
-		err = os.Mkdir(rdx.BrixPath, 0777)
+		err = os.Mkdir(rdx.BrixPath, 0755)
 		if err != nil {
 			return
 		}
 	} else if !stat.IsDir() {
 		return nil, rdx.ErrBadFile
 	}
-	recs := make(rdx.Stage) // todo supply
-	var keys rdx.KeyPair
-	keys.Pub, keys.Sec, err = ed25519.GenerateKey(nil)
+	pub, sec, _ := ed25519.GenerateKey(nil)
+	meta := rdx.BranchMeta{
+		Legend: args.String(),
+		Crypto: sec,
+		Clock:  rdx.ID{rdx.KeyLet(pub), rdx.Timestamp()},
+	}
+	id0 := rdx.ID{meta.Clock.Src, 0}
+	err = repl.branch.Fork(&meta)
 	if err != nil {
 		return
 	}
-
-	_, err = rdx.MakeSpace(handle, legend, recs, &keys)
-	spaceId := rdx.ID{handle, 0}
-	if err == nil {
-		err = repl.space.Open(spaceId)
+	meta.Crypto = pub
+	record := meta.MetaRDX(id0)
+	err = repl.space.Add(record)
+	if err != nil {
+		return
 	}
-	if err == nil {
-		err = repl.space.LoadCreds(handle)
-		out = rdx.R0(spaceId)
+	err = repl.space.Seal()
+	if err != nil {
+		return
 	}
-	//repl.space.Keys = keys // FIXME
-
+	err = repl.space.Open(id0)
 	return
 }
 

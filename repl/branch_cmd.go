@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/hex"
+	"crypto/ed25519"
 	"errors"
 
 	"github.com/gritzko/rdx"
@@ -20,59 +20,39 @@ func (repl *REPL) pickHandle(args rdx.Iter) (handle uint64, err error) {
 
 // space: < (@bE4Kc2Ofc-23b2 crypto "Changes to the yell crypto API" pubkey), ...>
 // branch: { (@bE4Kc2Ofc-23bd tag "Ed25519 extended" hash) }
-// make-branch(handle mission)
+// make-branch(legend {rest})
 func CmdMakeBranch(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if !repl.space.IsOpen() {
 		return nil, ErrNoSpaceOpen
 	}
-	if !args.Read() {
-		return nil, ErrNoArgument
+	pub, sec, _ := ed25519.GenerateKey(nil)
+	meta := rdx.BranchMeta{
+		Legend: "(a branch)",
+		Crypto: sec,
 	}
-	var handle uint64
-	handle, err = repl.pickHandle(*args)
-	if err != nil {
-		return
-	}
-	legend := "some branch"
 	if args.Read() {
-		legend, err = pickString(*args)
+		meta.Legend, err = pickString(*args)
 		if err != nil {
 			return
 		}
 	}
-	recs := make(rdx.Stage)
-	if repl.branch.Stage != nil {
-		recs, repl.branch.Stage = repl.branch.Stage, recs
-	}
-	keys := rdx.MakeKeypair()
-	/*if len(handle) == 0 {
-		i := keys.KeyLet()
-		handle = string(rdx.RON64String(i & rdx.Mask60bit))
-	}*/
-	_, err = rdx.MakeBranch(handle, legend, recs, &keys, false)
+	err = repl.branch.Fork(&meta)
 	if err != nil {
 		return
 	}
-	//repl.branch.Keys = keys // FIXME
-
-	spaceId := rdx.ID{repl.space.Clock.Src, 0}
-	branchId := rdx.ID{Src: keys.KeyLet()}
-	err = repl.space.Add(
-		rdx.X(spaceId,
-			rdx.P(branchId,
-				rdx.R0(rdx.ID{handle, 0}), rdx.S0(legend), rdx.S0(hex.EncodeToString(keys.Pub)),
-			),
-		))
-	if err == nil {
-		err = repl.space.Seal()
+	id0 := rdx.ID{meta.Clock.Src, 0}
+	meta.Crypto = pub
+	record := meta.MetaRDX(id0)
+	err = repl.space.Add(record)
+	if err != nil {
+		return
 	}
-	if err == nil {
-		err = repl.branch.Open(rdx.ID{handle, 0})
+	err = repl.space.Seal()
+	if err != nil {
+		return
 	}
-	if err == nil {
-		err = repl.branch.LoadCreds(handle)
-		out = rdx.R0(branchId)
-	}
+	_ = repl.branch.Close()
+	err = repl.branch.Open(id0)
 
 	return
 }
@@ -88,13 +68,13 @@ func CmdListBranches(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 
 // fork -> s4a35Rlh6N-0
 func CmdFork(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	legend := "some branch"
+	meta := rdx.BranchMeta{Legend: "(a branch)"}
 	if args.Read() {
 		if args.Lit() == rdx.Term || args.Lit() == rdx.String {
-			legend = string(args.Value())
+			meta.Legend = string(args.Value())
 		}
 	}
-	err = repl.branch.Fork(legend)
+	err = repl.branch.Fork(&meta)
 	if err == nil {
 		out = rdx.R0(repl.branch.Clock)
 	}

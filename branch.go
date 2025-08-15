@@ -61,8 +61,12 @@ func (pair *KeyPair) RDX() Stream {
 	return P0(S0(hex.EncodeToString(pair.Pub)), S0(hex.EncodeToString(pair.Sec)))
 }
 
+func KeyLet(pub []byte) uint64 {
+	return binary.LittleEndian.Uint64(pub) & Mask60bit
+}
+
 func (pair *KeyPair) KeyLet() uint64 {
-	return binary.LittleEndian.Uint64(pair.Pub) & Mask60bit
+	return KeyLet(pair.Pub)
 }
 
 var ID0 = ID{}
@@ -119,6 +123,15 @@ func (branch *Branch) Open(id ID) (err error) {
 	if err != nil {
 		return
 	}
+	var metaRec Stream
+	metaRec, err = branch.Tip.Get(id)
+	if err != nil {
+		return
+	}
+	err = branch.BranchMeta.Load(metaRec)
+	if err != nil {
+		return
+	}
 
 	reflen := len(branch.Tip.Meta)
 	if reflen > 2 {
@@ -141,7 +154,7 @@ func (branch *Branch) Open(id ID) (err error) {
 		_ = stage.Close()
 	}
 	branch.Len = len(branch.Brix)
-	branch.Clock = ID{id.Src, Timestamp()} // FIXME
+
 	return
 }
 
@@ -336,7 +349,7 @@ func (branch *Branch) retip(deps []Sha256) (err error) {
 	if err != nil {
 		return
 	}
-	edit := X(metaId, P(metaId, R0(branch.Clock)))
+	edit := P(metaId, R0(branch.Clock))
 	_ = tipStage.Add(edit)
 	return branch.makeTip(deps, tipStage)
 }
@@ -391,7 +404,7 @@ func (branch *Branch) Seal() (err error) {
 	}
 
 	var file *os.File
-	file, err = os.OpenFile(top.File.Name(), os.O_WRONLY|os.O_APPEND, 0o777)
+	file, err = os.OpenFile(top.File.Name(), os.O_WRONLY|os.O_APPEND, 0o755)
 	if err == nil {
 		sign := ed25519.Sign(branch.PrivKey(), top.Hash7574[:])
 		err = writeAll(file, top.Hash7574[:], branch.PubKey(), sign)
@@ -406,7 +419,7 @@ func (branch *Branch) Seal() (err error) {
 	return
 }
 
-func (branch *Branch) Fork(legend string) (err error) {
+func (branch *Branch) Fork(meta *BranchMeta) (err error) {
 	//if len(branch.Stage) != 0 {  FIXME check if the changes were saved
 	//	return ErrHasStagedChanges
 	//}
@@ -415,13 +428,18 @@ func (branch *Branch) Fork(legend string) (err error) {
 	if err != nil {
 		return
 	}
-	keys := MakeKeypair()
-	branch.Legend = legend
-	branch.Clock.Src = keys.KeyLet()
-	if branch.Clock.Seq == 0 {
-		branch.Clock.Seq = Timestamp()
+	if len(meta.Crypto) != ed25519.PrivateKeySize {
+		_, sec, _ := ed25519.GenerateKey(nil)
+		meta.Crypto = sec
 	}
-	branch.Crypto = keys.Sec
+	if len(meta.Legend) == 0 {
+		meta.Legend = "(a branch)"
+	}
+	meta.Clock.Src = KeyLet(meta.Crypto)
+	if meta.Clock.Seq == 0 {
+		meta.Clock.Seq = Timestamp()
+	}
+	branch.BranchMeta = *meta
 	private := make(Stage)
 	_ = private.Add(branch.MetaRDX(ID{branch.Clock.Src, 0}))
 	return branch.makeTip([]Sha256{branch.Brix.Hash7574()}, private)
@@ -471,6 +489,10 @@ type BranchMeta struct {
 
 func (meta *BranchMeta) Load(val Stream) (err error) {
 	it := NewIter(val)
+	if !it.Read() || it.Lit() != Tuple {
+		return ErrBadRecord
+	}
+	it = NewIter(it.Value())
 	if !it.Read() || it.Lit() != Reference {
 		return ErrBadRecord
 	}
