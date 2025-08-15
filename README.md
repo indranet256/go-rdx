@@ -9,8 +9,17 @@ that all CRDTs are now implemented by iterator
 heap merge, mainly thanks to the new [DISCONT][d]
 linear collection CRDT.
 
+The `repl/` directory contains a small RDX-based LISP
+named `yell` and its REPL. See the `test/` dir for
+examples of `yell` scripts.
+
 ##  Changelog
 
+  - 14 Aug 2025: implemented the basic branching machinery:
+    fork, save/stash/seal, join, merge, etc.
+  - 31 Jul 2025: added `yell` REPL
+  - 19 Jul 2025: added an RDX diff implementation, based on
+    recursive Dijkstra. Can make RDX patches now!
   - 4 Jul 2025: added a small LISP for scripting and testing
     (many thanks to I.Ramadhan)
   - 29 Jun 2025: implemented the basics of the Merklefied LSM 
