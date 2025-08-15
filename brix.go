@@ -962,15 +962,15 @@ func (brix Brix) merge(base Sha256) (sha Sha256, err error) {
 }
 
 func (brix Brix) Merge(base int) (sha Sha256, err error) {
+	if base >= len(brix) {
+		return Sha256{}, ErrOutOfRange
+	}
 	w := Brik{}
 	meta := make([]Sha256, 0, len(brix))
 	if base == 0 {
 		meta = append(meta, Sha256{})
 	} else {
 		meta = append(meta, brix[base-1].Hash7574)
-	}
-	if base+1 >= len(brix) {
-		return Sha256{}, ErrOutOfRange
 	}
 	merged := brix[base:]
 	for _, m := range merged {

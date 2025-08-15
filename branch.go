@@ -269,36 +269,26 @@ func (branch *Branch) Save() (sha Sha256, err error) {
 	return
 }
 
-// FIXME move to Brix
-func (branch *Branch) Compact(saveLen int) (sha Sha256, err error) {
-	joined := branch.Brix[saveLen:]
-	base := Sha256{}
-	if len(joined) == 0 {
-		err = ErrNoJoinedChanges
-		return
-	}
-	if saveLen > 0 {
-		base = branch.Brix[saveLen-1].Hash7574
-	}
-	var brik Brik
-	sha, err = joined.merge(base)
-	if err != nil {
-		return
-	}
-	err = brik.OpenByHash(sha)
-	if err != nil {
-		return
-	}
-	branch.Brix = branch.Brix[:saveLen]
-	branch.Brix = append(branch.Brix, &brik)
-	return
-}
-
 // Takes any joined changes, merges those into a new brik.
 // Saves that brik, replaces the joined briks.
 // Returns the hash.
 func (branch *Branch) Merge() (sha Sha256, err error) {
-	sha, err = branch.Compact(branch.Len)
+	if len(branch.Brix) == branch.Len {
+		err = ErrNoJoinedChanges
+	}
+	sha, err = branch.Brix.Merge(branch.Len)
+	if err != nil {
+		return
+	}
+	var newBrik Brik
+	err = newBrik.OpenByHash(sha)
+	if err != nil {
+		return
+	}
+	joined := branch.Brix[branch.Len:]
+	_ = joined.Close()
+	branch.Brix = branch.Brix[:branch.Len]
+	branch.Brix = append(branch.Brix, &newBrik)
 	branch.Len++
 	err = branch.retip([]Sha256{sha})
 	return

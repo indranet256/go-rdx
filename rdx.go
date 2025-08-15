@@ -372,7 +372,7 @@ func CompareEuler(a *Iter, b *Iter) int {
 func CompareMultix(a *Iter, b *Iter) int {
 	if a.ID().Src < b.ID().Src {
 		return Less
-	} else if a.ID().Src < b.ID().Src {
+	} else if a.ID().Src > b.ID().Src {
 		return Grtr
 	}
 	return Eq
