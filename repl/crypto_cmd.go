@@ -20,15 +20,14 @@ func CmdSumSha256(ctx *REPL, arg *rdx.Iter) (ret []byte, err error) {
 }
 
 func CmdCryptoKeyGen(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	pub, sec, err := ed25519.GenerateKey(nil)
+	_, sec, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		return nil, err
 	}
 
-	pubHex := hex.EncodeToString(pub)
 	secHex := hex.EncodeToString(sec)
 
-	out = rdx.P0(rdx.S0(pubHex), rdx.S0(secHex))
+	out = rdx.S0(secHex)
 
 	return out, nil
 }
@@ -37,19 +36,12 @@ func CmdCryptoSign(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if !args.Read() {
 		return nil, ErrNoArgument
 	}
-	if args.Lit() != rdx.Tuple {
-		return nil, errors.New("first argument must be a keypair tuple")
+	if args.Lit() != rdx.String {
+		return nil, errors.New("first argument must be a ed25519 key in hex")
 	}
 
 	var privKey []byte
-	keyIter := rdx.NewIter(args.Value())
-	if !keyIter.Read() { // public key
-		return nil, errors.New("malformed keypair tuple: missing public key")
-	}
-	if !keyIter.Read() { // private key
-		return nil, errors.New("malformed keypair tuple: missing private key")
-	}
-	privKeyHex := keyIter.String()
+	privKeyHex := args.String()
 	privKey, err = hex.DecodeString(privKeyHex)
 	if err != nil {
 		return nil, fmt.Errorf("invalid private key hex: %w", err)
@@ -69,20 +61,15 @@ func CmdCryptoSign(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 
 func CmdCryptoVerify(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	// 1. Get key argument.
-	if !args.Read() {
+	if !args.Read() || args.Lit() != rdx.String {
 		return nil, errors.New("missing key argument")
 	}
 
 	// 2. Extract public key.
 	var pubKey []byte
-	if args.Lit() == rdx.Tuple {
-		keyIter := rdx.NewIter(args.Value())
-		if !keyIter.Read() {
-			return nil, errors.New("malformed keypair tuple")
-		}
-		pubKey, err = hex.DecodeString(keyIter.String())
-	} else if args.Lit() == rdx.String {
-		pubKey, err = hex.DecodeString(args.String())
+	pubKey, err = hex.DecodeString(args.String())
+	if len(pubKey) == ed25519.PrivateKeySize {
+		pubKey = ed25519.PrivateKey(pubKey).Public().(ed25519.PublicKey)
 	}
 	if err != nil || pubKey == nil || len(pubKey) != ed25519.PublicKeySize {
 		return nil, fmt.Errorf("invalid public key: %w", err)
