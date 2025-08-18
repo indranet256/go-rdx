@@ -67,6 +67,7 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{178808, 10185596}:      CmdGetBrix,    // get-brix(id)
 	rdx.ID{11689452, 10185596}:    CmdHashBrix,   // hash-brix
 	rdx.ID{11689452, 41718065644}: CmdHashBranch, // hash-branch
+	rdx.ID{12770808, 41718065644}: CmdListBranch, // list-branch
 	rdx.ID{12770808, 10185583}:    CmdListBrik,   // list-brik
 	rdx.ID{667106793, 10185583}:   CmdClose,      // close-brik
 	rdx.ID{12770808, 10185596}:    CmdListBrix,   // list-brix
@@ -82,6 +83,7 @@ var Yell = map[rdx.ID]Command{
 	rdx.ID{13585010, 936532457}: CmdOpenSpace, // open-space(handle)
 	rdx.ID{0, 936532457}:        CmdOpenSpace, // space handle
 	rdx.ID{14601467, 936532457}: CmdShowSpace, // show-space
+	rdx.ID{12770808, 936532457}: CmdListSpace, // lits-space
 
 	rdx.ID{0xb68, 0x2dcb8}: CmdIdInt, // id-int
 	rdx.ID{0xb68, 208123}:  CmdIdNow, // id-now

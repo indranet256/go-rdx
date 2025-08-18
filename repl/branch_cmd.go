@@ -18,20 +18,17 @@ func (repl *REPL) pickHandle(args rdx.Iter) (handle uint64, err error) {
 	return
 }
 
-// space: < (@bE4Kc2Ofc-23b2 crypto "Changes to the yell crypto API" pubkey), ...>
-// branch: { (@bE4Kc2Ofc-23bd tag "Ed25519 extended" hash) }
-// make-branch(legend {rest})
 func CmdMakeBranch(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 	if !repl.space.IsOpen() {
 		return nil, ErrNoSpaceOpen
 	}
 	pub, sec, _ := ed25519.GenerateKey(nil)
-	meta := rdx.BranchMeta{
-		Legend: "(a branch)",
-		Crypto: sec,
+	meta := rdx.BranchInfo{
+		Title: "(a branch)",
+		Key:   sec,
 	}
 	if args.Read() {
-		meta.Legend, err = pickString(*args)
+		meta.Title, err = pickString(*args)
 		if err != nil {
 			return
 		}
@@ -41,9 +38,9 @@ func CmdMakeBranch(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 		return
 	}
 	id0 := rdx.ID{meta.Clock.Src, 0}
-	meta.Crypto = pub
-	record := meta.MetaRDX(id0)
-	err = repl.space.Add(record)
+	meta.Key = pub
+	pubRecord := meta.SaveRDX()
+	err = repl.space.Add(pubRecord)
 	if err != nil {
 		return
 	}
@@ -68,13 +65,18 @@ func CmdListBranches(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 
 // fork -> s4a35Rlh6N-0
 func CmdFork(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	meta := rdx.BranchMeta{Legend: "(a branch)"}
+	meta := rdx.BranchInfo{Title: "(a branch)"}
 	if args.Read() {
 		if args.Lit() == rdx.Term || args.Lit() == rdx.String {
-			meta.Legend = string(args.Value())
+			meta.Title = string(args.Value())
 		}
 	}
 	err = repl.branch.Fork(&meta)
+	if err == nil && repl.space.IsOpen() {
+		meta.Key = meta.PublicKey()
+		rec := meta.SaveRDX()
+		err = repl.space.Add(rec)
+	}
 	if err == nil {
 		out = rdx.R0(repl.branch.Clock)
 	}
@@ -472,9 +474,22 @@ func CmdDrop(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 // commit -> branch-345
 // save -> f2ae63
 func CmdSeal(repl *REPL, args *rdx.Iter) (out []byte, err error) {
-	err = repl.branch.Seal() // TODO id
+	comment := "(a commit)"
+	err = repl.branch.Seal()
+	hash := repl.branch.Brix.Hash7574()
+	if err == nil && repl.space.IsOpen() {
+		meta := rdx.BranchInfo{
+			Title: comment,
+			Key:   hash.Bytes(),
+		}
+		rec := meta.SaveRDX()
+		err = repl.space.Add(rec)
+		if err == nil {
+			err = repl.space.Seal()
+		}
+	}
 	if err == nil {
-		out = rdx.S0(repl.branch.Brix.Hash7574().String())
+		out = rdx.R0(repl.branch.Clock)
 	}
 	return
 }
@@ -509,5 +524,19 @@ func CmdStash(repl *REPL, args *rdx.Iter) (out []byte, err error) {
 // Seals the joined and staged changes.
 // Adds a workspace commit record to reflect that.
 func CmdCommit(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	return
+}
+
+func CmdListBranch(repl *REPL, args *rdx.Iter) (out []byte, err error) {
+	/*vid := rdx.ID{0, rand.Uint64() & rdx.Mask60bit}
+	id := rdx.ID{repl.space.Clock.Src, rdx.IdCommitList}
+	var list rdx.Stream
+	list, err = repl.space.Get(id)
+	if err == nil {
+		var it rdx.Iter
+		it = rdx.NewIter(list)
+		repl.vals[vid] = &it
+		out = rdx.R0(vid)
+	}*/
 	return
 }

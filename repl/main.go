@@ -49,8 +49,6 @@ func EvalArgs(repl *REPL) (err error) {
 		return
 	}
 
-	repl.InitTerm()
-
 	out, err = repl.Evaluate(cmds)
 	jdr, _ := rdx.WriteAllJDR(nil, out, 0)
 	if len(jdr) > 0 {
@@ -77,7 +75,8 @@ func FileExists(path string) bool {
 func main() {
 	var err error
 	repl := NewREPL(Yell, nil)
-
+	repl.InitTerm()
+	
 	if len(os.Args) == 1 {
 		for err == nil {
 			err = repl.Loop(os.Stdin, os.Stdout)

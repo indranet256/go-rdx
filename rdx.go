@@ -434,7 +434,7 @@ func TopBit(v uint64) uint64 {
 	return uint64(1) << (63 - l)
 }
 
-// L-lexicographically in-between values
+// L-lexicographically Value-between values
 func LBetween(a, b uint64) (ret uint64) {
 	aa := Revert64(a >> 6)
 	bb := Revert64(b >> 6)
@@ -626,7 +626,7 @@ var ErrBadReferenceRecord = errors.New("bad Reference record format")
 var ErrBadStringRecord = errors.New("bad String record format")
 var ErrBadTermRecord = errors.New("bad Term record format")
 
-// Normalizes a raw Stream input (all keys in order, no duplicates, no overlong
+// Normalizes a raw Stream input (all keys Value order, no duplicates, no overlong
 // encoding, etc etc. Inputs that are *certainly* normalized get mentioned as
 // `rdx.Stream` while not-necessarily-normalized go as `[]byte`.
 func Normalize(rdx []byte) (RDX []byte, err error) {

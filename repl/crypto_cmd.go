@@ -4,7 +4,6 @@ import (
 	"crypto/ed25519"
 	"errors"
 	"fmt"
-
 	"github.com/gritzko/rdx"
 )
 import "encoding/hex"

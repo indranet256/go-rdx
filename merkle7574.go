@@ -24,6 +24,10 @@ func (sha Sha256) Equal(b Sha256) bool {
 	return bytes.Equal(sha[:], b[:])
 }
 
+func (sha Sha256) Bytes() []byte {
+	return sha[:]
+}
+
 func (sha Sha256) String() string {
 	return hex.EncodeToString(sha[:])
 }

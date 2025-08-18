@@ -392,3 +392,46 @@ func HeapMerge(data []byte, inputs [][]byte, Z Compare) (res []byte, err error) 
 	}
 	return
 }
+
+type ObjectReader struct {
+	it    Iter
+	Key   string
+	Value Iter
+}
+
+func NewObjectReader(rdx []byte) (o ObjectReader, err error) {
+	i := NewIter(rdx)
+	if !i.Read() || i.Lit() != Euler {
+		return ObjectReader{}, ErrBadRecord
+	}
+	o.it = NewIter(i.Value())
+	return
+}
+
+func (o *ObjectReader) Read() bool {
+	for o.it.Read() {
+		if o.it.Lit() != Tuple {
+			continue
+		}
+		o.Value = NewIter(o.it.Value())
+		if !o.Value.Read() || o.Value.Lit() != Term {
+			continue
+		}
+		o.Key = o.Value.String()
+		o.Value.Read()
+		return true
+	}
+	return false
+}
+
+func (o *ObjectReader) Record() Stream {
+	return o.Value.Rest()
+}
+
+func (o *ObjectReader) Parsed() (lit byte, id ID, value []byte) {
+	return o.Value.Parsed()
+}
+
+func (o *ObjectReader) Error() error {
+	return o.it.Error()
+}

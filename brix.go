@@ -150,13 +150,13 @@ type Brik struct {
 	Data ReaderAt
 	// File header, section lengths
 	Header BrikHeader
-	// Brik position in the Wall, expressed as hashes
+	// Brik position Value the Wall, expressed as hashes
 	// 0. base brick hash
 	// 1. orig brick hash
 	// *. merged hashes
 	Meta []Sha256
 	// there are two types of blocks, my friend,
-	// the ones that fit in 4K
+	// the ones that fit Value 4K
 	// and the ones that only have one record
 	Index []IndexEntry
 	// RFC 7574 peak hashes

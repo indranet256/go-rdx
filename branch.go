@@ -8,8 +8,20 @@ import (
 	"os"
 )
 
+const KeyClock = "clock"
+const KeyEd25519 = "ed25519"
+const KeyHead = "head"
+const KeyTitle = "title"
+
+type BranchInfo struct {
+	Clock ID
+	Title string
+	Key   []byte
+	Head  ID
+}
+
 type Branch struct {
-	BranchMeta
+	BranchInfo
 
 	Brix  Brix
 	Tip   Brik
@@ -23,20 +35,70 @@ func (branch *Branch) IsWritable() bool {
 	return branch.Clock.Src != 0
 }
 
-func (branch *Branch) PubKey() ed25519.PublicKey {
-	if len(branch.Crypto) == ed25519.PublicKeySize {
-		return branch.Crypto
-	} else if len(branch.Crypto) == ed25519.PrivateKeySize {
-		return branch.Crypto[ed25519.PrivateKeySize:]
+func (branch *BranchInfo) PublicKey() ed25519.PublicKey {
+	if len(branch.Key) == ed25519.PublicKeySize {
+		return branch.Key
+	} else if len(branch.Key) == ed25519.PrivateKeySize {
+		return ed25519.PrivateKey(branch.Key).Public().(ed25519.PublicKey)
 	}
 	return nil
 }
 
-func (branch *Branch) PrivKey() ed25519.PrivateKey {
-	if len(branch.Crypto) == ed25519.PrivateKeySize {
-		return branch.Crypto
+func (branch *BranchInfo) PrivKey() ed25519.PrivateKey {
+	if len(branch.Key) == ed25519.PrivateKeySize {
+		return branch.Key
 	}
 	return nil
+}
+
+func (info *BranchInfo) LoadRDX(record Stream) (err error) {
+	var inner ObjectReader
+	inner, err = NewObjectReader(record)
+	if err != nil {
+		return
+	}
+	for inner.Read() {
+		val := &inner.Value
+		switch inner.Key {
+		case KeyTitle:
+			if val.Lit() == String {
+				info.Title = string(val.Value())
+			}
+		case KeyClock:
+			if val.Lit() == Reference {
+				info.Clock = val.Reference()
+			}
+		case KeyHead:
+			if val.Lit() == Reference {
+				info.Head = val.Reference()
+			}
+		case KeyEd25519:
+			if val.Lit() == String {
+				var keyhex []byte
+				keyhex, err = hex.DecodeString(string(val.Value()))
+				if err != nil {
+					return
+				}
+				if len(keyhex) != ed25519.PublicKeySize && len(keyhex) != ed25519.PrivateKeySize {
+					return errors.New("invalid ed25519 key size")
+				}
+				info.Key = keyhex
+			}
+		}
+	}
+	return
+
+}
+
+func (info *BranchInfo) SaveRDX() (record Stream) {
+	id := ID{KeyLet(info.PublicKey()), 0}
+	record = E(id,
+		P0(T0(KeyClock), R0(info.Clock)),
+		P0(T0(KeyEd25519), S0(hex.EncodeToString(info.Key))),
+		P0(T0(KeyHead), R0(info.Head)),
+		P0(T0(KeyTitle), S0(info.Title)),
+	)
+	return
 }
 
 type KeyPair struct {
@@ -62,6 +124,9 @@ func (pair *KeyPair) RDX() Stream {
 }
 
 func KeyLet(pub []byte) uint64 {
+	if len(pub) < 8 {
+		return 0
+	}
 	return binary.LittleEndian.Uint64(pub) & Mask60bit
 }
 
@@ -128,7 +193,7 @@ func (branch *Branch) Open(id ID) (err error) {
 	if err != nil {
 		return
 	}
-	err = branch.BranchMeta.Load(metaRec)
+	err = branch.BranchInfo.LoadRDX(metaRec)
 	if err != nil {
 		return
 	}
@@ -137,7 +202,7 @@ func (branch *Branch) Open(id ID) (err error) {
 	if reflen > 2 {
 		return ErrBadTipFormat
 	}
-	if reflen > 0 {
+	if reflen > 0 && !branch.Tip.Meta[0].IsEmpty() {
 		branch.Brix, err = branch.Brix.OpenByHash(branch.Tip.Meta[0])
 		if err != nil { // FIXME
 			return
@@ -203,7 +268,7 @@ func (branch *Branch) Tick() ID {
 
 // Adds a record change.
 func (branch *Branch) Add(delta Stream) (err error) {
-	// FIXME here and in other places: normalize
+	// FIXME here and Value other places: normalize
 	it := NewIter(delta)
 	if !it.Read() {
 		return ErrBadRecord
@@ -407,7 +472,7 @@ func (branch *Branch) Seal() (err error) {
 	file, err = os.OpenFile(top.File.Name(), os.O_WRONLY|os.O_APPEND, 0o755)
 	if err == nil {
 		sign := ed25519.Sign(branch.PrivKey(), top.Hash7574[:])
-		err = writeAll(file, top.Hash7574[:], branch.PubKey(), sign)
+		err = writeAll(file, top.Hash7574[:], branch.PublicKey(), sign)
 		_ = file.Close()
 	}
 	if err == nil {
@@ -419,29 +484,29 @@ func (branch *Branch) Seal() (err error) {
 	return
 }
 
-func (branch *Branch) Fork(meta *BranchMeta) (err error) {
+func (branch *Branch) Fork(info *BranchInfo) (err error) {
 	//if len(branch.Stage) != 0 {  FIXME check if the changes were saved
 	//	return ErrHasStagedChanges
 	//}
-	branch.Stage = make(Stage)
 	err = branch.CloseJoined()
 	if err != nil {
 		return
 	}
-	if len(meta.Crypto) != ed25519.PrivateKeySize {
+	if len(info.Key) != ed25519.PrivateKeySize {
 		_, sec, _ := ed25519.GenerateKey(nil)
-		meta.Crypto = sec
+		info.Key = sec
 	}
-	if len(meta.Legend) == 0 {
-		meta.Legend = "(a branch)"
+	if len(info.Title) == 0 {
+		info.Title = "(a branch)"
 	}
-	meta.Clock.Src = KeyLet(meta.Crypto)
-	if meta.Clock.Seq == 0 {
-		meta.Clock.Seq = Timestamp()
+	info.Clock.Src = KeyLet(info.PublicKey())
+	if info.Clock.Seq == 0 {
+		info.Clock.Seq = Timestamp()
 	}
-	branch.BranchMeta = *meta
+	branch.BranchInfo = *info
+	branch.Stage = make(Stage)
 	private := make(Stage)
-	_ = private.Add(branch.MetaRDX(ID{branch.Clock.Src, 0}))
+	_ = private.Add(branch.SaveRDX())
 	return branch.makeTip([]Sha256{branch.Brix.Hash7574()}, private)
 }
 
@@ -478,48 +543,4 @@ func writeAll(file *os.File, data ...[]byte) (err error) {
 		}
 	}
 	return
-}
-
-type BranchMeta struct {
-	Clock  ID
-	Legend string
-	Crypto []byte
-	Rest   Stream
-}
-
-func (meta *BranchMeta) Load(val Stream) (err error) {
-	it := NewIter(val)
-	if !it.Read() || it.Lit() != Tuple {
-		return ErrBadRecord
-	}
-	it = NewIter(it.Value())
-	if !it.Read() || it.Lit() != Reference {
-		return ErrBadRecord
-	}
-	meta.Clock = it.Reference()
-	if !it.Read() || (it.Lit() != String && it.Lit() != Term) {
-		return ErrBadRecord
-	}
-	meta.Legend = it.String()
-	if !it.Read() || (it.Lit() != String && it.Lit() != Term) {
-		return ErrBadRecord
-	}
-	meta.Crypto, err = hex.AppendDecode(nil, it.Value())
-	if err != nil {
-		return err
-	}
-	if len(it.Rest()) != 0 {
-		meta.Rest = make(Stream, len(it.Rest()))
-		copy(meta.Rest, it.Rest())
-	}
-	return nil
-}
-
-func (meta *BranchMeta) MetaRDX(id ID) (val Stream) {
-	return P(id,
-		R0(meta.Clock),
-		S0(meta.Legend),
-		S0(hex.EncodeToString(meta.Crypto)),
-		meta.Rest,
-	)
 }
